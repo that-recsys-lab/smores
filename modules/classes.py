@@ -331,7 +331,11 @@ class Consumer:
         else:
             # User didn't click on anything
             responses = [{'click': 0} for _ in range(len(slate_documents))]
-
+            
+        # Null option: If no documents were clicked, return null_option = True
+        if all(response["click"] == 0 for response in responses):
+            return [{"click": 0, "null_option": True}]  # Trigger the null option
+        
         # update state
         self.update_state(slate_documents, responses, recommender_system_id)
 
