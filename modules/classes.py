@@ -265,14 +265,23 @@ class Consumer:
         Returns:
             int: Index of the selected document in the input list.
         """
+        # Print the document probabilities
         probabilities = self._score_documents(documents)
-    
-        if np.all(probabilities == 0):
+        print(f"Document probabilities: {probabilities}")
+        # Print the consumer's preferences
+        print(f"Consumer preferences: {self.category_preferences}")
+        threshold = 0.2
+
+        
+        if np.max(probabilities) < threshold:
+            # Print why null option is being selected
+            print(f"Null option triggered because max probability {np.max(probabilities)} is less than threshold {threshold}")
             return None
         else:
             # Select an index based on the computed probabilities
             selected_index = np.random.choice(len(documents), p=probabilities)
-
+            # What doucments are being selected.
+            print(f"Selected document index: {selected_index}, Probability: {probabilities[selected_index]}")
             return selected_index
     
     def _score_documents(self, documents):
@@ -333,8 +342,8 @@ class Consumer:
             responses = [{'click': 0} for _ in range(len(slate_documents))]
             
         # Null option: If no documents were clicked, return null_option = True
-        if all(response["click"] == 0 for response in responses):
-            return [{"click": 0, "null_option": True}]  # Trigger the null option
+        # if all(response["click"] == 0 for response in responses):
+          #  return [{"click": 0, "null_option": True}]  # Trigger the null option
         
         # update state
         self.update_state(slate_documents, responses, recommender_system_id)
