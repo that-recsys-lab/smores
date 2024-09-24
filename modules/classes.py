@@ -267,21 +267,12 @@ class Consumer:
         """
         # Print the document probabilities
         probabilities = self._score_documents(documents)
-        print(f"Document probabilities: {probabilities}")
-        # Print the consumer's preferences
-        print(f"Consumer preferences: {self.category_preferences}")
-        threshold = 0.2
-
         
-        if np.max(probabilities) < threshold:
-            # Print why null option is being selected
-            print(f"Null option triggered because max probability {np.max(probabilities)} is less than threshold {threshold}")
+        if np.sum(probabilities) == 0:
+            print(f"Consumer {self.consumer_id}: Null option triggered because all document scores are below the threshold.")
             return None
         else:
-            # Select an index based on the computed probabilities
             selected_index = np.random.choice(len(documents), p=probabilities)
-            # What doucments are being selected.
-            print(f"Selected document index: {selected_index}, Probability: {probabilities[selected_index]}")
             return selected_index
     
     def _score_documents(self, documents):
@@ -296,8 +287,8 @@ class Consumer:
         """
         # Placeholder for document scores
         scores = np.zeros(len(documents))
-        
-        # Calculate utility for each document based on category similarity and document position
+
+        # Calculate utility for each document based on category similarity
         for i, doc in enumerate(documents):
             category_similarity = 0.0
             for category in doc.categories:
@@ -305,12 +296,20 @@ class Consumer:
                     category_similarity -= 1
                 else:
                     category_similarity += self.category_preferences.get(category, 0)
-            category_similarity /= len(doc.categories) if len(doc.categories) > 0 else 1  # Handle zero division
             scores[i] = category_similarity
-            
-        probabilities = np.exp(scores - np.max(scores)) / np.sum(np.exp(scores - np.max(scores)))
+
+        print(f"Consumer {self.consumer_id} - Scores: {scores}")
+        print(f"Consumer {self.consumer_id} - Max Score: {np.max(scores)}")
+
+        threshold = 0.05
+        if np.all(scores <= threshold):
+            print(f"Consumer {self.consumer_id}: All scores are below or equal to the threshold.")
+            probabilities = np.zeros(len(scores))
+        else:
+            print(f"Consumer {self.consumer_id}: At least one score is above the threshold.")
+            probabilities = np.exp(scores - np.max(scores)) / np.sum(np.exp(scores - np.max(scores)))
         return probabilities
-    
+
     def simulate_response(self, slate_documents, recommender_system_id):
         """
         Simulate response to a slate of documents and return the responses.
@@ -340,11 +339,7 @@ class Consumer:
         else:
             # User didn't click on anything
             responses = [{'click': 0} for _ in range(len(slate_documents))]
-            
-        # Null option: If no documents were clicked, return null_option = True
-        # if all(response["click"] == 0 for response in responses):
-          #  return [{"click": 0, "null_option": True}]  # Trigger the null option
-        
+
         # update state
         self.update_state(slate_documents, responses, recommender_system_id)
 
