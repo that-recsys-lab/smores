@@ -298,15 +298,15 @@ class Consumer:
                     category_similarity += self.category_preferences.get(category, 0)
             scores[i] = category_similarity
 
-        print(f"Consumer {self.consumer_id} - Scores: {scores}")
-        print(f"Consumer {self.consumer_id} - Max Score: {np.max(scores)}")
+       # print(f"Consumer {self.consumer_id} - Scores: {scores}") 
+       # print(f"Consumer {self.consumer_id} - Max Score: {np.max(scores)}")
 
-        threshold = 0.05
+        threshold = 0.1
         if np.all(scores <= threshold):
-            print(f"Consumer {self.consumer_id}: All scores are below or equal to the threshold.")
+          #  print(f"Consumer {self.consumer_id}: All scores are below or equal to the threshold.")
             probabilities = np.zeros(len(scores))
         else:
-            print(f"Consumer {self.consumer_id}: At least one score is above the threshold.")
+          #  print(f"Consumer {self.consumer_id}: At least one score is above the threshold.")
             probabilities = np.exp(scores - np.max(scores)) / np.sum(np.exp(scores - np.max(scores)))
         return probabilities
 
@@ -327,6 +327,7 @@ class Consumer:
         click_prob = np.random.random()
         if click_prob <= 1:  # 100% chance of clicking
             selected_index = self.choice_model(slate_documents)
+           # print(selected_index)
             if selected_index is not None:
                 for i, doc in enumerate(slate_documents):
                     if i == selected_index:
@@ -336,9 +337,11 @@ class Consumer:
             else:
                 # If choice model returned None, return all zeros
                 responses = [{'click': 0} for _ in range(len(slate_documents))]
+                print("Choice Model returned none")
         else:
             # User didn't click on anything
             responses = [{'click': 0} for _ in range(len(slate_documents))]
+            print("User didn't click anything.")
 
         # update state
         self.update_state(slate_documents, responses, recommender_system_id)
