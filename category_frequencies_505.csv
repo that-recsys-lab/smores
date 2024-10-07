@@ -1,0 +1,21 @@
+experiment_name,recommender_id,category,frequency
+Experiment 1,popular_1_exp_0_seed_None,Western,201560
+Experiment 1,popular_1_exp_0_seed_None,Comedy,2842721
+Experiment 1,popular_1_exp_0_seed_None,Drama,2943586
+Experiment 1,popular_1_exp_0_seed_None,Thriller,1026292
+Experiment 1,popular_1_exp_0_seed_None,Horror,143354
+Experiment 1,popular_1_exp_0_seed_None,Adventure,255900
+Experiment 1,popular_1_exp_0_seed_None,Crime,195042
+Experiment 1,popular_1_exp_0_seed_None,Documentary,124800
+Experiment 1,popular_1_exp_0_seed_None,Sci-Fi,887301
+Experiment 1,popular_1_exp_0_seed_None,Mystery,822948
+Experiment 1,popular_1_exp_0_seed_None,Fantasy,114908
+Experiment 1,popular_1_exp_0_seed_None,Children,101849
+Experiment 1,popular_1_exp_0_seed_None,Action,2504190
+Experiment 1,popular_1_exp_0_seed_None,Musical,49685
+Experiment 1,popular_1_exp_0_seed_None,Romance,1740392
+Experiment 1,popular_1_exp_0_seed_None,Animation,86083
+Experiment 1,popular_1_exp_0_seed_None,War,797892
+Experiment 1,popular_1_exp_0_seed_None,Film-Noir,8041
+Experiment 1,popular_1_exp_0_seed_None,(no genres listed),44996
+Experiment 1,popular_1_exp_0_seed_None,IMAX,17761
