@@ -57,12 +57,20 @@ class PopularRecommender(Recommender):
                     if random.random() < self.exploration_prob and len(self.sorted_documents) > slate_size:
                         # Explore by randomly selecting documents with consumer's top genres
                         genre_filtered_documents = [doc for doc in self.documents if top_genres.intersection(doc.categories)]
-                        # if weighted category available
-                        if self.weighted_category:
-                            weights = [doc.weight for doc in genre_filtered_documents]
-                            recommended_documents = random.choices(genre_filtered_documents, weights=weights, k=slate_size)
+                        
+                        if len(genre_filtered_documents) > slate_size:
+                            # if weighted category available
+                            if self.weighted_category:
+                                weights = [doc.weight for doc in genre_filtered_documents]
+                                recommended_documents = random.choices(genre_filtered_documents, weights=weights, k=slate_size)
+                            else:
+                                recommended_documents = random.sample(genre_filtered_documents, slate_size)
                         else:
-                            recommended_documents = random.sample(genre_filtered_documents, slate_size)
+                            # If not enough items in the genre filtered, recommend from the genres the ones the user already liked
+                            category_preferences_set = set(self.consumer_category_preferences[consumer_id].keys())
+                            if category_preferences_set: # if the consumer alraedy liked some objects
+                                genre_filtered_documents = [doc for doc in self.sorted_documents if category_preferences_set.intersection(doc.categories)]
+                                recommended_documents = genre_filtered_documents[:slate_size] 
                     else:
                         # Exploit by recommending popular documents with consumer's top genres
                         category_preferences_set = set(self.consumer_category_preferences[consumer_id].keys())

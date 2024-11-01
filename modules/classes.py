@@ -296,11 +296,15 @@ class Consumer:
                     category_similarity -= 1
                 else:
                     category_similarity += self.category_preferences.get(category, 0)
+                    
             scores[i] = category_similarity
-
-       # print(f"Consumer {self.consumer_id} - Scores: {scores}") 
-       # print(f"Consumer {self.consumer_id} - Max Score: {np.max(scores)}")
-
+            
+        ### logging ###
+        # if self.category_preferences['Western'] >= 0.15:
+        #     print('Niche consumer', self.consumer_id,':', np.round(scores,3))
+        # else:
+        #     print('Mainstream consumer', self.consumer_id,':', np.round(scores,3))
+        
         threshold = 0.1
         if np.all(scores <= threshold):
           #  print(f"Consumer {self.consumer_id}: All scores are below or equal to the threshold.")
