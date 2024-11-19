@@ -1,0 +1,39 @@
+experiment_name,recommender_id,category,frequency
+Experiment 1,popular_1_exp_0_seed_None,Thriller,277605
+Experiment 1,popular_1_exp_0_seed_None,Adventure,822032
+Experiment 1,popular_1_exp_0_seed_None,Crime,170646
+Experiment 1,popular_1_exp_0_seed_None,Action,322120
+Experiment 1,popular_1_exp_0_seed_None,Horror,113452
+Experiment 1,popular_1_exp_0_seed_None,Drama,3062720
+Experiment 1,popular_1_exp_0_seed_None,Science Fiction,133941
+Experiment 1,popular_1_exp_0_seed_None,Comedy,1750322
+Experiment 1,popular_1_exp_0_seed_None,Western,151481
+Experiment 1,popular_1_exp_0_seed_None,Fantasy,725934
+Experiment 1,popular_1_exp_0_seed_None,Family,747992
+Experiment 1,popular_1_exp_0_seed_None,Music,1304151
+Experiment 1,popular_1_exp_0_seed_None,War,33573
+Experiment 1,popular_1_exp_0_seed_None,Romance,2113517
+Experiment 1,popular_1_exp_0_seed_None,History,46736
+Experiment 1,popular_1_exp_0_seed_None,Animation,81135
+Experiment 1,popular_1_exp_0_seed_None,Mystery,80570
+Experiment 1,popular_1_exp_0_seed_None,Documentary,57423
+Experiment 1,popular_1_exp_0_seed_None,Foreign,8008
+Experiment 1,popular_1_exp_0_seed_None,TV Movie,6748
+Experiment 1,popular_2_exp_0_seed_None,Mystery,143042
+Experiment 1,popular_2_exp_0_seed_None,Adventure,85312
+Experiment 1,popular_2_exp_0_seed_None,Western,969150
+Experiment 1,popular_2_exp_0_seed_None,Thriller,35933
+Experiment 1,popular_2_exp_0_seed_None,Romance,158884
+Experiment 1,popular_2_exp_0_seed_None,Comedy,358421
+Experiment 1,popular_2_exp_0_seed_None,Action,402938
+Experiment 1,popular_2_exp_0_seed_None,Drama,242047
+Experiment 1,popular_2_exp_0_seed_None,Family,15583
+Experiment 1,popular_2_exp_0_seed_None,Crime,291306
+Experiment 1,popular_2_exp_0_seed_None,War,10308
+Experiment 1,popular_2_exp_0_seed_None,Science Fiction,153285
+Experiment 1,popular_2_exp_0_seed_None,Fantasy,148237
+Experiment 1,popular_2_exp_0_seed_None,Music,15571
+Experiment 1,popular_2_exp_0_seed_None,History,13110
+Experiment 1,popular_2_exp_0_seed_None,Horror,12875
+Experiment 1,popular_2_exp_0_seed_None,Animation,5170
+Experiment 1,popular_2_exp_0_seed_None,Documentary,2583

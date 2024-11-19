@@ -1,0 +1,38 @@
+experiment_name,recommender_id,category,frequency
+Experiment 1,popular_1_exp_0_seed_None,Romance,938943
+Experiment 1,popular_1_exp_0_seed_None,Drama,2708489
+Experiment 1,popular_1_exp_0_seed_None,Thriller,2274011
+Experiment 1,popular_1_exp_0_seed_None,Adventure,894889
+Experiment 1,popular_1_exp_0_seed_None,Western,158886
+Experiment 1,popular_1_exp_0_seed_None,History,52072
+Experiment 1,popular_1_exp_0_seed_None,Action,2986689
+Experiment 1,popular_1_exp_0_seed_None,Comedy,1889326
+Experiment 1,popular_1_exp_0_seed_None,Horror,140623
+Experiment 1,popular_1_exp_0_seed_None,Music,737899
+Experiment 1,popular_1_exp_0_seed_None,Crime,1515403
+Experiment 1,popular_1_exp_0_seed_None,Documentary,53401
+Experiment 1,popular_1_exp_0_seed_None,Science Fiction,151819
+Experiment 1,popular_1_exp_0_seed_None,Fantasy,120544
+Experiment 1,popular_1_exp_0_seed_None,Foreign,17003
+Experiment 1,popular_1_exp_0_seed_None,Mystery,1422477
+Experiment 1,popular_1_exp_0_seed_None,War,39015
+Experiment 1,popular_1_exp_0_seed_None,TV Movie,17196
+Experiment 1,popular_1_exp_0_seed_None,Animation,85940
+Experiment 1,popular_1_exp_0_seed_None,Family,140732
+Experiment 1,popular_2_exp_0_seed_None,Crime,13868
+Experiment 1,popular_2_exp_0_seed_None,Western,643650
+Experiment 1,popular_2_exp_0_seed_None,Action,270476
+Experiment 1,popular_2_exp_0_seed_None,Drama,175010
+Experiment 1,popular_2_exp_0_seed_None,Adventure,58703
+Experiment 1,popular_2_exp_0_seed_None,Science Fiction,190950
+Experiment 1,popular_2_exp_0_seed_None,Fantasy,187350
+Experiment 1,popular_2_exp_0_seed_None,Comedy,223979
+Experiment 1,popular_2_exp_0_seed_None,Family,8557
+Experiment 1,popular_2_exp_0_seed_None,Horror,98885
+Experiment 1,popular_2_exp_0_seed_None,War,10394
+Experiment 1,popular_2_exp_0_seed_None,Music,7032
+Experiment 1,popular_2_exp_0_seed_None,Thriller,10373
+Experiment 1,popular_2_exp_0_seed_None,Mystery,3451
+Experiment 1,popular_2_exp_0_seed_None,Romance,19107
+Experiment 1,popular_2_exp_0_seed_None,History,8632
+Experiment 1,popular_2_exp_0_seed_None,Animation,3407

@@ -1,0 +1,21 @@
+experiment_name,recommender_id,category,frequency
+Experiment 1,popular_1_exp_0_seed_None,Thriller,1124347
+Experiment 1,popular_1_exp_0_seed_None,Action,1127947
+Experiment 1,popular_1_exp_0_seed_None,Drama,3064651
+Experiment 1,popular_1_exp_0_seed_None,Crime,219404
+Experiment 1,popular_1_exp_0_seed_None,Comedy,2087476
+Experiment 1,popular_1_exp_0_seed_None,Horror,163330
+Experiment 1,popular_1_exp_0_seed_None,Romance,2587952
+Experiment 1,popular_1_exp_0_seed_None,Western,940237
+Experiment 1,popular_1_exp_0_seed_None,Mystery,103956
+Experiment 1,popular_1_exp_0_seed_None,Documentary,57477
+Experiment 1,popular_1_exp_0_seed_None,Fantasy,123651
+Experiment 1,popular_1_exp_0_seed_None,Family,150557
+Experiment 1,popular_1_exp_0_seed_None,Animation,94786
+Experiment 1,popular_1_exp_0_seed_None,Adventure,998335
+Experiment 1,popular_1_exp_0_seed_None,History,53525
+Experiment 1,popular_1_exp_0_seed_None,TV Movie,16221
+Experiment 1,popular_1_exp_0_seed_None,Music,74215
+Experiment 1,popular_1_exp_0_seed_None,Science Fiction,170638
+Experiment 1,popular_1_exp_0_seed_None,War,32773
+Experiment 1,popular_1_exp_0_seed_None,Foreign,14547
