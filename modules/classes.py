@@ -3,6 +3,7 @@ import random
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
+
 class Document:
     def __init__(self, doc_id, quality, categories, provider_id):
         self.doc_id = doc_id
@@ -11,22 +12,42 @@ class Document:
         self.provider_id = provider_id
         self.weight = 0.5
         self.normalized_categories_vector = self.normalize_categories()
-        
+
     def normalize_categories(self):
         categories_vector = {}
-        categories_list = ['Action', 'Adventure', 'Animation', 'Children', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Fantasy', 'Film-Noir', 'Horror', 'IMAX', 'Musical', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western']
+        categories_list = [
+            "Action",
+            "Adventure",
+            "Animation",
+            "Children",
+            "Comedy",
+            "Crime",
+            "Documentary",
+            "Drama",
+            "Fantasy",
+            "Film-Noir",
+            "Horror",
+            "IMAX",
+            "Musical",
+            "Mystery",
+            "Romance",
+            "Sci-Fi",
+            "Thriller",
+            "War",
+            "Western",
+        ]
         for cat in categories_list:
             if cat in self.categories:
                 categories_vector[cat] = 1.0
         return self.normalize(categories_vector)
-    
+
     @staticmethod
     def normalize(vector):
         total = sum(vector.values())
         if total == 0:
             return {key: 0 for key in vector}  # Handle case where total is zero
         return {key: value / total for key, value in vector.items()}
-        
+
     def __str__(self):
         return f"Document ID: {self.doc_id}, Quality: {self.quality}, Categories: {self.categories}, Provider ID: {self.provider_id}"
 
@@ -51,7 +72,9 @@ class Provider:
         self.pay_cycle_fee = {}
         self.pay_cycle_clicks = {}
         self.pay_cycle_shows = {}
-        self.adv_budget_per_document = np.random.lognormal(mean=9, sigma=1)  # Log-normal distribution for budget
+        self.adv_budget_per_document = np.random.lognormal(
+            mean=9, sigma=1
+        )  # Log-normal distribution for budget
 
     def subscribe_to_recommender_system(self, recommender_system_id):
         """
@@ -72,7 +95,7 @@ class Provider:
             recommender_system_id (str): Identifier of the recommender system to unsubscribe from.
         """
         self.connected_recommenders[recommender_system_id] = 0
-        
+
     def update_recommender_subscription(self):
         """
         Choose recommender systems based on historical profit
@@ -88,8 +111,17 @@ class Provider:
                     self.unsubscribe_from_recommender_system(recommender)
                     unsubscribed_list.append(recommender)
         return unsubscribed_list
-    
-    def update_profit(self, recommender_system_id, base_fee=0, total_fee=0, click_count=0, fee_per_click=0, show_count=0, fee_per_show=0):
+
+    def update_profit(
+        self,
+        recommender_system_id,
+        base_fee=0,
+        total_fee=0,
+        click_count=0,
+        fee_per_click=0,
+        show_count=0,
+        fee_per_show=0,
+    ):
         """
         Update the orofit of the provider for a specific recommender system based on clicks and total revenue.
 
@@ -102,15 +134,28 @@ class Provider:
             fee_per_show (float): Fee charged per show.
         """
         if recommender_system_id not in self.profit:
-            raise ValueError(f"Recommender system '{recommender_system_id}' is not connected to this provider.")
+            raise ValueError(
+                f"Recommender system '{recommender_system_id}' is not connected to this provider."
+            )
 
         # Calculate the recommender utility
-        recommender_utility = (self.utility_per_click * click_count + self.utility_per_show * show_count) - total_fee
+        recommender_utility = (
+            self.utility_per_click * click_count + self.utility_per_show * show_count
+        ) - total_fee
 
         # Append the utility to the list of utilities for the recommender system
         self.profit[recommender_system_id].append(recommender_utility)
 
-    def charge_subscription_fee(self, recommender_system_id, base_fee=0, total_fee=0, click_count=0, fee_per_click=0, show_count=0, fee_per_show=0):
+    def charge_subscription_fee(
+        self,
+        recommender_system_id,
+        base_fee=0,
+        total_fee=0,
+        click_count=0,
+        fee_per_click=0,
+        show_count=0,
+        fee_per_show=0,
+    ):
         """
         Charge subscription fee to the provider based on the number of clicks received.
 
@@ -123,15 +168,25 @@ class Provider:
             fee_per_show (float): Fee charged per show.
         """
         if recommender_system_id not in self.profit:
-            raise ValueError(f"Recommender system '{recommender_system_id}' is not connected to this provider.")
-            
+            raise ValueError(
+                f"Recommender system '{recommender_system_id}' is not connected to this provider."
+            )
+
         self.pay_cycle_fee.setdefault(recommender_system_id, []).append(total_fee)
         self.pay_cycle_clicks.setdefault(recommender_system_id, []).append(click_count)
         self.pay_cycle_shows.setdefault(recommender_system_id, []).append(show_count)
 
         # Update profit based on the total fee received
-        self.update_profit(recommender_system_id, base_fee, total_fee, click_count, fee_per_click, show_count, fee_per_show)
-        
+        self.update_profit(
+            recommender_system_id,
+            base_fee,
+            total_fee,
+            click_count,
+            fee_per_click,
+            show_count,
+            fee_per_show,
+        )
+
     def get_profit(self, recommender_system_id):
         """
         Get the profit of the provider for a specific recommender system.
@@ -143,12 +198,14 @@ class Provider:
             float: profit for the specified recommender system.
         """
         if recommender_system_id not in self.profit:
-            raise ValueError(f"Recommender system '{recommender_system_id}' is not connected to this provider.")
+            raise ValueError(
+                f"Recommender system '{recommender_system_id}' is not connected to this provider."
+            )
 
         # Calculate the average utility
         average_utility = np.mean(self.profit[recommender_system_id])
         return average_utility
-    
+
     def reset(self):
         self.profit = {}
         self.recommender_counts = {}
@@ -156,16 +213,23 @@ class Provider:
         self.pay_cycle_fee = {}
         self.pay_cycle_clicks = {}
         self.pay_cycle_shows = {}
-          
+
     def __str__(self):
         """
         Return a string representation of the Provider object.
         """
         return f"Provider {self.provider_id}: Documents={self.documents}, Categories={self.categories}"
-    
+
 
 class Consumer:
-    def __init__(self, consumer_id, sensitivity, category_preferences, prohibited_categories=set(), favorite_categories=set()):
+    def __init__(
+        self,
+        consumer_id,
+        sensitivity,
+        category_preferences,
+        prohibited_categories=set(),
+        favorite_categories=set(),
+    ):
         """
         Initialize a Consumer object with user-specific parameters.
 
@@ -178,15 +242,25 @@ class Consumer:
         self.net_quality_exposure = {}
         self.category_preferences = category_preferences
         self.connected_recommenders = {}
-        self.satisfaction_scores = {}  # Dictionary to store satisfaction scores per recommender system
-        self.recommender_counts = {}  # Dictionary to store how many times the recommender system has been chosen
-        self.recommender_category_success = {} # Dictionary to store how many times the recommender system got the favorite category
+        self.satisfaction_scores = (
+            {}
+        )  # Dictionary to store satisfaction scores per recommender system
+        self.recommender_counts = (
+            {}
+        )  # Dictionary to store how many times the recommender system has been chosen
+        self.recommender_category_success = (
+            {}
+        )  # Dictionary to store how many times the recommender system got the favorite category
         self.ucb_scores = {}  # Store UCB scores for each recommender system
-        self.prohibited_categories = prohibited_categories # Set to store categories penalized by the consumer
-        self.favorite_categories = favorite_categories # Set to store categories the consumer likes
+        self.prohibited_categories = (
+            prohibited_categories  # Set to store categories penalized by the consumer
+        )
+        self.favorite_categories = (
+            favorite_categories  # Set to store categories the consumer likes
+        )
         self.apha = 0.5
-        self.beta = 2 # recency bias
-        
+        self.beta = 2  # recency bias
+
     def subscribe_to_recommender_system(self, recommender_system_id):
         """
         Subscribe to a new recommender system and initialize the satisfaction score and count.
@@ -195,10 +269,14 @@ class Consumer:
             recommender_system_id (str): Identifier for the new recommender system.
         """
         self.connected_recommenders[recommender_system_id] = 1
-        self.satisfaction_scores[recommender_system_id] = self.satisfaction_scores.get(recommender_system_id, 0) 
-        self.recommender_counts[recommender_system_id] = self.recommender_counts.get(recommender_system_id, 0)  # get the value that is in self.recommender_counts[recommender_system_id] otherwise set as zero
+        self.satisfaction_scores[recommender_system_id] = self.satisfaction_scores.get(
+            recommender_system_id, 0
+        )
+        self.recommender_counts[recommender_system_id] = self.recommender_counts.get(
+            recommender_system_id, 0
+        )  # get the value that is in self.recommender_counts[recommender_system_id] otherwise set as zero
         self.recommender_category_success[recommender_system_id] = 0
-        
+
     def unsubscribe_from_recommender_system(self, recommender_system_id):
         """
         Unsubscribe from a recommender system.
@@ -207,7 +285,7 @@ class Consumer:
             recommender_system_id (str): Identifier of the recommender system to unsubscribe from.
         """
         self.connected_recommenders[recommender_system_id] = 0
-    
+
     def choose_recommender(self):
         """
         Choose a recommender system based on the Upper Confidence Bound (UCB) algorithm.
@@ -216,10 +294,14 @@ class Consumer:
             str: ID of the selected recommender system.
         """
         # Filter connected recommender systems with value 1
-        self.available_recommenders = [recommender_id for recommender_id, value in self.connected_recommenders.items() if value == 1]
+        self.available_recommenders = [
+            recommender_id
+            for recommender_id, value in self.connected_recommenders.items()
+            if value == 1
+        ]
 
         if not self.available_recommenders:
-            print('no available recommenders')
+            print("no available recommenders")
             return None
 
         if len(self.available_recommenders) == 1:
@@ -235,20 +317,33 @@ class Consumer:
 
         # Calculate UCB scores for available recommender systems
         # Define round UCB scores
-        round_ucb_scores = { recommender_id: score for recommender_id, score in self.ucb_scores.items()}
+        round_ucb_scores = {
+            recommender_id: score for recommender_id, score in self.ucb_scores.items()
+        }
         for recommender_id in self.available_recommenders:
             if self.recommender_counts[recommender_id] == 0:
-                round_ucb_scores[recommender_id] = float('inf')  # Prioritize unselected recommenders
+                round_ucb_scores[recommender_id] = float(
+                    "inf"
+                )  # Prioritize unselected recommenders
             else:
                 exploitation_term = self.satisfaction_scores[recommender_id] + self.apha
-                # Adjusted UCB; added decay 
-                exploration_term = np.sqrt(np.log(sum(self.recommender_counts.values())) / self.recommender_counts[recommender_id]) / (1 + sum(self.recommender_counts.values()))
+                # Adjusted UCB; added decay
+                exploration_term = np.sqrt(
+                    np.log(sum(self.recommender_counts.values()))
+                    / self.recommender_counts[recommender_id]
+                ) / (1 + sum(self.recommender_counts.values()))
                 # update the ucb only for the selected recommender
                 round_ucb_scores[recommender_id] = exploitation_term + exploration_term
 
         # Select the recommender with the highest UCB score
-        available_ucb_scores = {recommender_id: score for recommender_id, score in round_ucb_scores.items() if recommender_id in self.available_recommenders}
-        selected_recommender_id = max(available_ucb_scores, key=available_ucb_scores.get)
+        available_ucb_scores = {
+            recommender_id: score
+            for recommender_id, score in round_ucb_scores.items()
+            if recommender_id in self.available_recommenders
+        }
+        selected_recommender_id = max(
+            available_ucb_scores, key=available_ucb_scores.get
+        )
 
         # Update the count and ucb_score for the selected recommender
         self.ucb_scores[recommender_id] = round_ucb_scores[recommender_id]
@@ -256,7 +351,6 @@ class Consumer:
 
         return selected_recommender_id
 
-          
     def choice_model(self, documents):
         """
         Args:
@@ -267,14 +361,14 @@ class Consumer:
         """
         # Print the document probabilities
         probabilities = self._score_documents(documents)
-        
+
         if np.sum(probabilities) == 0:
-            print(f"Consumer {self.consumer_id}: Null option triggered because all document scores are below the threshold.")
+            # print(f"Consumer {self.consumer_id}: Null option triggered because all document scores are below the threshold.")
             return None
         else:
             selected_index = np.random.choice(len(documents), p=probabilities)
             return selected_index
-    
+
     def _score_documents(self, documents):
         """
         Score the given list of documents using a multinomial logit choice model.
@@ -296,22 +390,24 @@ class Consumer:
                     category_similarity -= 1
                 else:
                     category_similarity += self.category_preferences.get(category, 0)
-                    
+
             scores[i] = category_similarity
-            
+
         ### logging ###
         # if self.category_preferences['Western'] >= 0.15:
         #     print('Niche consumer', self.consumer_id,':', np.round(scores,3))
         # else:
         #     print('Mainstream consumer', self.consumer_id,':', np.round(scores,3))
-        
+
         threshold = 0.1
         if np.all(scores <= threshold):
-          #  print(f"Consumer {self.consumer_id}: All scores are below or equal to the threshold.")
+            #  print(f"Consumer {self.consumer_id}: All scores are below or equal to the threshold.")
             probabilities = np.zeros(len(scores))
         else:
-          #  print(f"Consumer {self.consumer_id}: At least one score is above the threshold.")
-            probabilities = np.exp(scores - np.max(scores)) / np.sum(np.exp(scores - np.max(scores)))
+            #  print(f"Consumer {self.consumer_id}: At least one score is above the threshold.")
+            probabilities = np.exp(scores - np.max(scores)) / np.sum(
+                np.exp(scores - np.max(scores))
+            )
         return probabilities
 
     def simulate_response(self, slate_documents, recommender_system_id):
@@ -331,21 +427,25 @@ class Consumer:
         click_prob = np.random.random()
         if click_prob <= 1:  # 100% chance of clicking
             selected_index = self.choice_model(slate_documents)
-           # print(selected_index)
+            # print(selected_index)
             if selected_index is not None:
                 for i, doc in enumerate(slate_documents):
                     if i == selected_index:
-                        responses.append({'click': 1})  # Mark the selected document as clicked
+                        responses.append(
+                            {"click": 1}
+                        )  # Mark the selected document as clicked
                     else:
-                        responses.append({'click': 0})  # Mark other documents as not clicked
+                        responses.append(
+                            {"click": 0}
+                        )  # Mark other documents as not clicked
             else:
                 # If choice model returned None, return all zeros
-                responses = [{'click': 0} for _ in range(len(slate_documents))]
-                print("Choice Model returned none")
+                responses = [{"click": 0} for _ in range(len(slate_documents))]
+                # print("Choice Model returned none")
         else:
             # User didn't click on anything
-            responses = [{'click': 0} for _ in range(len(slate_documents))]
-            print("User didn't click anything.")
+            responses = [{"click": 0} for _ in range(len(slate_documents))]
+            # print("User didn't click anything.")
 
         # update state
         self.update_state(slate_documents, responses, recommender_system_id)
@@ -360,19 +460,26 @@ class Consumer:
             slate_documents (list): List of documents presented to the user.
             responses (list): List of response dictionaries corresponding to the presented documents.
             recommender_system (Recommender): Recommender system instance.
-        """        
+        """
         sim_score = 0
         for doc in slate_documents:
             # dot product of the intersection between the user interest and the item features for each document in the slate
-            intersecting_keys = set(self.category_preferences.keys()).intersection(set(doc.normalized_categories_vector.keys()))
-            # Compute the dot product only for the intersecting keys 
-            sim_score += sum(self.category_preferences[key] * doc.normalized_categories_vector[key] for key in intersecting_keys)
+            intersecting_keys = set(self.category_preferences.keys()).intersection(
+                set(doc.normalized_categories_vector.keys())
+            )
+            # Compute the dot product only for the intersecting keys
+            sim_score += sum(
+                self.category_preferences[key] * doc.normalized_categories_vector[key]
+                for key in intersecting_keys
+            )
         # normalize sim_score
         norm_sim_score = sim_score / len(slate_documents)
-        
-        self.satisfaction_scores[recommender_system_id] = (self.satisfaction_scores.get(recommender_system_id, 0) * self.beta + norm_sim_score) / (1 + self.beta)
-                    
-                
+
+        self.satisfaction_scores[recommender_system_id] = (
+            self.satisfaction_scores.get(recommender_system_id, 0) * self.beta
+            + norm_sim_score
+        ) / (1 + self.beta)
+
     def get_satisfaction_score(self, recommender_system_id="default"):
         """
         Get the satisfaction score of the consumer for a specific recommender system.
@@ -384,14 +491,18 @@ class Consumer:
             float: Satisfaction score for the specified recommender system.
         """
         return self.satisfaction_scores.get(recommender_system_id, 0.0)
-    
+
     def reset(self):
         self.net_quality_exposure = {}
         self.connected_recommenders = {}
-        self.satisfaction_scores = {}  # Dictionary to store satisfaction scores per recommender system
-        self.recommender_counts = {}  # Dictionary to store how many times the recommender system has been chosen
+        self.satisfaction_scores = (
+            {}
+        )  # Dictionary to store satisfaction scores per recommender system
+        self.recommender_counts = (
+            {}
+        )  # Dictionary to store how many times the recommender system has been chosen
         self.ucb_scores = {}  # Store UCB scores for each recommender system
-        
+
 
 class Recommender(ABC):
     def __init__(self):
@@ -402,15 +513,24 @@ class Recommender(ABC):
         self.clicks = {}
         self.shows = {}
         self.connected_consumers = {}
-        self.provider_docs_clicked = {}  # Initialize dictionary for clicked documents by providers
-        self.consumer_docs_clicked = {}  # Initialize dictionary for clicked documents by consumers
-        self.consumer_category_preferences = defaultdict(dict)  # Store category preferences for each consumer
+        self.provider_docs_clicked = (
+            {}
+        )  # Initialize dictionary for clicked documents by providers
+        self.consumer_docs_clicked = {}
+        # Initialize dictionary for clicked documents by consumers
+        self.consumer_docs_ids_clicked = (
+            {}
+        )  # Initialize set for clicked document IDs by consumers
+        self.consumer_category_preferences = defaultdict(
+            dict
+        )  # Store category preferences for each consumer
         self.documents = []
         self.documents_click_counts = {}  # Store documents click counts
         self.sorted_documents = []
-        self.weighted = False # Weighted distribution of items
+        self.weighted = False  # Weighted distribution of items
         self.weighted_category = {}
         self.documents_weights = []
+        self.interactions = []
 
     @abstractmethod
     def recommend_documents(self, consumers, slate_size=1):
@@ -435,24 +555,29 @@ class Recommender(ABC):
             fee_per_click (float): Fee amount charged per click.
         """
         pass
-    
-    
+
     def update_documents_list(self, force_update=False):
         if not self.sorted_documents or force_update:
-            if self.specialized_categories: # Check if there are specialized categories
+            if self.specialized_categories:  # Check if there are specialized categories
                 self.documents = [
                     document
                     for provider in self.connected_providers.values()
                     for document in provider.documents
-                    if document.categories.intersection(self.specialized_categories) and  # Check if document has any specialized categories
-                    not self.prohibited_categories.intersection(document.categories)  # Check if document has any prohibited categories
+                    if document.categories.intersection(
+                        self.specialized_categories
+                    )  # Check if document has any specialized categories
+                    and not self.prohibited_categories.intersection(
+                        document.categories
+                    )  # Check if document has any prohibited categories
                 ]
             else:
                 self.documents = [
                     document
                     for provider in self.connected_providers.values()
                     for document in provider.documents
-                    if not self.prohibited_categories.intersection(document.categories)  # Check if document has any prohibited categories
+                    if not self.prohibited_categories.intersection(
+                        document.categories
+                    )  # Check if document has any prohibited categories
                 ]
 
             # Update weights if weighted category available
@@ -463,10 +588,9 @@ class Recommender(ABC):
             self.sorted_documents = sorted(
                 self.documents,
                 key=lambda doc: self.documents_click_counts.get(doc, 0),
-                reverse=True
+                reverse=True,
             )
-            
-            
+
     def set_documents_weights(self):
         self.documents_weights = []
         weighted_key, weighted_value = list(self.weighted_category.items())[0]
@@ -474,9 +598,7 @@ class Recommender(ABC):
             if weighted_key in document.categories:
                 document.weight = weighted_value
             self.documents_weights.append(document.weight)
-        
-        
-            
+
     def connect_provider(self, provider):
         """
         Add a new provider to the recommender.
@@ -488,10 +610,11 @@ class Recommender(ABC):
             self.connected_providers[provider.provider_id] = provider
             self.shows[provider.provider_id] = 0
             self.clicks[provider.provider_id] = 0
-            self.provider_docs_clicked[provider.provider_id] = []  # Initialize clicked documents list for the provider
+            self.provider_docs_clicked[provider.provider_id] = (
+                []
+            )  # Initialize clicked documents list for the provider
         self.sorted_documents = []
 
-        
     def disconnect_provider(self, provider_id):
         """
         Remove a provider from the recommender.
@@ -499,7 +622,7 @@ class Recommender(ABC):
         Args:
             provider_id (int): ID of the provider to remove.
         """
-        print('Recommender', self.recommender_id, 'diconnected provider', provider_id)
+        print("Recommender", self.recommender_id, "diconnected provider", provider_id)
         if provider_id in self.connected_providers:
             for doc_id in self.provider_docs_clicked[provider_id]:
                 del self.documents_click_counts[doc_id]
@@ -514,8 +637,7 @@ class Recommender(ABC):
             consumers_to_disconnect = list(self.connected_consumers.values())
             for consumer in consumers_to_disconnect:
                 self.disconnect_consumer(consumer)
-             
-            
+
     def connect_consumer(self, consumer):
         """
         Connect a consumer to the recommender system.
@@ -525,7 +647,12 @@ class Recommender(ABC):
         """
         if consumer.consumer_id not in self.connected_consumers:
             self.connected_consumers[consumer.consumer_id] = consumer
-            self.consumer_docs_clicked[consumer.consumer_id] = []  # Initialize clicked documents list for the consumer
+            self.consumer_docs_clicked[consumer.consumer_id] = (
+                set()
+            )  # Initialize clicked documents set for the consumer
+            self.consumer_docs_ids_clicked[consumer.consumer_id] = (
+                set()
+            )  # Initialize clicked document IDs set
 
     def disconnect_consumer(self, consumer):
         """
@@ -538,7 +665,6 @@ class Recommender(ABC):
             del self.connected_consumers[consumer.consumer_id]
             del self.consumer_docs_clicked[consumer.consumer_id]
             consumer.unsubscribe_from_recommender_system(self.recommender_id)
-            
 
     def record_click(self, consumer_id, clicked_document):
         clicked_document_id = clicked_document.doc_id
@@ -549,19 +675,21 @@ class Recommender(ABC):
             if clicked_document not in self.provider_docs_clicked[clicked_provider_id]:
                 self.provider_docs_clicked[clicked_provider_id].append(clicked_document)
 
-            if consumer_id not in self.consumer_docs_clicked:
-                self.consumer_docs_clicked[consumer_id] = []
-            self.consumer_docs_clicked[consumer_id].append(clicked_document)
+            # Add the clicked document to both tracking dictionaries
+            self.consumer_docs_clicked[consumer_id].add(clicked_document)
+            self.consumer_docs_ids_clicked[consumer_id].add(clicked_document_id)
 
             if clicked_document not in self.documents_click_counts:
                 self.documents_click_counts[clicked_document] = 0
             self.documents_click_counts[clicked_document] += 1
-            
+
             self.update_user_category_preferences(consumer_id, clicked_document)
             self.sorted_documents = []
 
         else:
-            print(f"Record Click - Provider with ID {clicked_provider_id} is not connected to the recommender.")
+            print(
+                f"Record Click - Provider with ID {clicked_provider_id} is not connected to the recommender."
+            )
 
     def record_show(self, provider_id):
         """
@@ -573,8 +701,10 @@ class Recommender(ABC):
         if provider_id in self.connected_providers:
             self.shows[provider_id] += 1
         else:
-            print(f"Record Show - Provider with ID {provider_id} is not connected to the recommender.")
-    
+            print(
+                f"Record Show - Provider with ID {provider_id} is not connected to the recommender."
+            )
+
     def update_user_category_preferences(self, consumer_id, clicked_document):
         """
         Update the category preferences for a user based on the clicked document.
@@ -589,14 +719,13 @@ class Recommender(ABC):
         # Update the user's category preferences
         if consumer_id not in self.consumer_category_preferences:
             self.consumer_category_preferences[consumer_id] = defaultdict(int)
-        
+
         for category in clicked_document_categories:
             if category in self.consumer_category_preferences[consumer_id]:
                 self.consumer_category_preferences[consumer_id][category] += 1
             else:
                 self.consumer_category_preferences[consumer_id][category] = 1
 
-                
     def get_user_category_preferences(self, consumer_id):
         """
         Get the category preferences for a user.
@@ -608,30 +737,35 @@ class Recommender(ABC):
             dict: Dictionary of categories and associated probabilities for the user.
         """
         return self.consumer_category_preferences.get(consumer_id, {})
-    
-    
+
     def print_providers_clicked_documents(self):
         """
         Print information about clicked documents for each provider.
         """
         print("Clicked Documents by Providers:")
         for provider_id, clicked_documents in self.provider_docs_clicked.items():
-            clicked_document_titles = [document.title for document in clicked_documents]  # Extract document titles
-            clicked_document_titles_str = ', '.join(clicked_document_titles)
-            print(f"Provider ID: {provider_id} - Clicked Documents: {clicked_document_titles_str}")
+            clicked_document_titles = [
+                document.title for document in clicked_documents
+            ]  # Extract document titles
+            clicked_document_titles_str = ", ".join(clicked_document_titles)
+            print(
+                f"Provider ID: {provider_id} - Clicked Documents: {clicked_document_titles_str}"
+            )
 
-            
     def print_consumers_clicked_documents(self):
         """
         Print information about clicked documents for each consumer.
         """
         print("Clicked Documents by Consumers:")
         for consumer_id, clicked_documents in self.consumer_docs_clicked.items():
-            clicked_document_titles = [document.title for document in clicked_documents]  # Extract document titles
-            clicked_document_titles_str = ', '.join(clicked_document_titles)
-            print(f"Consumer {consumer_id}: Clicked Documents: {clicked_document_titles_str}")
+            clicked_document_titles = [
+                document.title for document in clicked_documents
+            ]  # Extract document titles
+            clicked_document_titles_str = ", ".join(clicked_document_titles)
+            print(
+                f"Consumer {consumer_id}: Clicked Documents: {clicked_document_titles_str}"
+            )
 
-            
     def print_providers(self):
         """
         Print information about the current providers in the recommender.
@@ -640,17 +774,17 @@ class Recommender(ABC):
         for provider in self.connected_providers:
             print(provider)
 
-            
     def print_consumers(self):
         """
         Print information about the current consumers in the recommender.
         """
         print("Consumers Information:")
         for consumer_id, consumer in self.connected_consumers.items():
-            print(f"Consumer {consumer_id}:"
-                  f"Sensitivity={consumer.sensitivity}, Net Quality Exposure={consumer.net_quality_exposure:.2f}")
+            print(
+                f"Consumer {consumer_id}:"
+                f"Sensitivity={consumer.sensitivity}, Net Quality Exposure={consumer.net_quality_exposure:.2f}"
+            )
 
-            
     def print_clicks(self):
         """
         Print information about the clicks recorded by providers.
@@ -659,7 +793,6 @@ class Recommender(ABC):
         for provider_id, click_count in self.clicks.items():
             print(f"Provider (ID: {provider_id}) - Clicks: {click_count}")
 
-            
     def print_connected_consumers(self):
         """
         Print information about the connected consumers.
@@ -668,7 +801,6 @@ class Recommender(ABC):
         for consumer_id in self.connected_consumers:
             print(f"Consumer ID: {consumer_id}")
 
-            
     def print_connected_providers(self):
         """
         Print information about the connected providers.
@@ -677,7 +809,6 @@ class Recommender(ABC):
         for provider_id, provider in self.connected_providers.items():
             print(f"Provider ID: {provider_id}")
 
-            
     def print_recommendations(self, recommendations):
         """
         Print recommendations made by the recommender to consumers.
@@ -691,3 +822,50 @@ class Recommender(ABC):
             for document in recommended_documents:
                 print(f"- {document}")
 
+    def recommender_profit(self):
+        """
+        Returns the profit earned by the recommender.
+        """
+        return self.profit
+
+    def charge_subscription_fees(self):
+        """
+        Charge subscription fees to providers based on the number of clicks received.
+        """
+        cycle_profit = 0
+        for provider_id, provider in self.connected_providers.items():
+            show_count = self.shows.get(provider_id, 0)
+            if show_count >= 0:
+                click_count = self.clicks.get(provider_id, 0)
+                total_fee = self.base_fee + (
+                    self.fee_per_click * click_count + self.fee_per_show * show_count
+                )
+                cycle_profit += total_fee  # Update profit attribute
+                provider.charge_subscription_fee(
+                    self.recommender_id,
+                    self.base_fee,
+                    total_fee,
+                    click_count,
+                    self.fee_per_click,
+                    show_count,
+                    self.fee_per_show,
+                )
+                # Reset show count and click count
+                self.shows[provider_id] = 0
+                self.clicks[provider_id] = 0
+        self.profit.append(cycle_profit)
+
+        # Train the model after a full cycle
+        self.train_model_if_ready()
+
+    def add_interaction(self, consumer_id, item_id, rating):
+        """
+        Add a new interaction and retrain the model if enough data is collected.
+
+        Args:
+            consumer_id (): The consumer interacted with the item.
+            item_id (): the movie the user is interacting with.
+            rating (boolean): 1 if the consumer clicked on the document, 0 otherwise.
+
+        """
+        self.interactions.append((consumer_id, item_id, rating))

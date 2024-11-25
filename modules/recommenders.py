@@ -27,14 +27,14 @@ class PopularRecommender(Recommender):
         self.weighted_category = weighted_category # dictionary of category as key and weight as value
         self.weighted_value = weighted_value
 
-    def recommend_documents(self, consumers, slate_size=1):
+    def recommend_documents(self, consumers, slate_size=5):
         """
         Recommend documents to consumers based on overall popularity (highest click counts),
         using a combination of exploration and exploitation.
 
         Args:
             consumers (list): List of Consumer instances to recommend documents to.
-            slate_size (int): Number of documents to recommend per consumer (default is 1).
+            slate_size (int): Number of documents to recommend per consumer (default is 5).
 
         Returns:
             dict: Dictionary mapping consumer IDs to lists of recommended documents.
@@ -43,7 +43,7 @@ class PopularRecommender(Recommender):
         self.update_documents_list()
 
         recommendations = {}  # Initialize recommendations dictionary
-        
+
         for consumer in consumers:
             recommended_documents = []
             consumer_id = consumer.consumer_id
@@ -57,7 +57,7 @@ class PopularRecommender(Recommender):
                     if random.random() < self.exploration_prob and len(self.sorted_documents) > slate_size:
                         # Explore by randomly selecting documents with consumer's top genres
                         genre_filtered_documents = [doc for doc in self.documents if top_genres.intersection(doc.categories)]
-                        
+
                         if len(genre_filtered_documents) > slate_size:
                             # if weighted category available
                             if self.weighted_category:
@@ -77,7 +77,7 @@ class PopularRecommender(Recommender):
                         if category_preferences_set: # if the consumer alraedy liked some objects
                             genre_filtered_documents = [doc for doc in self.sorted_documents if category_preferences_set.intersection(doc.categories)]
                             recommended_documents = genre_filtered_documents[:slate_size]
-                
+
                 # if the list is smaller than slate size extend from popular items
                 if len(recommended_documents) < slate_size:
                     diff = slate_size - len(recommended_documents)
@@ -87,13 +87,13 @@ class PopularRecommender(Recommender):
                     else:
                         random_documents = random.sample(self.documents, 10)  
                     recommended_documents.extend([doc for doc in random_documents if doc not in recommended_documents][:diff])
-                    
+
                 # Record shows for recommended documents
                 for document in recommended_documents:
                     self.record_show(document.provider_id)
-                    
+
                 recommendations[consumer_id] = recommended_documents
-                
+
                 # LOGGING
                 if len(recommendations[consumer_id]) == 0:
                     print("Recommendations dictionary is empty")
@@ -101,15 +101,15 @@ class PopularRecommender(Recommender):
                     print("Slate is too small ")
 
         self.historical_recommendations.extend(list(recommendations.values()))
-        return recommendations
 
+        return recommendations
 
     def recommender_profit(self):
         """
         Returns the profit earned by the recommender.
         """
         return self.profit
-    
+
     def charge_subscription_fees(self):
         """
         Charge subscription fees to providers based on the number of clicks received.
@@ -126,3 +126,5 @@ class PopularRecommender(Recommender):
                 self.shows[provider_id] = 0
                 self.clicks[provider_id] = 0
         self.profit.append(cycle_profit)
+
+    
