@@ -1,0 +1,191 @@
+import pandas as pd
+import numpy as np
+from collections import Counter
+import random
+import os
+import json
+from datetime import datetime
+from smores.stakeholders.stakeholders import Document, Provider, Consumer, Recommender
+from smores.simulation.monilithic_ecosystem import MonolithicEcosystem
+
+def create_experiment_directory(base_dir, experiment_name):
+    """
+    Create a directory for the experiment and return its path.
+
+    Args:
+        base_dir (str): Base directory for all experiments.
+        experiment_name (str): Name of the experiment.
+
+    Returns:
+        str: Path to the experiment's run directory.
+    """
+    experiment_dir = os.path.join(base_dir, experiment_name)
+    os.makedirs(experiment_dir, exist_ok=True)
+
+    run_timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    run_dir = os.path.join(experiment_dir, run_timestamp)
+    os.makedirs(run_dir, exist_ok=True)
+
+    return run_dir
+
+
+def make_json_serializable(data):
+    """
+    Recursively converts non-serializable objects (e.g., sets) into JSON serializable types.
+
+    Args:
+        data: The object to be processed.
+
+    Returns:
+        A JSON serializable version of the object.
+    """
+
+    keys_to_skip = {
+        "consumer_list",
+        "niche_consumer_set",
+        "provider_list",
+        "niche_providers_set",
+    }
+
+    if isinstance(data, set):
+        return list(data)
+    elif isinstance(data, dict):
+        return {
+            key: make_json_serializable(value)
+            for key, value in data.items()
+            if key not in keys_to_skip
+        }
+    elif isinstance(data, list):
+        return [make_json_serializable(item) for item in data]
+    else:
+        return data
+
+
+def save_experiment_parameters(params, save_path):
+    """
+    Save experiment parameters to a JSON file.
+
+    Args:
+        params (dict): Dictionary of experiment parameters.
+        save_path (str): Path to save the JSON file.
+    """
+    serializable_params = make_json_serializable(params)
+    with open(save_path, "w") as f:
+        json.dump(serializable_params, f, indent=4)
+
+
+def calculate_category_frequencies(recommenders, exp_name, seed):
+    """
+    Calculate category frequencies from historical recommendations.
+
+    Args:
+        recommenders (dict): Dictionary of recommenders.
+        exp_name (str): Name of the experiment.
+        seed (int): Random seed.
+
+    Returns:
+        DataFrame: DataFrame containing category frequencies.
+    """
+    rows_to_append = []
+    for recommender_id, recommender in recommenders.items():
+        category_counter = Counter()
+        for doc_list in recommender.historical_recommendations:
+            for doc in doc_list:
+                for category in doc.categories:
+                    category_counter[category] += 1
+        for category, frequency in category_counter.items():
+            rows_to_append.append(
+                {
+                    "experiment_name": exp_name,
+                    "recommender_id": recommender_id,
+                    "category": category,
+                    "frequency": frequency,
+                }
+            )
+
+    return pd.DataFrame(rows_to_append)
+
+
+def run_experiment(
+    experiment,
+    random_seed,
+    experiment_name,
+    num_days,
+    num_cycles,
+    slate_size,
+    recommenders,
+    base_dir="experiments/results",
+):
+    """
+    Run the experiment with the given parameters.
+
+    Args:
+        experiment (function): Function to run the experiment.
+        random_seed (int): Seed for random number generation.
+        experiment_name (str): Name of the experiment.
+        num_days (int): Number of days in the experiment.
+        num_cycles (int): Number of cycles in the experiment.
+        slate_size (int): Slate size for recommenders.
+        recommenders (list): List of recommenders and their parameters.
+        base_dir (str): Base directory to save experiment results.
+
+    Returns:
+        None
+    """
+    np.random.seed(random_seed)
+    random.seed(random_seed)
+
+    run_dir = create_experiment_directory(base_dir, experiment_name)
+
+    # Save experiment parameters
+    experiment_params = {
+        "experiment_name": experiment_name,
+        "random_seed": random_seed,
+        "num_days": num_days,
+        "num_cycles": num_cycles,
+        "slate_size": slate_size,
+        "recommenders": [rec["params"] for rec in recommenders],
+    }
+    
+    save_experiment_parameters(experiment_params, os.path.join(run_dir, "params.json"))
+
+    # Initialize recommenders
+    recommender_objects = {}
+    for i, rec in enumerate(recommenders):
+        recommender_type = rec["type"]
+        recommender_params = rec["params"]
+        recommender_id = f"{recommender_type.__name__}_{i}"
+        recommender_objects[recommender_id] = recommender_type(**recommender_params)
+
+    print(f"Running experiment: {experiment_name} | seed: {random_seed}")
+
+    # Run the experiment
+    provider_df, consumer_df, recommender_df, customer_recommender_df = experiment(
+        consumers=recommender_params["consumer_list"],
+        niche_consumers_set=recommender_params["niche_consumer_set"],
+        niche_providers_set=recommender_params["niche_providers_set"],
+        providers=recommender_params["provider_list"],
+        recommenders=recommender_objects,
+        num_days=num_days,
+        slate_size=slate_size,
+        num_cycles=num_cycles,
+    )
+
+    # Calculate category frequencies
+    category_freq_df = calculate_category_frequencies(
+        recommender_objects, experiment_name, random_seed
+    )
+
+    # Save results
+    provider_df.to_csv(os.path.join(run_dir, "provider_data.csv"), index=False)
+    consumer_df.to_csv(os.path.join(run_dir, "consumer_data.csv"), index=False)
+    recommender_df.to_csv(os.path.join(run_dir, "recommender_data.csv"), index=False)
+    customer_recommender_df.to_csv(
+        os.path.join(run_dir, "customer_recommender_data.csv"), index=False
+    )
+    category_freq_df.to_csv(
+        os.path.join(run_dir, "category_frequencies.csv"), index=False
+    )
+
+    print(f"Results saved in: {run_dir}")
+    print("Experiment Complete!")

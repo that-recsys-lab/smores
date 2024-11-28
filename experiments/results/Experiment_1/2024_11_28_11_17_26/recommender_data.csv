@@ -1,0 +1,6 @@
+recommender_id,num_connected_providers,num_connected_consumers,total_profit,cycle
+popular_1_exp_Experiment_1_seed_42,10,600,853.0,1
+popular_1_exp_Experiment_1_seed_42,10,600,853.4000000000001,2
+popular_1_exp_Experiment_1_seed_42,10,600,854.6999999999999,3
+popular_1_exp_Experiment_1_seed_42,10,600,852.3999999999999,4
+popular_1_exp_Experiment_1_seed_42,10,600,852.1999999999999,5
