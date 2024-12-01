@@ -5,8 +5,8 @@ import random
 
 def MonolithicEcosystem(
     consumers,
-    niche_consumers_set,
     providers,
+    niche_consumers_set,
     niche_providers_set,
     recommenders,
     num_days=5,
@@ -23,38 +23,20 @@ def MonolithicEcosystem(
         niche_providers_set (set): Set of niche provider IDs.
         recommenders (dict): Dictionary of Recommender instances where keys are recommender IDs.
         num_days (int, optional): Number of days to run the experiment (default is 5).
-        slate_size (int, optional): Number of documents to recommend to each consumer (default is 3).
+        slate_size (int, optional): Number of items to recommend to each consumer (default is 3).
 
     Returns:
         pd.DataFrame: DataFrame containing provider data.
         pd.DataFrame: DataFrame containing consumer data.
         pd.DataFrame: DataFrame containing recommender system data.
     """
+
+    print("Running monolithic recsys experiment")
+
     provider_data = []
     consumer_data = []
     recommender_data = []
     customers_recommender_choice = []
-
-    recommender_values = list(recommenders.values())
-    mainstream_recommender = recommender_values[0]
-
-    # Subscribe consumers to the recommender
-    for consumer in consumers:
-        mainstream_recommender.connect_consumer(consumer)
-        consumer.subscribe_to_recommender_system(mainstream_recommender.recommender_id)
-
-    print("mainstream Recommender", mainstream_recommender.connected_consumers.keys())
-
-    # Subscribe providers to both recommenders
-    for provider in providers:
-        mainstream_recommender.connect_provider(provider)
-        provider.subscribe_to_recommender_system(mainstream_recommender.recommender_id)
-
-    ### LOGGING ###
-    print(
-        "Connected to mainstream recommender:",
-        len(mainstream_recommender.connected_consumers),
-    )
 
     # Run the experiment for the specified number of days
     for cycle in range(1, num_cycles + 1):
@@ -83,17 +65,17 @@ def MonolithicEcosystem(
                 recommender_consumers,
             ) in consumers_by_recommender.items():
                 recommender = recommenders[recommender_id]
-                slate_documents = recommender.recommend_documents(
+                slate_items = recommender.recommend_items(
                     recommender_consumers, slate_size=slate_size
                 )
                 for consumer in recommender_consumers:
                     recommendations[consumer.consumer_id] = (
                         recommender_id,
-                        slate_documents[consumer.consumer_id],
+                        slate_items[consumer.consumer_id],
                     )
 
             # Simulate user response, update satisfaction scores, and record clicks
-            clicked_documents = {
+            clicked_items = {
                 consumer.consumer_id: [] for consumer in consumers
             }  # Initialize with empty lists
             for consumer in consumers:
@@ -103,21 +85,21 @@ def MonolithicEcosystem(
                     continue
 
                 consumer_id = consumer.consumer_id
-                recommender_id, recommended_documents = recommendations[consumer_id]
-                slate_documents = recommended_documents
+                recommender_id, recommended_items = recommendations[consumer_id]
+                slate_items = recommended_items
                 chosen_recommender_id = (
                     recommender_id  # Choose recommender for the current user
                 )
                 responses = consumer.simulate_response(
-                    slate_documents, recommender_system_id=chosen_recommender_id
+                    slate_items, recommender_system_id=chosen_recommender_id
                 )
 
                 # Collect clicked items
                 for i, response in enumerate(responses):
                     if response.get("click", 0) == 1:
-                        clicked_documents[consumer_id].append(slate_documents[i])
+                        clicked_items[consumer_id].append(slate_items[i])
                         recommenders[chosen_recommender_id].record_click(
-                            consumer_id, slate_documents[i]
+                            consumer_id, slate_items[i]
                         )
 
         # Charge subscription fees to providers

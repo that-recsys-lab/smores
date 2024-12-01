@@ -50,7 +50,8 @@ The config file should be able to read
 3- mainstream documents list and niche documents list seperately or combined
 3- configuring recommender systems -> can be added seperately
 
-## Pause point
+## Next
 
-1 - update run.py an monilithic_ecosystem.py so each recommender will be forwarded as an object with it's consumers and providers
-2 - combine the sampler with the smores-run.py since all of that is very expeirment specific
+1 - combine the sampler with the smores-run.py since all of that is very expeirment specific
+2 - make the item selection and utility scores more systematic -- classes
+3 - tidy the code :)

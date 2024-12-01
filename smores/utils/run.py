@@ -8,6 +8,7 @@ from datetime import datetime
 from smores.stakeholders.stakeholders import Document, Provider, Consumer, Recommender
 from smores.simulation.monilithic_ecosystem import MonolithicEcosystem
 
+
 def create_experiment_directory(base_dir, experiment_name):
     """
     Create a directory for the experiment and return its path.
@@ -41,9 +42,9 @@ def make_json_serializable(data):
     """
 
     keys_to_skip = {
-        "consumer_list",
-        "niche_consumer_set",
-        "provider_list",
+        "consumers_list",
+        "niche_consumers_set",
+        "providers_list",
         "niche_providers_set",
     }
 
@@ -114,6 +115,10 @@ def run_experiment(
     num_cycles,
     slate_size,
     recommenders,
+    niche_consumers_set,
+    niche_providers_set,
+    consumers,
+    providers,
     base_dir="experiments/results",
 ):
     """
@@ -146,7 +151,7 @@ def run_experiment(
         "slate_size": slate_size,
         "recommenders": [rec["params"] for rec in recommenders],
     }
-    
+
     save_experiment_parameters(experiment_params, os.path.join(run_dir, "params.json"))
 
     # Initialize recommenders
@@ -154,17 +159,29 @@ def run_experiment(
     for i, rec in enumerate(recommenders):
         recommender_type = rec["type"]
         recommender_params = rec["params"]
-        recommender_id = f"{recommender_type.__name__}_{i}"
+        recommender_id = (
+            f"{recommender_type.__name__}_{i}"  # Generate a unique ID for each recommender
+        )
+        recommender_params["recommender_id"] = recommender_id
+
+        # Use main consumers and providers if not provided
+        recommender_params["consumers"] = recommender_params.get(
+            "consumers", consumers
+        )
+        recommender_params["providers"] = recommender_params.get(
+            "providers", providers
+        )
+        # Create the recommender object
         recommender_objects[recommender_id] = recommender_type(**recommender_params)
 
     print(f"Running experiment: {experiment_name} | seed: {random_seed}")
 
     # Run the experiment
     provider_df, consumer_df, recommender_df, customer_recommender_df = experiment(
-        consumers=recommender_params["consumer_list"],
-        niche_consumers_set=recommender_params["niche_consumer_set"],
-        niche_providers_set=recommender_params["niche_providers_set"],
-        providers=recommender_params["provider_list"],
+        consumers=consumers,
+        providers=providers,
+        niche_consumers_set=niche_consumers_set,
+        niche_providers_set=niche_providers_set,
         recommenders=recommender_objects,
         num_days=num_days,
         slate_size=slate_size,

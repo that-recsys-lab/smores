@@ -107,20 +107,20 @@ def prepare_user_preferences(
     return users_niche_movies, users_mainstream_interest, other_genres
 
 
-def create_consumers_and_documents(
-    users_niche_movies, users_mainstream_interest, documents_df, niche_genre
+def create_consumers_and_items(
+    users_niche_movies, users_mainstream_interest, items_df, niche_genre
 ):
     """
-    Create consumer lists and retrieve niche documents based on genre preferences.
+    Create consumer lists and retrieve niche items based on genre preferences.
 
     Args:
         users_niche_movies (DataFrame): Users interested in niche genres.
         users_mainstream_interest (DataFrame): Users with mainstream interest.
-        documents_df (DataFrame): DataFrame containing document details.
+        items_df (DataFrame): DataFrame containing document details.
         niche_genre (str): Niche genre to prioritize.
 
     Returns:
-        tuple: Consumer lists, consumer ID sets, and niche documents DataFrame.
+        tuple: Consumer lists, consumer ID sets, and niche items DataFrame.
     """
     # Create consumer lists
     niche_consumers_list = consumer_sampler(
@@ -141,19 +141,19 @@ def create_consumers_and_documents(
         [consumer.consumer_id for consumer in mainstream_consumers_list]
     )
 
-    # Retrieve niche documents
-    niche_documents = documents_df[documents_df["genres"].str.contains(niche_genre)]
+    # Retrieve niche items
+    niche_items = items_df[items_df["genres"].str.contains(niche_genre)]
 
     return (
         consumers_list,
         niche_consumers_set,
         mainstream_consumers_set,
-        niche_documents,
+        niche_items,
     )
 
 
 def process_recommendation_data(
-    documents_df,
+    items_df,
     movies_with_ratings_df,
     niche_genre="Western",
     sample_size=600,
@@ -161,27 +161,27 @@ def process_recommendation_data(
 ):
     """
     Execute the workflow to prepare recommendation data, including scaling ratings, generating
-    user preferences, and creating consumer lists and niche documents.
+    user preferences, and creating consumer lists and niche items.
 
     Args:
-        documents_df (DataFrame): DataFrame with document details.
+        items_df (DataFrame): DataFrame with document details.
         movies_with_ratings_df (DataFrame): DataFrame with movie ratings.
         niche_genre (str): Niche genre to prioritize.
         sample_size (int): Number of users to sample.
         niche_percentage (float): Percentage of users interested in niche genres.
 
     Returns:
-        tuple: Updated consumers list, consumer ID sets, and niche documents.
+        tuple: Updated consumers list, consumer ID sets, and niche items.
     """
     # Scale ratings to [0, 1]
-    documents_df["rating"] = documents_df["rating"].apply(lambda x: x / 5)
+    items_df["rating"] = items_df["rating"].apply(lambda x: x / 5)
 
     # Generate and update user preferences
     users_niche_movies, users_mainstream_interest, _ = prepare_user_preferences(
         movies_with_ratings_df, sample_size, niche_genre, niche_percentage
     )
 
-    # Create consumers and retrieve niche documents
-    return create_consumers_and_documents(
-        users_niche_movies, users_mainstream_interest, documents_df, niche_genre
+    # Create consumers and retrieve niche items
+    return create_consumers_and_items(
+        users_niche_movies, users_mainstream_interest, items_df, niche_genre
     )

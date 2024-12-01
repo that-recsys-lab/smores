@@ -2,6 +2,9 @@
 .venv
 venv
 
+# results
+experiments/*
+
 # directories
 data_export_exp1/*
 data_export_exp2/*
@@ -11,6 +14,8 @@ img/*
 # files
 paper-viz-3.0.ipynb
 paper-viz-3.0-null.ipynb
+structure.md
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

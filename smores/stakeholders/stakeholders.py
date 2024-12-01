@@ -53,17 +53,17 @@ class Document:
 
 
 class Provider:
-    def __init__(self, provider_id, documents):
+    def __init__(self, provider_id, items):
         """
-        Initialize a Provider object with documents, profit, and other attributes.
+        Initialize a Provider object with items, profit, and other attributes.
 
         Args:
             provider_id (int): Unique identifier for the provider.
-            documents (list): List of Document objects representing the documents offered by the provider.
+            items (list): List of Document objects representing the items offered by the provider.
             profit (float, optional): Initial profit (default is 0).
         """
         self.provider_id = provider_id
-        self.documents = documents
+        self.items = items
         self.profit = {}
         self.recommender_counts = {}
         self.connected_recommenders = {}
@@ -218,7 +218,7 @@ class Provider:
         """
         Return a string representation of the Provider object.
         """
-        return f"Provider {self.provider_id}: Documents={self.documents}, Categories={self.categories}"
+        return f"Provider {self.provider_id}: items={self.items}, Categories={self.categories}"
 
 
 class Consumer:
@@ -351,39 +351,39 @@ class Consumer:
 
         return selected_recommender_id
 
-    def choice_model(self, documents):
+    def choice_model(self, items):
         """
         Args:
-            documents (list): List of documents to evaluate.
+            items (list): List of items to evaluate.
 
         Returns:
             int: Index of the selected document in the input list.
         """
         # Print the document probabilities
-        probabilities = self._score_documents(documents)
+        probabilities = self._score_items(items)
 
         if np.sum(probabilities) == 0:
             # print(f"Consumer {self.consumer_id}: Null option triggered because all document scores are below the threshold.")
             return None
         else:
-            selected_index = np.random.choice(len(documents), p=probabilities)
+            selected_index = np.random.choice(len(items), p=probabilities)
             return selected_index
 
-    def _score_documents(self, documents):
+    def _score_items(self, items):
         """
-        Score the given list of documents using a multinomial logit choice model.
+        Score the given list of items using a multinomial logit choice model.
 
         Args:
-            documents (list): List of documents to score.
+            items (list): List of items to score.
 
         Returns:
             np.array: Array of scores corresponding to each document.
         """
         # Placeholder for document scores
-        scores = np.zeros(len(documents))
+        scores = np.zeros(len(items))
 
         # Calculate utility for each document based on category similarity
-        for i, doc in enumerate(documents):
+        for i, doc in enumerate(items):
             category_similarity = 0.0
             for category in doc.categories:
                 if category in self.prohibited_categories:
@@ -410,26 +410,26 @@ class Consumer:
             )
         return probabilities
 
-    def simulate_response(self, slate_documents, recommender_system_id):
+    def simulate_response(self, slate_items, recommender_system_id):
         """
-        Simulate response to a slate of documents and return the responses.
+        Simulate response to a slate of items and return the responses.
 
         Args:
-            slate_documents (list): List of documents to evaluate.
+            slate_items (list): List of items to evaluate.
             recommender_system (Recommender): Recommender system instance.
 
         Returns:
-            list: List of response dictionaries corresponding to the documents.
+            list: List of response dictionaries corresponding to the items.
         """
         responses = []
 
         # Determine whether the user will click on anything
         click_prob = np.random.random()
         if click_prob <= 1:  # 100% chance of clicking
-            selected_index = self.choice_model(slate_documents)
+            selected_index = self.choice_model(slate_items)
             # print(selected_index)
             if selected_index is not None:
-                for i, doc in enumerate(slate_documents):
+                for i, doc in enumerate(slate_items):
                     if i == selected_index:
                         responses.append(
                             {"click": 1}
@@ -437,32 +437,32 @@ class Consumer:
                     else:
                         responses.append(
                             {"click": 0}
-                        )  # Mark other documents as not clicked
+                        )  # Mark other items as not clicked
             else:
                 # If choice model returned None, return all zeros
-                responses = [{"click": 0} for _ in range(len(slate_documents))]
+                responses = [{"click": 0} for _ in range(len(slate_items))]
                 # print("Choice Model returned none")
         else:
             # User didn't click on anything
-            responses = [{"click": 0} for _ in range(len(slate_documents))]
+            responses = [{"click": 0} for _ in range(len(slate_items))]
             # print("User didn't click anything.")
 
         # update state
-        self.update_state(slate_documents, responses, recommender_system_id)
+        self.update_state(slate_items, responses, recommender_system_id)
 
         return responses
 
-    def update_state(self, slate_documents, responses, recommender_system_id):
+    def update_state(self, slate_items, responses, recommender_system_id):
         """
         Update the net quality exposure (nqe) for the user after choosing a document.
 
         Args:
-            slate_documents (list): List of documents presented to the user.
-            responses (list): List of response dictionaries corresponding to the presented documents.
+            slate_items (list): List of items presented to the user.
+            responses (list): List of response dictionaries corresponding to the presented items.
             recommender_system (Recommender): Recommender system instance.
         """
         sim_score = 0
-        for doc in slate_documents:
+        for doc in slate_items:
             # dot product of the intersection between the user interest and the item features for each document in the slate
             intersecting_keys = set(self.category_preferences.keys()).intersection(
                 set(doc.normalized_categories_vector.keys())
@@ -473,7 +473,7 @@ class Consumer:
                 for key in intersecting_keys
             )
         # normalize sim_score
-        norm_sim_score = sim_score / len(slate_documents)
+        norm_sim_score = sim_score / len(slate_items)
 
         self.satisfaction_scores[recommender_system_id] = (
             self.satisfaction_scores.get(recommender_system_id, 0) * self.beta
@@ -505,44 +505,54 @@ class Consumer:
 
 
 class Recommender(ABC):
-    def __init__(self):
+    def __init__(self, recommender_id, consumers=None, providers=None):
         """
         Initialize the Recommender.
         """
+        self.recommender_id = recommender_id
+        self.consumers = consumers if consumers is not None else []
+        self.providers = providers if providers is not None else []
         self.connected_providers = {}
-        self.clicks = {}
-        self.shows = {}
         self.connected_consumers = {}
-        self.provider_docs_clicked = (
-            {}
-        )  # Initialize dictionary for clicked documents by providers
-        self.consumer_docs_clicked = {}
-        # Initialize dictionary for clicked documents by consumers
-        self.consumer_docs_ids_clicked = (
-            {}
-        )  # Initialize set for clicked document IDs by consumers
-        self.consumer_category_preferences = defaultdict(
-            dict
-        )  # Store category preferences for each consumer
-        self.documents = []
-        self.documents_click_counts = {}  # Store documents click counts
-        self.sorted_documents = []
-        self.weighted = False  # Weighted distribution of items
+        self.clicks = defaultdict(int)
+        self.shows = defaultdict(int)
+        self.provider_docs_clicked = defaultdict(list)
+        self.consumer_docs_clicked = defaultdict(set)
+        self.consumer_docs_ids_clicked = defaultdict(set)
+        self.consumer_category_preferences = defaultdict(lambda: defaultdict(int))
+        self.items = []
+        self.items_click_counts = defaultdict(int)
+        self.sorted_items = []
+        self.weighted = False
         self.weighted_category = {}
-        self.documents_weights = []
+        self.items_weights = []
         self.interactions = []
+        self.initialize_recommender()
+
+    def initialize_recommender(self):
+        """
+        Subscribe consumers and providers to the recommender.
+        """
+        print("Initializing recommender", self.recommender_id)
+        for consumer in self.consumers:
+            self.connect_consumer(consumer)
+            consumer.subscribe_to_recommender_system(self.recommender_id)
+
+        for provider in self.providers:
+            self.connect_provider(provider)
+            provider.subscribe_to_recommender_system(self.recommender_id)
 
     @abstractmethod
-    def recommend_documents(self, consumers, slate_size=1):
+    def recommend_items(self, consumers, slate_size=1):
         """
-        Abstract method to recommend documents to consumers.
+        Abstract method to recommend items to consumers.
 
         Args:
-            consumers (list): List of Consumer instances to recommend documents to.
-            slate_size (int): Number of documents to recommend per consumer (default is 1).
+            consumers (list): List of Consumer instances to recommend items to.
+            slate_size (int): Number of items to recommend per consumer (default is 1).
 
         Returns:
-            dict: Dictionary mapping consumer IDs to lists of recommended documents.
+            dict: Dictionary mapping consumer IDs to lists of recommended items.
         """
         pass
 
@@ -556,13 +566,13 @@ class Recommender(ABC):
         """
         pass
 
-    def update_documents_list(self, force_update=False):
-        if not self.sorted_documents or force_update:
+    def update_items_list(self, force_update=False):
+        if not self.sorted_items or force_update:
             if self.specialized_categories:  # Check if there are specialized categories
-                self.documents = [
+                self.items = [
                     document
                     for provider in self.connected_providers.values()
-                    for document in provider.documents
+                    for document in provider.items
                     if document.categories.intersection(
                         self.specialized_categories
                     )  # Check if document has any specialized categories
@@ -571,10 +581,10 @@ class Recommender(ABC):
                     )  # Check if document has any prohibited categories
                 ]
             else:
-                self.documents = [
+                self.items = [
                     document
                     for provider in self.connected_providers.values()
-                    for document in provider.documents
+                    for document in provider.items
                     if not self.prohibited_categories.intersection(
                         document.categories
                     )  # Check if document has any prohibited categories
@@ -582,22 +592,22 @@ class Recommender(ABC):
 
             # Update weights if weighted category available
             if self.weighted_category:
-                self.set_documents_weights()
+                self.set_items_weights()
 
-            # Sort the documents by click counts in descending order
-            self.sorted_documents = sorted(
-                self.documents,
-                key=lambda doc: self.documents_click_counts.get(doc, 0),
+            # Sort the items by click counts in descending order
+            self.sorted_items = sorted(
+                self.items,
+                key=lambda doc: self.items_click_counts.get(doc, 0),
                 reverse=True,
             )
 
-    def set_documents_weights(self):
-        self.documents_weights = []
+    def set_items_weights(self):
+        self.items_weights = []
         weighted_key, weighted_value = list(self.weighted_category.items())[0]
-        for document in self.documents:
+        for document in self.items:
             if weighted_key in document.categories:
                 document.weight = weighted_value
-            self.documents_weights.append(document.weight)
+            self.items_weights.append(document.weight)
 
     def connect_provider(self, provider):
         """
@@ -612,8 +622,8 @@ class Recommender(ABC):
             self.clicks[provider.provider_id] = 0
             self.provider_docs_clicked[provider.provider_id] = (
                 []
-            )  # Initialize clicked documents list for the provider
-        self.sorted_documents = []
+            )  # Initialize clicked items list for the provider
+        self.sorted_items = []
 
     def disconnect_provider(self, provider_id):
         """
@@ -625,11 +635,11 @@ class Recommender(ABC):
         print("Recommender", self.recommender_id, "diconnected provider", provider_id)
         if provider_id in self.connected_providers:
             for doc_id in self.provider_docs_clicked[provider_id]:
-                del self.documents_click_counts[doc_id]
+                del self.items_click_counts[doc_id]
             del self.connected_providers[provider_id]
             del self.clicks[provider_id]
             del self.provider_docs_clicked[provider_id]
-        self.sorted_documents = []
+        self.sorted_items = []
 
         # Unsubscribe all consumers if provider list is empty
         if len(self.connected_providers) <= 0:
@@ -649,7 +659,7 @@ class Recommender(ABC):
             self.connected_consumers[consumer.consumer_id] = consumer
             self.consumer_docs_clicked[consumer.consumer_id] = (
                 set()
-            )  # Initialize clicked documents set for the consumer
+            )  # Initialize clicked items set for the consumer
             self.consumer_docs_ids_clicked[consumer.consumer_id] = (
                 set()
             )  # Initialize clicked document IDs set
@@ -679,12 +689,12 @@ class Recommender(ABC):
             self.consumer_docs_clicked[consumer_id].add(clicked_document)
             self.consumer_docs_ids_clicked[consumer_id].add(clicked_document_id)
 
-            if clicked_document not in self.documents_click_counts:
-                self.documents_click_counts[clicked_document] = 0
-            self.documents_click_counts[clicked_document] += 1
+            if clicked_document not in self.items_click_counts:
+                self.items_click_counts[clicked_document] = 0
+            self.items_click_counts[clicked_document] += 1
 
             self.update_user_category_preferences(consumer_id, clicked_document)
-            self.sorted_documents = []
+            self.sorted_items = []
 
         else:
             print(
@@ -738,32 +748,32 @@ class Recommender(ABC):
         """
         return self.consumer_category_preferences.get(consumer_id, {})
 
-    def print_providers_clicked_documents(self):
+    def print_providers_clicked_items(self):
         """
-        Print information about clicked documents for each provider.
+        Print information about clicked items for each provider.
         """
-        print("Clicked Documents by Providers:")
-        for provider_id, clicked_documents in self.provider_docs_clicked.items():
+        print("Clicked items by Providers:")
+        for provider_id, clicked_items in self.provider_docs_clicked.items():
             clicked_document_titles = [
-                document.title for document in clicked_documents
+                document.title for document in clicked_items
             ]  # Extract document titles
             clicked_document_titles_str = ", ".join(clicked_document_titles)
             print(
-                f"Provider ID: {provider_id} - Clicked Documents: {clicked_document_titles_str}"
+                f"Provider ID: {provider_id} - Clicked items: {clicked_document_titles_str}"
             )
 
-    def print_consumers_clicked_documents(self):
+    def print_consumers_clicked_items(self):
         """
-        Print information about clicked documents for each consumer.
+        Print information about clicked items for each consumer.
         """
-        print("Clicked Documents by Consumers:")
-        for consumer_id, clicked_documents in self.consumer_docs_clicked.items():
+        print("Clicked items by Consumers:")
+        for consumer_id, clicked_items in self.consumer_docs_clicked.items():
             clicked_document_titles = [
-                document.title for document in clicked_documents
+                document.title for document in clicked_items
             ]  # Extract document titles
             clicked_document_titles_str = ", ".join(clicked_document_titles)
             print(
-                f"Consumer {consumer_id}: Clicked Documents: {clicked_document_titles_str}"
+                f"Consumer {consumer_id}: Clicked items: {clicked_document_titles_str}"
             )
 
     def print_providers(self):
@@ -814,12 +824,12 @@ class Recommender(ABC):
         Print recommendations made by the recommender to consumers.
 
         Args:
-            recommendations (dict): Dictionary mapping consumer IDs to lists of recommended documents.
+            recommendations (dict): Dictionary mapping consumer IDs to lists of recommended items.
         """
-        for consumer_id, recommended_documents in recommendations.items():
+        for consumer_id, recommended_items in recommendations.items():
             consumer = self.connected_consumers[consumer_id]
-            print(f"Consumer {consumer_id} - Recommended Documents:")
-            for document in recommended_documents:
+            print(f"Consumer {consumer_id} - Recommended items:")
+            for document in recommended_items:
                 print(f"- {document}")
 
     def recommender_profit(self):
