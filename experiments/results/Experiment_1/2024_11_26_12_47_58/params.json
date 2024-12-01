@@ -1,9 +1,0 @@
-{
-    "experiment_name": "Experiment_1",
-    "random_seed": 42,
-    "num_days": 20,
-    "num_cycles": 10,
-    "slate_size": 5,
-    "num_recommenders": 1,
-    "specialized_categories": [
-        

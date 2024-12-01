@@ -18,7 +18,7 @@ class GenreCalibratedPopularity(Recommender):
         weighted_value=0.5,
     ):
         """
-        The `PopularRecommender` class is a type of recommender system that suggests documents based on their overall popularity,
+        The `PopularRecommender` class is a type of recommender system that suggests items based on their overall popularity,
         with an option to incorporate user-specific preferences and categories. The class balances between exploration
         (recommending less popular or random items) and exploitation (recommending the most popular items)
         to provide a diverse slate of recommendations.
@@ -32,7 +32,7 @@ class GenreCalibratedPopularity(Recommender):
 
         Methods:
         - `__init__`: Initializes the recommender with configurable parameters, including exploration probability, fees, and category filters.
-        - `recommend_documents`: Generates recommendations for a list of consumers, using a mix of exploration and exploitation strategies.
+        - `recommend_items`: Generates recommendations for a list of consumers, using a mix of exploration and exploitation strategies.
         - `recommender_profit`: Calculates and returns the total profit earned by the recommender.
         - `charge_subscription_fees`: Charges subscription fees to providers based on document interactions (shows and clicks).
 
@@ -56,25 +56,25 @@ class GenreCalibratedPopularity(Recommender):
         )
         self.weighted_value = weighted_value
 
-    def recommend_documents(self, consumers, slate_size=5):
+    def recommend_items(self, consumers, slate_size=5):
         """
-        Recommend documents to consumers based on overall popularity (highest click counts),
+        Recommend items to consumers based on overall popularity (highest click counts),
         using a combination of exploration and exploitation.
 
         Args:
-            consumers (list): List of Consumer instances to recommend documents to.
-            slate_size (int): Number of documents to recommend per consumer (default is 5).
+            consumers (list): List of Consumer instances to recommend items to.
+            slate_size (int): Number of items to recommend per consumer (default is 5).
 
         Returns:
-            dict: Dictionary mapping consumer IDs to lists of recommended documents.
+            dict: Dictionary mapping consumer IDs to lists of recommended items.
         """
-        # Update the documents list
-        self.update_documents_list()
+        # Update the items list
+        self.update_items_list()
 
         recommendations = {}  # Initialize recommendations dictionary
 
         for consumer in consumers:
-            recommended_documents = []
+            recommended_items = []
             consumer_id = consumer.consumer_id
             if consumer_id in self.connected_consumers.keys():
                 # if there's a historical category preference
@@ -91,29 +91,27 @@ class GenreCalibratedPopularity(Recommender):
 
                     if (
                         random.random() < self.exploration_prob
-                        and len(self.sorted_documents) > slate_size
+                        and len(self.sorted_items) > slate_size
                     ):
-                        # Explore by randomly selecting documents with consumer's top genres
-                        genre_filtered_documents = [
+                        # Explore by randomly selecting items with consumer's top genres
+                        genre_filtered_items = [
                             doc
-                            for doc in self.documents
+                            for doc in self.items
                             if top_genres.intersection(doc.categories)
                         ]
 
-                        if len(genre_filtered_documents) > slate_size:
+                        if len(genre_filtered_items) > slate_size:
                             # if weighted category available
                             if self.weighted_category:
-                                weights = [
-                                    doc.weight for doc in genre_filtered_documents
-                                ]
-                                recommended_documents = random.choices(
-                                    genre_filtered_documents,
+                                weights = [doc.weight for doc in genre_filtered_items]
+                                recommended_items = random.choices(
+                                    genre_filtered_items,
                                     weights=weights,
                                     k=slate_size,
                                 )
                             else:
-                                recommended_documents = random.sample(
-                                    genre_filtered_documents, slate_size
+                                recommended_items = random.sample(
+                                    genre_filtered_items, slate_size
                                 )
                         else:
                             # If not enough items in the genre filtered, recommend from the genres the ones the user already liked
@@ -123,56 +121,50 @@ class GenreCalibratedPopularity(Recommender):
                             if (
                                 category_preferences_set
                             ):  # if the consumer alraedy liked some objects
-                                genre_filtered_documents = [
+                                genre_filtered_items = [
                                     doc
-                                    for doc in self.sorted_documents
+                                    for doc in self.sorted_items
                                     if category_preferences_set.intersection(
                                         doc.categories
                                     )
                                 ]
-                                recommended_documents = genre_filtered_documents[
-                                    :slate_size
-                                ]
+                                recommended_items = genre_filtered_items[:slate_size]
                     else:
-                        # Exploit by recommending popular documents with consumer's top genres
+                        # Exploit by recommending popular items with consumer's top genres
                         category_preferences_set = set(
                             self.consumer_category_preferences[consumer_id].keys()
                         )
                         if (
                             category_preferences_set
                         ):  # if the consumer alraedy liked some objects
-                            genre_filtered_documents = [
+                            genre_filtered_items = [
                                 doc
-                                for doc in self.sorted_documents
+                                for doc in self.sorted_items
                                 if category_preferences_set.intersection(doc.categories)
                             ]
-                            recommended_documents = genre_filtered_documents[
-                                :slate_size
-                            ]
+                            recommended_items = genre_filtered_items[:slate_size]
 
                 # if the list is smaller than slate size extend from popular items
-                if len(recommended_documents) < slate_size:
-                    diff = slate_size - len(recommended_documents)
+                if len(recommended_items) < slate_size:
+                    diff = slate_size - len(recommended_items)
                     # if weighted category available
                     if self.weighted_category:
-                        random_documents = random.choices(
-                            self.documents, weights=self.documents_weights, k=10
+                        random_items = random.choices(
+                            self.items, weights=self.items_weights, k=10
                         )
                     else:
-                        random_documents = random.sample(self.documents, 10)
-                    recommended_documents.extend(
-                        [
-                            doc
-                            for doc in random_documents
-                            if doc not in recommended_documents
-                        ][:diff]
+                        random_items = random.sample(self.items, 10)
+                    recommended_items.extend(
+                        [doc for doc in random_items if doc not in recommended_items][
+                            :diff
+                        ]
                     )
 
-                # Record shows for recommended documents
-                for document in recommended_documents:
+                # Record shows for recommended items
+                for document in recommended_items:
                     self.record_show(document.provider_id)
 
-                recommendations[consumer_id] = recommended_documents
+                recommendations[consumer_id] = recommended_items
 
                 # LOGGING
                 if len(recommendations[consumer_id]) == 0:
