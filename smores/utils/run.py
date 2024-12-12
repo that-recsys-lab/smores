@@ -6,8 +6,6 @@ import os
 import json
 from datetime import datetime
 from smores.stakeholders.stakeholders import Document, Provider, Consumer, Recommender
-from smores.simulation.monilithic_ecosystem import MonolithicEcosystem
-
 
 def create_experiment_directory(base_dir, experiment_name):
     """
@@ -110,6 +108,7 @@ def calculate_category_frequencies(recommenders, exp_name, seed):
 def run_experiment(
     experiment,
     random_seed,
+    consumer_choice_model,
     experiment_name,
     num_days,
     num_cycles,
@@ -158,10 +157,9 @@ def run_experiment(
     recommender_objects = {}
     for i, rec in enumerate(recommenders):
         recommender_type = rec["type"]
+        recommender_name = rec["name"]
         recommender_params = rec["params"]
-        recommender_id = (
-            f"{recommender_type.__name__}_{i}"  # Generate a unique ID for each recommender
-        )
+        recommender_id = f"{recommender_name}_{recommender_type.__name__}_{i}"  # Generate a unique ID for each recommender
         recommender_params["recommender_id"] = recommender_id
 
         # Use main consumers and providers if not provided
