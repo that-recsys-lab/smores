@@ -2,6 +2,7 @@ import numpy as np
 import random
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from smores.stakeholders.choice import category_similarity_logit
 
 
 class Document:
@@ -229,6 +230,7 @@ class Consumer:
         category_preferences,
         prohibited_categories=set(),
         favorite_categories=set(),
+        choice_model=category_similarity_logit,
     ):
         """
         Initialize a Consumer object with user-specific parameters.
@@ -260,6 +262,7 @@ class Consumer:
         )
         self.apha = 0.5
         self.beta = 2  # recency bias
+        self.choice_model = choice_model
 
     def subscribe_to_recommender_system(self, recommender_system_id):
         """
@@ -351,65 +354,6 @@ class Consumer:
 
         return selected_recommender_id
 
-    def choice_model(self, items):
-        """
-        Args:
-            items (list): List of items to evaluate.
-
-        Returns:
-            int: Index of the selected document in the input list.
-        """
-        # Print the document probabilities
-        probabilities = self._score_items(items)
-
-        if np.sum(probabilities) == 0:
-            # print(f"Consumer {self.consumer_id}: Null option triggered because all document scores are below the threshold.")
-            return None
-        else:
-            selected_index = np.random.choice(len(items), p=probabilities)
-            return selected_index
-
-    def _score_items(self, items):
-        """
-        Score the given list of items using a multinomial logit choice model.
-
-        Args:
-            items (list): List of items to score.
-
-        Returns:
-            np.array: Array of scores corresponding to each document.
-        """
-        # Placeholder for document scores
-        scores = np.zeros(len(items))
-
-        # Calculate utility for each document based on category similarity
-        for i, doc in enumerate(items):
-            category_similarity = 0.0
-            for category in doc.categories:
-                if category in self.prohibited_categories:
-                    category_similarity -= 1
-                else:
-                    category_similarity += self.category_preferences.get(category, 0)
-
-            scores[i] = category_similarity
-
-        ### logging ###
-        # if self.category_preferences['Western'] >= 0.15:
-        #     print('Niche consumer', self.consumer_id,':', np.round(scores,3))
-        # else:
-        #     print('Mainstream consumer', self.consumer_id,':', np.round(scores,3))
-
-        threshold = 0.1
-        if np.all(scores <= threshold):
-            #  print(f"Consumer {self.consumer_id}: All scores are below or equal to the threshold.")
-            probabilities = np.zeros(len(scores))
-        else:
-            #  print(f"Consumer {self.consumer_id}: At least one score is above the threshold.")
-            probabilities = np.exp(scores - np.max(scores)) / np.sum(
-                np.exp(scores - np.max(scores))
-            )
-        return probabilities
-
     def simulate_response(self, slate_items, recommender_system_id):
         """
         Simulate response to a slate of items and return the responses.
@@ -426,7 +370,13 @@ class Consumer:
         # Determine whether the user will click on anything
         click_prob = np.random.random()
         if click_prob <= 1:  # 100% chance of clicking
-            selected_index = self.choice_model(slate_items)
+            # Choice model to select an item from the slate
+            selected_index = self.choice_model(
+                items=slate_items,
+                threshold=self.sensitivity,
+                category_preferences=self.category_preferences,
+                prohibited_categories=self.prohibited_categories,
+            )
             # print(selected_index)
             if selected_index is not None:
                 for i, doc in enumerate(slate_items):
