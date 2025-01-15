@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 import random
 
-from smores.stakeholders.stakeholders import Consumer, Provider, Document
+from smores.stakeholders.stakeholders import Consumer, Provider, Item
+
 pd.options.mode.chained_assignment = None  # default='warn'
 
 
@@ -51,9 +52,6 @@ def generate_genre_preferences(movies_with_ratings_df):
     user_genre_preference = genre_avg.pivot(
         index="userId", columns="genres", values="rating"
     ).fillna(0)
-    user_genre_preference = user_genre_preference.drop(
-        "(no genres listed)", axis=1, errors="ignore"
-    )  # Handle cases where column may not exist
 
     # Normalize genre preferences for each user
     normalized_user_genre_preference = user_genre_preference.apply(
@@ -114,7 +112,7 @@ def create_consumers_and_items(
     Args:
         users_niche_movies (DataFrame): Users interested in niche genres.
         users_mainstream_interest (DataFrame): Users with mainstream interest.
-        items_df (DataFrame): DataFrame containing document details.
+        items_df (DataFrame): DataFrame containing item details.
         niche_genre (str): Niche genre to prioritize.
 
     Returns:
@@ -161,7 +159,7 @@ def buhayh_et_al_24(
     user preferences, and creating consumer lists and niche items.
 
     Args:
-        items_df (DataFrame): DataFrame with document details.
+        items_df (DataFrame): DataFrame with item details.
         movies_with_ratings_df (DataFrame): DataFrame with movie ratings.
         niche_genre (str): Niche genre to prioritize.
         sample_size (int): Number of users to sample.
@@ -193,10 +191,10 @@ def buhayh_et_al_24(
 def create_docuemnts_objects_from_csv(items_df, provider_id):
     items = []
     for idx, row in items_df.iterrows():
-        document = Document(
+        item = Item(
             row["movieId"], row["rating"], set(row["genres"].split("|")), provider_id
         )
-        items.append(document)
+        items.append(item)
     return items
 
 
@@ -212,7 +210,7 @@ def provider_sampler(
     Create multiple Provider instances with sampled items and randomly generated attributes.
 
     Args:
-        items_df (DataFrame): DataFrame containing document data.
+        items_df (DataFrame): DataFrame containing item data.
         num_providers (int): Number of providers to generate.
         num_items_mean_std (tuple): Mean and standard deviation of the normal distribution for the number of items.
 

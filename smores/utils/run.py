@@ -5,7 +5,8 @@ import random
 import os
 import json
 from datetime import datetime
-from smores.stakeholders.stakeholders import Document, Provider, Consumer, Recommender
+from smores.stakeholders.stakeholders import Item, Provider, Consumer, Recommender
+
 
 def create_experiment_directory(base_dir, experiment_name):
     """
@@ -40,10 +41,8 @@ def make_json_serializable(data):
     """
 
     keys_to_skip = {
-        "consumers_list",
-        "niche_consumers_set",
-        "providers_list",
-        "niche_providers_set",
+        "consumers",
+        "providers",
     }
 
     if isinstance(data, set):
@@ -73,15 +72,13 @@ def save_experiment_parameters(params, save_path):
         json.dump(serializable_params, f, indent=4)
 
 
-def calculate_category_frequencies(recommenders, exp_name, seed):
+def calculate_category_frequencies(recommenders, exp_name):
     """
     Calculate category frequencies from historical recommendations.
 
     Args:
         recommenders (dict): Dictionary of recommenders.
         exp_name (str): Name of the experiment.
-        seed (int): Random seed.
-
     Returns:
         DataFrame: DataFrame containing category frequencies.
     """
@@ -89,8 +86,8 @@ def calculate_category_frequencies(recommenders, exp_name, seed):
     for recommender_id, recommender in recommenders.items():
         category_counter = Counter()
         for doc_list in recommender.historical_recommendations:
-            for doc in doc_list:
-                for category in doc.categories:
+            for item in doc_list:
+                for category in item.categories:
                     category_counter[category] += 1
         for category, frequency in category_counter.items():
             rows_to_append.append(
@@ -107,15 +104,13 @@ def calculate_category_frequencies(recommenders, exp_name, seed):
 
 def run_experiment(
     experiment,
-    random_seed,
+    model,
     consumer_choice_model,
     experiment_name,
     num_days,
     num_cycles,
     slate_size,
     recommenders,
-    niche_consumers_set,
-    niche_providers_set,
     consumers,
     providers,
     base_dir="experiments/results",
@@ -125,7 +120,6 @@ def run_experiment(
 
     Args:
         experiment (function): Function to run the experiment.
-        random_seed (int): Seed for random number generation.
         experiment_name (str): Name of the experiment.
         num_days (int): Number of days in the experiment.
         num_cycles (int): Number of cycles in the experiment.
@@ -136,15 +130,12 @@ def run_experiment(
     Returns:
         None
     """
-    np.random.seed(random_seed)
-    random.seed(random_seed)
 
     run_dir = create_experiment_directory(base_dir, experiment_name)
 
     # Save experiment parameters
     experiment_params = {
         "experiment_name": experiment_name,
-        "random_seed": random_seed,
         "num_days": num_days,
         "num_cycles": num_cycles,
         "slate_size": slate_size,
@@ -163,32 +154,28 @@ def run_experiment(
         recommender_params["recommender_id"] = recommender_id
 
         # Use main consumers and providers if not provided
-        recommender_params["consumers"] = recommender_params.get(
-            "consumers", consumers
-        )
-        recommender_params["providers"] = recommender_params.get(
-            "providers", providers
-        )
+        recommender_params["consumers"] = recommender_params.get("consumers", consumers)
+        recommender_params["providers"] = recommender_params.get("providers", providers)
+
         # Create the recommender object
         recommender_objects[recommender_id] = recommender_type(**recommender_params)
 
-    print(f"Running experiment: {experiment_name} | seed: {random_seed}")
+    print(f"Running experiment: {experiment_name}")
 
     # Run the experiment
     provider_df, consumer_df, recommender_df, customer_recommender_df = experiment(
         consumers=consumers,
         providers=providers,
-        niche_consumers_set=niche_consumers_set,
-        niche_providers_set=niche_providers_set,
         recommenders=recommender_objects,
         num_days=num_days,
         slate_size=slate_size,
         num_cycles=num_cycles,
+        model=model,
     )
 
     # Calculate category frequencies
     category_freq_df = calculate_category_frequencies(
-        recommender_objects, experiment_name, random_seed
+        recommender_objects, experiment_name,
     )
 
     # Save results

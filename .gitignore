@@ -10,6 +10,11 @@ data_export_exp1/*
 data_export_exp2/*
 data_export_exp3/*
 img/*
+results/*
+data/raw/*
+data/processed/*
+tmp/*
+notebooks/*
 
 # files
 paper-viz-3.0.ipynb

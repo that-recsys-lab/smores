@@ -3,7 +3,7 @@ import numpy as np
 import random
 
 
-def monilithic_ecosystem(
+def threshold_switching(
     consumers,
     providers,
     recommenders,
@@ -27,13 +27,40 @@ def monilithic_ecosystem(
         pd.DataFrame: DataFrame containing consumer data.
         pd.DataFrame: DataFrame containing recommender system data.
     """
-
-    print("Running monolithic recsys experiment")
+    print("Running threshold-switching recsys experiment")
 
     provider_data = []
     consumer_data = []
     recommender_data = []
     customers_recommender_choice = []
+
+    recommender_values = list(recommenders.values())
+    mainstream_recommender = recommender_values[0]
+    niche_recommender = recommender_values[1]
+
+    # Subscribe consumers to mainstream recommender
+    for consumer in consumers:
+        mainstream_recommender.connect_consumer(consumer)
+        consumer.subscribe_to_recommender_system(mainstream_recommender.recommender_id)
+
+    print("mainstream consumers count:", len(mainstream_recommender.connected_consumers.keys()))
+    print("niche consumers count:", len(niche_recommender.connected_consumers.keys()))
+
+    # Subscribe providers to both recommenders
+    for provider in providers:
+
+        mainstream_recommender.connect_provider(provider)
+        provider.subscribe_to_recommender_system(mainstream_recommender.recommender_id)
+
+        niche_recommender.connect_provider(provider)
+        provider.subscribe_to_recommender_system(niche_recommender.recommender_id)
+
+    ### LOGGING ###
+    print(
+        "Connected to mainstream recommender:",
+        len(mainstream_recommender.connected_consumers),
+    )
+    print("Connected to Niche recommender:", len(niche_recommender.connected_consumers))
 
     # Run the experiment for the specified number of days
     for cycle in range(1, num_cycles + 1):
@@ -93,7 +120,6 @@ def monilithic_ecosystem(
 
                 # Collect clicked items
                 for i, response in enumerate(responses):
-                    # record interaction (consumer_id, item_id, rating)
                     if response.get("click", 0) == 1:
                         clicked_items[consumer_id].append(slate_items[i])
                         recommenders[chosen_recommender_id].record_click(
@@ -104,6 +130,54 @@ def monilithic_ecosystem(
                             slate_items[i].item_id,
                             model.predict(consumer_id, slate_items[i].item_id).est,
                         )
+
+        # Switching at the end of each cycle
+        for consumer in consumers:
+            # Get the connected recommender
+            for key, value in consumer.connected_recommenders.copy().items():
+                if value == 0:  # if not connected; break
+                    continue
+                recommender_id = key
+
+                # if consumer.satisfaction_scores[recommender_id] < 0.05:  # kl_divergance threshold
+                if consumer.kl_divergence[recommender_id] > 2.5:
+                    # disconnect from the recommender
+                    # if currently connected to mainstream recommender switch to niche
+                    if (
+                        consumer.consumer_id
+                        in mainstream_recommender.connected_consumers.keys()
+                    ):
+                        # disconnect from recommender
+                        mainstream_recommender.disconnect_consumer(consumer)
+                        consumer.unsubscribe_from_recommender_system(
+                            mainstream_recommender.recommender_id
+                        )
+                        # connect to new recommender
+                        niche_recommender.connect_consumer(consumer)
+                        consumer.subscribe_to_recommender_system(
+                            niche_recommender.recommender_id
+                        )
+                    else:
+                        # else disconnect from niche and connect to mainstream
+                        niche_recommender.disconnect_consumer(consumer)
+                        consumer.unsubscribe_from_recommender_system(
+                            niche_recommender.recommender_id
+                        )
+                        # connect to mainstream recommender
+                        mainstream_recommender.connect_consumer(consumer)
+                        consumer.subscribe_to_recommender_system(
+                            mainstream_recommender.recommender_id
+                        )
+
+        ### LOGGING ###
+        print(
+            "Connected to mainstream recommender:",
+            len(mainstream_recommender.connected_consumers),
+        )
+        print(
+            "Connected to Niche recommender:",
+            len(niche_recommender.connected_consumers),
+        )
 
         # Charge subscription fees to providers
         for recommender in recommenders.values():
@@ -207,15 +281,9 @@ def monilithic_ecosystem(
                 ]
             )
 
-        print("\n")
-        print("Consumer KL Divergence")
-        print("\n")
-        for consumer in consumers[:5]:
-            consumer.compute_kl_divergence(recommender_id)
-
         print("\n====================================================")
         print("===============> Finished Cycle:", cycle, "<================")
-        print("==================================================== \n")
+        print("====================================================\n")
 
     # Convert lists to DataFrames
     provider_df = pd.DataFrame(
@@ -256,9 +324,4 @@ def monilithic_ecosystem(
         customers_recommender_choice, columns=["customer_id", "recommender_id"]
     )
 
-    return (
-        provider_df,
-        consumer_df,
-        recommender_df,
-        customer_recommender_df,
-    )
+    return provider_df, consumer_df, recommender_df, customer_recommender_df
