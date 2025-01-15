@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def category_similarity_logit(
     items, threshold, category_preferences, prohibited_categories
 ):
@@ -11,15 +12,15 @@ def category_similarity_logit(
         prohibited_categories (set): Categories to penalize in the scoring.
 
     Returns:
-        int: Index of the selected document in the input list, or None if no selection is possible.
+        int: Index of the selected item in the input list, or None if no selection is possible.
     """
-    # Placeholder for document scores
+    # Placeholder for item scores
     scores = np.zeros(len(items))
 
-    # Calculate utility for each document based on category similarity
-    for i, doc in enumerate(items):
+    # Calculate utility for each item based on category similarity
+    for i, item in enumerate(items):
         category_similarity = 0.0
-        for category in doc.categories:
+        for category in item.categories:
             if category in prohibited_categories:
                 category_similarity -= 1
             else:

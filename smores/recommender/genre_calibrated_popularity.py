@@ -27,14 +27,14 @@ class GenreCalibratedPopularity(Recommender):
         - Maintains historical recommendations and tracks user interactions to inform future recommendations.
         - Incorporates fees for clicks, shows, and subscriptions, allowing for profit calculations based on provider interactions.
         - Supports specialized and prohibited categories, as well as weighted categories for fine-tuned recommendations.
-        - Utilizes user category preferences and document popularity to filter and prioritize recommendations.
+        - Utilizes user category preferences and item popularity to filter and prioritize recommendations.
         - Records and logs interactions to monitor recommendation performance and identify gaps (e.g., undersized recommendation slates).
 
         Methods:
         - `__init__`: Initializes the recommender with configurable parameters, including exploration probability, fees, and category filters.
         - `recommend_items`: Generates recommendations for a list of consumers, using a mix of exploration and exploitation strategies.
         - `recommender_profit`: Calculates and returns the total profit earned by the recommender.
-        - `charge_subscription_fees`: Charges subscription fees to providers based on document interactions (shows and clicks).
+        - `charge_subscription_fees`: Charges subscription fees to providers based on item interactions (shows and clicks).
 
         """
         super().__init__()
@@ -95,15 +95,15 @@ class GenreCalibratedPopularity(Recommender):
                     ):
                         # Explore by randomly selecting items with consumer's top genres
                         genre_filtered_items = [
-                            doc
-                            for doc in self.items
-                            if top_genres.intersection(doc.categories)
+                            item
+                            for item in self.items
+                            if top_genres.intersection(item.categories)
                         ]
 
                         if len(genre_filtered_items) > slate_size:
                             # if weighted category available
                             if self.weighted_category:
-                                weights = [doc.weight for doc in genre_filtered_items]
+                                weights = [item.weight for item in genre_filtered_items]
                                 recommended_items = random.choices(
                                     genre_filtered_items,
                                     weights=weights,
@@ -122,10 +122,10 @@ class GenreCalibratedPopularity(Recommender):
                                 category_preferences_set
                             ):  # if the consumer alraedy liked some objects
                                 genre_filtered_items = [
-                                    doc
-                                    for doc in self.sorted_items
+                                    item
+                                    for item in self.sorted_items
                                     if category_preferences_set.intersection(
-                                        doc.categories
+                                        item.categories
                                     )
                                 ]
                                 recommended_items = genre_filtered_items[:slate_size]
@@ -138,9 +138,11 @@ class GenreCalibratedPopularity(Recommender):
                             category_preferences_set
                         ):  # if the consumer alraedy liked some objects
                             genre_filtered_items = [
-                                doc
-                                for doc in self.sorted_items
-                                if category_preferences_set.intersection(doc.categories)
+                                item
+                                for item in self.sorted_items
+                                if category_preferences_set.intersection(
+                                    item.categories
+                                )
                             ]
                             recommended_items = genre_filtered_items[:slate_size]
 
@@ -155,14 +157,16 @@ class GenreCalibratedPopularity(Recommender):
                     else:
                         random_items = random.sample(self.items, 10)
                     recommended_items.extend(
-                        [doc for doc in random_items if doc not in recommended_items][
-                            :diff
-                        ]
+                        [
+                            item
+                            for item in random_items
+                            if item not in recommended_items
+                        ][:diff]
                     )
 
                 # Record shows for recommended items
-                for document in recommended_items:
-                    self.record_show(document.provider_id)
+                for item in recommended_items:
+                    self.record_show(item.provider_id)
 
                 recommendations[consumer_id] = recommended_items
 
