@@ -3,18 +3,20 @@
 venv
 
 # results
-experiments/*
 
 # directories
 data_export_exp1/*
 data_export_exp2/*
 data_export_exp3/*
 img/*
-results/*
+experiments/results/*
+experiments/config/*
 data/raw/*
 data/processed/*
 tmp/*
 notebooks/*
+docs/*
+/.virtual_documents
 
 # files
 paper-viz-3.0.ipynb

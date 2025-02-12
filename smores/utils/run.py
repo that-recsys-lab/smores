@@ -87,7 +87,7 @@ def calculate_category_frequencies(recommenders, exp_name):
         category_counter = Counter()
         for doc_list in recommender.historical_recommendations:
             for item in doc_list:
-                for category in item.categories:
+                for category in item.genres:
                     category_counter[category] += 1
         for category, frequency in category_counter.items():
             rows_to_append.append(
@@ -163,7 +163,7 @@ def run_experiment(
     print(f"Running experiment: {experiment_name}")
 
     # Run the experiment
-    provider_df, consumer_df, recommender_df, customer_recommender_df = experiment(
+    provider_df, consumer_df, recommender_df, consumer_recommender_df = experiment(
         consumers=consumers,
         providers=providers,
         recommenders=recommender_objects,
@@ -182,8 +182,8 @@ def run_experiment(
     provider_df.to_csv(os.path.join(run_dir, "provider_data.csv"), index=False)
     consumer_df.to_csv(os.path.join(run_dir, "consumer_data.csv"), index=False)
     recommender_df.to_csv(os.path.join(run_dir, "recommender_data.csv"), index=False)
-    customer_recommender_df.to_csv(
-        os.path.join(run_dir, "customer_recommender_data.csv"), index=False
+    consumer_recommender_df.to_csv(
+        os.path.join(run_dir, "consumer_recommender_data.csv"), index=False
     )
     category_freq_df.to_csv(
         os.path.join(run_dir, "category_frequencies.csv"), index=False

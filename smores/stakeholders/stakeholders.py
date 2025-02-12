@@ -7,51 +7,39 @@ from smores.stakeholders.choice import category_similarity_logit
 
 
 class Item:
-    def __init__(self, item_id, quality, categories, provider_id):
+    def __init__(self, item_id, quality, genres, provider_id, dataset_genres):
         self.item_id = item_id
         self.quality = quality
-        self.categories = categories
+        self.genres = genres
+        self.dataset_genres = dataset_genres
         self.provider_id = provider_id
         self.weight = 0.5
-        self.normalized_categories_vector = self.normalize_categories()
+        self.normalized_genres_vector = self.normalize_genres()
 
-    def normalize_categories(self):
-        categories_vector = {}
-        categories_list = [
-            "Action",
-            "Adventure",
-            "Animation",
-            "Children",
-            "Comedy",
-            "Crime",
-            "Documentary",
-            "Drama",
-            "Fantasy",
-            "Film-Noir",
-            "Horror",
-            "IMAX",
-            "Musical",
-            "Mystery",
-            "Romance",
-            "Sci-Fi",
-            "Thriller",
-            "War",
-            "Western",
-        ]
-        for cat in categories_list:
-            if cat in self.categories:
-                categories_vector[cat] = 1.0
-        return self.normalize(categories_vector)
+    def normalize_genres(self):
+        genres_vector = {}
 
-    @staticmethod
-    def normalize(vector):
-        total = sum(vector.values())
-        if total == 0:
-            return {key: 0 for key in vector}  # Handle case where total is zero
-        return {key: value / total for key, value in vector.items()}
+        # Assign weights to the genres based on their position
+        if self.genres:
+            total_genres = len(self.genres)
+            decreasing_weights = [
+                (total_genres - i) for i in range(total_genres)
+            ]
+            total_weight = sum(decreasing_weights)
+            normalized_weights = [weight / total_weight for weight in decreasing_weights]
+
+            for cat, weight in zip(self.genres, normalized_weights):
+                if cat in self.dataset_genres:
+                    genres_vector[cat] = weight
+
+        return genres_vector
 
     def __str__(self):
-        return f"Item ID: {self.item_id}, Quality: {self.quality}, Categories: {self.categories}, Provider ID: {self.provider_id}"
+        return (
+            f"Item ID: {self.item_id}, Quality: {self.quality}, "
+            f"genres: {self.genres}, Provider ID: {self.provider_id}, "
+            f"Normalized genres Vector: {self.normalized_genres_vector}"
+        )
 
 
 class Provider:
@@ -220,7 +208,7 @@ class Provider:
         """
         Return a string representation of the Provider object.
         """
-        return f"Provider {self.provider_id}: items={self.items}, Categories={self.categories}"
+        return f"Provider {self.provider_id}: items={self.items}, genres={self.genres}"
 
 
 class Consumer:
@@ -229,8 +217,8 @@ class Consumer:
         consumer_id,
         sensitivity,
         category_preferences,
-        prohibited_categories=set(),
-        favorite_categories=set(),
+        prohibited_genres=set(),
+        favorite_genres=set(),
         choice_model=category_similarity_logit,
         historical_distribution={}
     ):
@@ -256,27 +244,27 @@ class Consumer:
             {}
         )  # Dictionary to store how many times the recommender system got the favorite category
         self.ucb_scores = {}  # Store UCB scores for each recommender system
-        self.prohibited_categories = (
-            prohibited_categories  # Set to store categories penalized by the consumer
+        self.prohibited_genres = (
+            prohibited_genres  # Set to store genres penalized by the consumer
         )
-        self.favorite_categories = (
-            favorite_categories  # Set to store categories the consumer likes
+        self.favorite_genres = (
+            favorite_genres  # Set to store genres the consumer likes
         )
-        self.apha = 0.5
+        self.alpha = 3  # exploration decay / exploitation weight
         self.beta = 2  # recency bias
         self.choice_model = choice_model
         self.genre_recommendation_counts = {}
         self.historical_distribution = historical_distribution
         self.kl_divergence = defaultdict(float)
 
-    def subscribe_to_recommender_system(self, recommender_system_id):
+    def subscribe_to_recommender_system(self, recommender_system_id, state=1):
         """
         Subscribe to a new recommender system and initialize the satisfaction score and count.
 
         Args:
             recommender_system_id (str): Identifier for the new recommender system.
         """
-        self.connected_recommenders[recommender_system_id] = 1
+        self.connected_recommenders[recommender_system_id] = state
         self.satisfaction_scores[recommender_system_id] = self.satisfaction_scores.get(
             recommender_system_id, 0
         )
@@ -300,7 +288,7 @@ class Consumer:
         """
         self.connected_recommenders[recommender_system_id] = 0
 
-    def choose_recommender(self):
+    def choose_recommender(self, preselected_recommender_id=None):
         """
         Choose a recommender system based on the Upper Confidence Bound (UCB) algorithm.
 
@@ -313,6 +301,10 @@ class Consumer:
             for recommender_id, value in self.connected_recommenders.items()
             if value == 1
         ]
+
+        if preselected_recommender_id:
+            self.recommender_counts[preselected_recommender_id] += 1
+            return preselected_recommender_id
 
         if not self.available_recommenders:
             print("no available recommenders")
@@ -340,7 +332,7 @@ class Consumer:
                     "inf"
                 )  # Prioritize unselected recommenders
             else:
-                exploitation_term = self.satisfaction_scores[recommender_id] + self.apha
+                exploitation_term = self.satisfaction_scores[recommender_id] + self.alpha
                 # Adjusted UCB; added decay
                 exploration_term = np.sqrt(
                     np.log(sum(self.recommender_counts.values()))
@@ -387,9 +379,9 @@ class Consumer:
             # Choice model to select an item from the slate
             selected_index = self.choice_model(
                 items=slate_items,
-                threshold=0.15,
+                threshold=0.3,
                 category_preferences=self.category_preferences,
-                prohibited_categories=self.prohibited_categories,
+                prohibited_genres=self.prohibited_genres,
             )
             # print(selected_index)
             if selected_index is not None:
@@ -428,7 +420,7 @@ class Consumer:
             self.genre_recommendation_counts[recommender_system_id] = {}
 
         for item in items:
-            for genre in item.categories:
+            for genre in item.genres:
                 if genre not in self.genre_recommendation_counts[recommender_system_id]:
                     self.genre_recommendation_counts[recommender_system_id][genre] = 0
                 self.genre_recommendation_counts[recommender_system_id][genre] += 1
@@ -446,11 +438,11 @@ class Consumer:
         for item in slate_items:
             # dot product of the intersection between the user interest and the item features for each item in the slate
             intersecting_keys = set(self.category_preferences.keys()).intersection(
-                set(item.normalized_categories_vector.keys())
+                set(item.normalized_genres_vector.keys())
             )
             # Compute the dot product only for the intersecting keys
             sim_score += sum(
-                self.category_preferences[key] * item.normalized_categories_vector[key]
+                self.category_preferences[key] * item.normalized_genres_vector[key]
                 for key in intersecting_keys
             )
         # normalize sim_score
@@ -490,13 +482,10 @@ class Consumer:
         Compute the KL divergence between the consumer's category preferences and the historical distribution.
 
         """
-        if self.consumer_id == 1:
-            print(recommender_system_id, ':',self.kl_divergence[recommender_system_id])
-        
         # Normalize historical_distribution
-        total_historical = sum(self.historical_distribution.values())
+        profile_historical = sum(self.historical_distribution.values())
         historical_distribution_normalized = {
-            genre: count / total_historical
+            genre: count / profile_historical
             for genre, count in self.historical_distribution.items()
         }
 
@@ -536,7 +525,7 @@ class Recommender(ABC):
         recommender_id,
         consumers=None,
         providers=None,
-        most_popular_movie_ids=None,
+        most_popular_item_ids=None,
     ):
         """
         Initialize the Recommender.
@@ -560,7 +549,7 @@ class Recommender(ABC):
         self.items_weights = []
         self.interactions = []
         self.initialize_recommender()
-        self.most_popular_movie_ids = most_popular_movie_ids
+        self.most_popular_item_ids = most_popular_item_ids
 
     def initialize_recommender(self):
         """
@@ -601,26 +590,26 @@ class Recommender(ABC):
 
     def update_items_list(self, force_update=False):
         if not self.sorted_items or force_update:
-            if self.specialized_categories:  # Check if there are specialized categories
+            if self.specialized_genres:  # Check if there are specialized genres
                 self.items = [
                     item
                     for provider in self.connected_providers.values()
                     for item in provider.items
-                    if item.categories.intersection(
-                        self.specialized_categories
-                    )  # Check if item has any specialized categories
-                    and not self.prohibited_categories.intersection(
-                        item.categories
-                    )  # Check if item has any prohibited categories
+                    if item.genres.intersection(
+                        self.specialized_genres
+                    )  # Check if item has any specialized genres
+                    and not self.prohibited_genres.intersection(
+                        item.genres
+                    )  # Check if item has any prohibited genres
                 ]
             else:
                 self.items = [
                     item
                     for provider in self.connected_providers.values()
                     for item in provider.items
-                    if not self.prohibited_categories.intersection(
-                        item.categories
-                    )  # Check if item has any prohibited categories
+                    if not self.prohibited_genres.intersection(
+                        item.genres
+                    )  # Check if item has any prohibited genres
                 ]
 
             # Update weights if weighted category available
@@ -638,7 +627,7 @@ class Recommender(ABC):
         self.items_weights = []
         weighted_key, weighted_value = list(self.weighted_category.items())[0]
         for item in self.items:
-            if weighted_key in item.categories:
+            if weighted_key in item.genres:
                 item.weight = weighted_value
             self.items_weights.append(item.weight)
 
@@ -706,7 +695,6 @@ class Recommender(ABC):
         """
         if consumer in self.connected_consumers.values():
             del self.connected_consumers[consumer.consumer_id]
-            del self.consumer_docs_clicked[consumer.consumer_id]
             consumer.unsubscribe_from_recommender_system(self.recommender_id)
 
     def record_click(self, consumer_id, clicked_document):
@@ -756,14 +744,14 @@ class Recommender(ABC):
             consumer_id (int): ID of the user.
             clicked_document (Item): The item that the user clicked on.
         """
-        # Get the categories of the clicked item
-        clicked_document_categories = clicked_document.categories
+        # Get the genres of the clicked item
+        clicked_document_genres = clicked_document.genres
 
         # Update the user's category preferences
         if consumer_id not in self.consumer_category_preferences:
             self.consumer_category_preferences[consumer_id] = defaultdict(int)
 
-        for category in clicked_document_categories:
+        for category in clicked_document_genres:
             if category in self.consumer_category_preferences[consumer_id]:
                 self.consumer_category_preferences[consumer_id][category] += 1
             else:
@@ -777,7 +765,7 @@ class Recommender(ABC):
             consumer_id (int): ID of the user.
 
         Returns:
-            dict: Dictionary of categories and associated probabilities for the user.
+            dict: Dictionary of genres and associated probabilities for the user.
         """
         return self.consumer_category_preferences.get(consumer_id, {})
 
@@ -909,7 +897,7 @@ class Recommender(ABC):
 
         Args:
             consumer_id (): The consumer interacted with the item.
-            item_id (): the movie the user is interacting with.
+            item_id (): the item the user is interacting with.
             rating (boolean): 1 if the consumer clicked on the item, 0 otherwise.
 
         """

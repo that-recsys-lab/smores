@@ -7,7 +7,7 @@ from surprise.model_selection import train_test_split
 def train_model(ratings_df, experiment_name):
     # Prepare the data for Surprise
     reader = Reader(rating_scale=(0.5, 5.0))
-    data = Dataset.load_from_df(ratings_df[["userId", "movieId", "rating"]], reader)
+    data = Dataset.load_from_df(ratings_df[["consumerId", "itemId", "rating"]], reader)
     print("Data info:", len(data.raw_ratings))
 
     # Split the data into training and testing sets

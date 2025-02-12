@@ -20,20 +20,20 @@ def normalize(vector):
     return {key: value / total for key, value in vector.items()}
 
 
-def generate_genre_preferences(movies_with_ratings_df):
+def generate_genre_preferences(items_with_ratings_df):
     # User Genre preferences using bayesian average
 
     # Step 1: Explode genres
-    df_exploded = movies_with_ratings_df.copy()
+    df_exploded = items_with_ratings_df.copy()
     df_exploded["genres"] = df_exploded["genres"].str.split("|")
     df_exploded = df_exploded.explode("genres")
 
     # Step 2: Calculate Bayesian average for each genre per user
-    grouped = df_exploded.groupby(["userId", "genres"])["rating"]
+    grouped = df_exploded.groupby(["consumerId", "genres"])["rating"]
     genre_avg = grouped.mean().reset_index()
 
     # Calculate overall average rating per user
-    user_avg_ratings = df_exploded.groupby("userId")["rating"].mean()
+    user_avg_ratings = df_exploded.groupby("consumerId")["rating"].mean()
 
     # Regularization factor per user (you can adjust this based on your dataset characteristics)
     reg_factor = 3
@@ -41,7 +41,7 @@ def generate_genre_preferences(movies_with_ratings_df):
     # Apply Bayesian average calculation per user
     genre_avg["bayesian_avg_rating"] = genre_avg.apply(
         lambda row: bayesian_average_per_user(
-            row["rating"], user_avg_ratings[row["userId"]], reg_factor
+            row["rating"], user_avg_ratings[row["consumerId"]], reg_factor
         ),
         axis=1,
     )
@@ -50,7 +50,7 @@ def generate_genre_preferences(movies_with_ratings_df):
 
     # Step 3: Pivot the table to have genres as columns
     user_genre_preference = genre_avg.pivot(
-        index="userId", columns="genres", values="rating"
+        index="consumerId", columns="genres", values="rating"
     ).fillna(0)
 
     # Normalize genre preferences for each user
@@ -65,13 +65,13 @@ def generate_genre_preferences(movies_with_ratings_df):
 
 
 def prepare_user_preferences(
-    movies_with_ratings_df, sample_size=600, niche_genre="Western", niche_percentage=0.1
+    items_with_ratings_df, sample_size=600, niche_genre="Western", niche_percentage=0.1
 ):
     """
     Generate, sample, and update user genre preferences for niche and mainstream interest groups.
 
     Args:
-        movies_with_ratings_df (DataFrame): DataFrame with movie ratings.
+        items_with_ratings_df (DataFrame): DataFrame with item ratings.
         sample_size (int): Number of users to sample.
         niche_genre (str): Niche genre to prioritize.
         niche_percentage (float): Percentage of users interested in niche genres.
@@ -80,37 +80,37 @@ def prepare_user_preferences(
         tuple: DataFrames for niche and mainstream interest users, and the set of other genres.
     """
     # Generate and sample user preferences
-    user_genre_preference = generate_genre_preferences(movies_with_ratings_df)
+    user_genre_preference = generate_genre_preferences(items_with_ratings_df)
     sampled_users = (
         user_genre_preference.sample(sample_size).sample(frac=1).reset_index(drop=True)
     )
 
     # Split users into niche and mainstream interest groups
     ten_percent = int(len(sampled_users) * niche_percentage)
-    users_niche_movies = sampled_users[:ten_percent]
+    users_niche_items = sampled_users[:ten_percent]
     users_mainstream_interest = sampled_users[ten_percent:]
 
     # Update genre preferences
-    other_genres = list(users_niche_movies.columns)
+    other_genres = list(users_niche_items.columns)
     other_genres.remove(niche_genre)
 
-    users_niche_movies[niche_genre] = np.where(
-        users_niche_movies[niche_genre] > 0, users_niche_movies[niche_genre] * 4, 0.2
+    users_niche_items[niche_genre] = np.where(
+        users_niche_items[niche_genre] > 0, users_niche_items[niche_genre] * 4, 0.2
     )
-    users_niche_movies[other_genres] /= 4
+    users_niche_items[other_genres] /= 4
     users_mainstream_interest[niche_genre] /= 4
 
-    return users_niche_movies, users_mainstream_interest, other_genres
+    return users_niche_items, users_mainstream_interest, other_genres
 
 
 def create_consumers_and_items(
-    users_niche_movies, users_mainstream_interest, items_df, niche_genre
+    users_niche_items, users_mainstream_interest, items_df, niche_genre
 ):
     """
     Create consumer lists and retrieve niche items based on genre preferences.
 
     Args:
-        users_niche_movies (DataFrame): Users interested in niche genres.
+        users_niche_items (DataFrame): Users interested in niche genres.
         users_mainstream_interest (DataFrame): Users with mainstream interest.
         items_df (DataFrame): DataFrame containing item details.
         niche_genre (str): Niche genre to prioritize.
@@ -120,8 +120,8 @@ def create_consumers_and_items(
     """
     # Create consumer lists
     niche_consumers_list = consumer_sampler(
-        category_preferences_df=users_niche_movies,
-        favorite_categories=set([niche_genre]),
+        category_preferences_df=users_niche_items,
+        favorite_genres=set([niche_genre]),
     )
     mainstream_consumers_list = consumer_sampler(
         category_preferences_df=users_mainstream_interest
@@ -149,7 +149,7 @@ def create_consumers_and_items(
 
 
 def buhayh_et_al_24(
-    movies_with_ratings_df,
+    items_with_ratings_df,
     niche_genre="Western",
     sample_size=600,
     niche_percentage=0.1,
@@ -160,7 +160,7 @@ def buhayh_et_al_24(
 
     Args:
         items_df (DataFrame): DataFrame with item details.
-        movies_with_ratings_df (DataFrame): DataFrame with movie ratings.
+        items_with_ratings_df (DataFrame): DataFrame with item ratings.
         niche_genre (str): Niche genre to prioritize.
         sample_size (int): Number of users to sample.
         niche_percentage (float): Percentage of users interested in niche genres.
@@ -169,8 +169,8 @@ def buhayh_et_al_24(
         tuple: Updated consumers list, consumer ID sets, and niche items.
     """
     items_df = (
-        movies_with_ratings_df[["movieId", "rating", "genres"]]
-        .groupby(["movieId", "genres"])
+        items_with_ratings_df[["itemId", "rating", "genres"]]
+        .groupby(["itemId", "genres"])
         .mean()
         .reset_index()
     )
@@ -178,13 +178,13 @@ def buhayh_et_al_24(
     items_df["rating"] = items_df["rating"].apply(lambda x: x / 5)
 
     # Generate and update user preferences
-    users_niche_movies, users_mainstream_interest, _ = prepare_user_preferences(
-        movies_with_ratings_df, sample_size, niche_genre, niche_percentage
+    users_niche_items, users_mainstream_interest, _ = prepare_user_preferences(
+        items_with_ratings_df, sample_size, niche_genre, niche_percentage
     )
 
     # Create consumers and retrieve niche items
     return create_consumers_and_items(
-        users_niche_movies, users_mainstream_interest, items_df, niche_genre
+        users_niche_items, users_mainstream_interest, items_df, niche_genre
     )
 
 
@@ -192,7 +192,7 @@ def create_docuemnts_objects_from_csv(items_df, provider_id):
     items = []
     for idx, row in items_df.iterrows():
         item = Item(
-            row["movieId"], row["rating"], set(row["genres"].split("|")), provider_id
+            row["itemId"], row["rating"], set(row["genres"].split("|")), provider_id
         )
         items.append(item)
     return items
@@ -227,7 +227,7 @@ def provider_sampler(
 
         # Sample items for the current provider
         sampled_items = items_df.sample(n=num_docs)
-        # Create objects of movies
+        # Create objects of items
         sampled_items = create_docuemnts_objects_from_csv(sampled_items, provider_id)
 
         # Create a Provider instance with sampled items and generated attributes
@@ -246,8 +246,8 @@ def consumer_sampler(
     category_preferences_df,
     num_consumers=None,
     n_trials=0,
-    prohibited_categories=set(),
-    favorite_categories=set(),
+    prohibited_genres=set(),
+    favorite_genres=set(),
     excluded_list=[],
 ):
     """
@@ -258,7 +258,7 @@ def consumer_sampler(
         num_consumers (int): Number of Consumer instances to generate.
         n_trials (int): Maximum number of sampling trials.
         random_state (int): Random state for reproducibility.
-        prohibited_categories (set): Set of prohibited categories.
+        prohibited_genres (set): Set of prohibited genres.
         excluded_list (list): List of already excluded consumers.
 
     Returns:
@@ -278,8 +278,8 @@ def consumer_sampler(
             consumer_id=consumer_id,
             sensitivity=sensitivity,
             category_preferences=category_preferences,
-            prohibited_categories=prohibited_categories,
-            favorite_categories=favorite_categories,
+            prohibited_genres=prohibited_genres,
+            favorite_genres=favorite_genres,
         )
         sampled_consumers.append(consumer)
 

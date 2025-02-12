@@ -3,7 +3,7 @@ import numpy as np
 import random
 
 
-def monilithic_ecosystem(
+def monolithic(
     consumers,
     providers,
     recommenders,
@@ -33,7 +33,7 @@ def monilithic_ecosystem(
     provider_data = []
     consumer_data = []
     recommender_data = []
-    customers_recommender_choice = []
+    consumers_recommender_choice = []
 
     # Run the experiment for the specified number of days
     for cycle in range(1, num_cycles + 1):
@@ -50,7 +50,7 @@ def monilithic_ecosystem(
                 if chosen_recommender_id is None:
                     continue
                 # Append recommender to consumer to evaluate UCB
-                customers_recommender_choice.append(
+                consumers_recommender_choice.append(
                     [consumer.consumer_id, chosen_recommender_id]
                 )  # used for analysis
                 consumers_by_recommender[chosen_recommender_id].append(consumer)
@@ -252,13 +252,13 @@ def monilithic_ecosystem(
             "cycle",
         ],
     )
-    customer_recommender_df = pd.DataFrame(
-        customers_recommender_choice, columns=["customer_id", "recommender_id"]
+    consumer_recommender_df = pd.DataFrame(
+        consumers_recommender_choice, columns=["consumer_id", "recommender_id"]
     )
 
     return (
         provider_df,
         consumer_df,
         recommender_df,
-        customer_recommender_df,
+        consumer_recommender_df,
     )
