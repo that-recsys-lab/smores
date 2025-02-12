@@ -2,7 +2,8 @@
 .venv
 venv
 
-# results
+# files
+structure.md
 
 # directories
 data_export_exp1/*
