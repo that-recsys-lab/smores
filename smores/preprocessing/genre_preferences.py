@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import random
+import numpy as np
 from collections import defaultdict
 from smores.stakeholders.stakeholders import Consumer
 from tqdm import tqdm
@@ -8,7 +9,7 @@ from tqdm import tqdm
 
 def genre_preferences(consumer_item_rating_genre_df, historical_distribution, dataset_directory):
     """
-    Generate consumer preferences based on genre preferences.
+    Generate consumer preferences based on genre counts.
 
     Args:
         consumer_item_rating_genre_df (DataFrame): DataFrame containing user-item ratings and genres.
@@ -40,69 +41,74 @@ def genre_preferences(consumer_item_rating_genre_df, historical_distribution, da
     return consumers_list, consumers_set
 
 
-def process_user_genre_preferences(user_data, reg_factor=3):
+def normalize_counts(counts):
     """
-    Calculate Bayesian average ratings for a single user's genre preferences.
+    Normalize genre counts to sum to 1.
+
+    Args:
+        counts (dict): Dictionary of genre counts.
+
+    Returns:
+        dict: Normalized genre preferences.
+    """
+    total = sum(counts.values())
+    if total == 0:
+        return {genre: 0 for genre in counts}  # Handle case where total is zero
+    return {genre: count / total for genre, count in counts.items()}
+
+
+def process_user_genre_preferences(user_data):
+    """
+    Calculate genre preferences for a single user based on item counts and normalize them.
 
     Args:
         user_data (DataFrame): DataFrame of a single user's ratings and genres.
-        reg_factor (int): Regularization factor for Bayesian average.
 
     Returns:
-        DataFrame: User's genre preferences with Bayesian averages.
+        DataFrame: User's genre preferences normalized.
     """
     user_data = user_data.dropna(subset=["genres"])
     
-    # Step 1: Process genre explosion row-by-row for this user
-    genre_ratings = defaultdict(list)
+    # Step 1: Count items per genre
+    genre_counts = defaultdict(int)
     for _, row in user_data.iterrows():
         genres = row["genres"].split("|")
         for genre in genres:
-            genre_ratings[genre].append(row["rating"])
+            genre_counts[genre] += 1
 
-    # Step 2: Calculate Bayesian averages per genre
-    user_avg = user_data["rating"].mean()  # User's overall average rating
-    genre_preferences = []
+    # Step 2: Normalize counts
+    normalized_counts = normalize_counts(genre_counts)
 
-    for genre, ratings in genre_ratings.items():
-        n = len(ratings)  # Number of ratings for this genre
-        genre_avg = sum(ratings) / n  # Genre's average rating
-        bayesian_avg = (genre_avg * n + reg_factor * user_avg) / (n + reg_factor)
-        genre_preferences.append({"genre": genre, "bayesian_avg_rating": bayesian_avg})
+    # Convert to DataFrame
+    genre_df = pd.DataFrame(
+        [{"genre": genre, "normalized_preference": pref} for genre, pref in normalized_counts.items()]
+    )
 
-    return pd.DataFrame(genre_preferences)
+    return genre_df
 
 
-def generate_genre_preferences(df, reg_factor=3):
+def generate_genre_preferences(df):
     """
-    Process user-by-user genre preferences and normalize them to sum up to 1.
+    Process user-by-user genre preferences and normalize them based on counts.
 
     Args:
-        df (DataFrame): Input DataFrame with userId, itemId, rating, genres.
-        reg_factor (int): Regularization factor for Bayesian averaging.
+        df (DataFrame): Input DataFrame with consumerId, itemId, rating, genres.
 
     Returns:
         DataFrame: Normalized genre preferences for all users.
     """
-    user_ids = df["userId"].unique()
+    user_ids = df["consumerId"].unique()
 
     # Initialize an empty list to store results
     all_genre_preferences = []
 
     # Process each user independently with a progress bar
     for user_id in tqdm(user_ids, desc="Processing Users", unit="user"):
-        user_data = df[df["userId"] == user_id]  # Filter data for one user
-        user_preferences = process_user_genre_preferences(user_data, reg_factor)
-
-        # Normalize the preferences for this user
-        total = user_preferences["bayesian_avg_rating"].sum()
-        user_preferences["normalized_rating"] = (
-            user_preferences["bayesian_avg_rating"] / total
-        )
+        user_data = df[df["consumerId"] == user_id]  # Filter data for one user
+        user_preferences = process_user_genre_preferences(user_data)
 
         # Add the user ID
-        user_preferences["userId"] = user_id
-
+        user_preferences["consumerId"] = user_id
         all_genre_preferences.append(user_preferences)
 
     # Combine all results into a single DataFrame
@@ -110,7 +116,7 @@ def generate_genre_preferences(df, reg_factor=3):
 
     # Pivot the DataFrame to create a user-genre matrix
     normalized_preferences = result_df.pivot(
-        index="userId", columns="genre", values="normalized_rating"
+        index="consumerId", columns="genre", values="normalized_preference"
     ).fillna(0)
 
     return normalized_preferences

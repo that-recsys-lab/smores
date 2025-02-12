@@ -2,14 +2,14 @@ import numpy as np
 
 
 def category_similarity_logit(
-    items, threshold, category_preferences, prohibited_categories
+    items, threshold, category_preferences, prohibited_genres
 ):
     """
     Args:
         items (list): List of items to evaluate.
         threshold (float): Threshold value to evaluate scores.
-        category_preferences (dict): User's preferences for categories.
-        prohibited_categories (set): Categories to penalize in the scoring.
+        category_preferences (dict): User's preferences for genres.
+        prohibited_genres (set): genres to penalize in the scoring.
 
     Returns:
         int: Index of the selected item in the input list, or None if no selection is possible.
@@ -20,8 +20,8 @@ def category_similarity_logit(
     # Calculate utility for each item based on category similarity
     for i, item in enumerate(items):
         category_similarity = 0.0
-        for category in item.categories:
-            if category in prohibited_categories:
+        for category in item.genres:
+            if category in prohibited_genres:
                 category_similarity -= 1
             else:
                 category_similarity += category_preferences.get(category, 0)

@@ -32,7 +32,7 @@ def threshold_switching(
     provider_data = []
     consumer_data = []
     recommender_data = []
-    customers_recommender_choice = []
+    consumers_recommender_choice = []
 
     recommender_values = list(recommenders.values())
     mainstream_recommender = recommender_values[0]
@@ -41,7 +41,8 @@ def threshold_switching(
     # Subscribe consumers to mainstream recommender
     for consumer in consumers:
         mainstream_recommender.connect_consumer(consumer)
-        consumer.subscribe_to_recommender_system(mainstream_recommender.recommender_id)
+        consumer.subscribe_to_recommender_system(mainstream_recommender.recommender_id, 1)
+        consumer.subscribe_to_recommender_system(niche_recommender.recommender_id, 0)
 
     print("mainstream consumers count:", len(mainstream_recommender.connected_consumers.keys()))
     print("niche consumers count:", len(niche_recommender.connected_consumers.keys()))
@@ -54,13 +55,6 @@ def threshold_switching(
 
         niche_recommender.connect_provider(provider)
         provider.subscribe_to_recommender_system(niche_recommender.recommender_id)
-
-    ### LOGGING ###
-    print(
-        "Connected to mainstream recommender:",
-        len(mainstream_recommender.connected_consumers),
-    )
-    print("Connected to Niche recommender:", len(niche_recommender.connected_consumers))
 
     # Run the experiment for the specified number of days
     for cycle in range(1, num_cycles + 1):
@@ -77,7 +71,7 @@ def threshold_switching(
                 if chosen_recommender_id is None:
                     continue
                 # Append recommender to consumer to evaluate UCB
-                customers_recommender_choice.append(
+                consumers_recommender_choice.append(
                     [consumer.consumer_id, chosen_recommender_id]
                 )  # used for analysis
                 consumers_by_recommender[chosen_recommender_id].append(consumer)
@@ -140,10 +134,13 @@ def threshold_switching(
                 recommender_id = key
 
                 # if consumer.satisfaction_scores[recommender_id] < 0.05:  # kl_divergance threshold
-                if consumer.kl_divergence[recommender_id] > 2.5:
+                if consumer.satisfaction_scores[recommender_id] < 0.1:
+                    # if the current recommender has the highst satisfaction score break
+                    if (max(consumer.satisfaction_scores, key = consumer.satisfaction_scores.get) == recommender_id and all(score > 0 for score in consumer.satisfaction_scores.values())):
+                        break
                     # disconnect from the recommender
                     # if currently connected to mainstream recommender switch to niche
-                    if (
+                    elif (
                         consumer.consumer_id
                         in mainstream_recommender.connected_consumers.keys()
                     ):
@@ -320,8 +317,8 @@ def threshold_switching(
             "cycle",
         ],
     )
-    customer_recommender_df = pd.DataFrame(
-        customers_recommender_choice, columns=["customer_id", "recommender_id"]
+    consumer_recommender_df = pd.DataFrame(
+        consumers_recommender_choice, columns=["consumer_id", "recommender_id"]
     )
 
-    return provider_df, consumer_df, recommender_df, customer_recommender_df
+    return provider_df, consumer_df, recommender_df, consumer_recommender_df

@@ -18,26 +18,26 @@ class SurpriseSVD(Recommender):
     def __init__(
         self,
         recommender_id,
-        most_popular_movie_ids,
+        most_popular_item_ids,
         fee_per_click=0,
         fee_per_show=0,
         base_fee=0,
         exploration_prob=0.2,
-        specialized_categories=None,
-        prohibited_categories=None,
+        specialized_genres=None,
+        prohibited_genres=None,
         weighted_category=None,
         weighted_value=0.5,
         consumers=None,
         providers=None,
     ):
-        super().__init__(recommender_id, consumers, providers, most_popular_movie_ids)
+        super().__init__(recommender_id, consumers, providers, most_popular_item_ids)
         self.recommender_id = recommender_id
         self.fee_per_click = fee_per_click
         self.fee_per_show = fee_per_show
         self.base_fee = base_fee
         self.exploration_prob = exploration_prob
-        self.specialized_categories = specialized_categories or set()
-        self.prohibited_categories = prohibited_categories or set()
+        self.specialized_genres = specialized_genres or set()
+        self.prohibited_genres = prohibited_genres or set()
         self.weighted_category = weighted_category or {}
         self.weighted_value = weighted_value
         self.trainable_model = True
@@ -109,7 +109,7 @@ class SurpriseSVD(Recommender):
 
         # Calculate the number of neighbors
         num_users = user_item_matrix.shape[0]
-        n_neighbors = max(1, int(np.log2(num_users)))
+        n_neighbors = 5
 
         # Convert user-item matrix to sparse format
         if not isinstance(user_item_matrix, csr_matrix):
@@ -219,6 +219,7 @@ class SurpriseSVD(Recommender):
         if not self.has_trained_model and not self.items:
             print("Collect items from providers")
             self.update_items_list()
+            print(f"{self.recommender_id}Number of items: {len(self.items)}")
 
         if not self.precomputed_recommendations and self.has_trained_model:
             print("No precomputed recommendations found. Loading from disk...")
@@ -226,7 +227,7 @@ class SurpriseSVD(Recommender):
 
         item_map = {item.item_id: item for item in self.items}
         all_item_ids = set(item_map.keys())
-        popular_item_ids = set(self.most_popular_movie_ids)
+        popular_item_ids = set(self.most_popular_item_ids)
         popular_item_ids = popular_item_ids.intersection(all_item_ids)
         
 
@@ -244,6 +245,7 @@ class SurpriseSVD(Recommender):
                     if len(available_item_ids) > slate_size
                     else list(available_item_ids)
                 )
+                    
                 recommended_items = [item_map[item_id] for item_id in sampled_item_ids]
 
             else:

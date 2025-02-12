@@ -4,13 +4,13 @@ from collections import defaultdict
 from tqdm import tqdm  # Import tqdm for the progress bar
 
 
-def historical_distribution(ratings_df, movies_df, dataset_directory):
+def historical_distribution(ratings_df, items_df, dataset_directory):
     """
     Generate historical distribution for consumers based on genre preferences.
 
     Args:
         ratings_df (DataFrame): DataFrame containing user-item ratings.
-        movies_df (DataFrame): DataFrame containing movie genres.
+        items_df (DataFrame): DataFrame containing item genres.
         dataset_directory (str): Path to the dataset directory.
 
     Returns:
@@ -26,9 +26,9 @@ def historical_distribution(ratings_df, movies_df, dataset_directory):
     else:
         print("Generating consumer historical distribution... This might take a while")
 
-        # Merge ratings with movies on movieId
-        movies_df["genres"] = movies_df["genres"].apply(lambda x: x.split("|"))
-        merged = pd.merge(ratings_df, movies_df, on="movieId")
+        # Merge ratings with items on itemId
+        items_df["genres"] = items_df["genres"].apply(lambda x: x.split("|"))
+        merged = pd.merge(ratings_df, items_df, on="itemId")
 
         # Initialize a dictionary to hold user genre counts
         user_genre_counts = defaultdict(lambda: defaultdict(int))
@@ -37,7 +37,7 @@ def historical_distribution(ratings_df, movies_df, dataset_directory):
         for _, row in tqdm(
             merged.iterrows(), total=len(merged), desc="Processing rows"
         ):
-            user_id = row["userId"]
+            user_id = row["consumerId"]
             genres = row["genres"]
             for genre in genres:
                 if genre == "(no genres listed)":

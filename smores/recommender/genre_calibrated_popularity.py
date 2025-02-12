@@ -12,21 +12,21 @@ class GenreCalibratedPopularity(Recommender):
         fee_per_show=0,
         base_fee=0,
         exploration_prob=0.2,
-        specialized_categories=set(),
-        prohibited_categories=set(),
+        specialized_genres=set(),
+        prohibited_genres=set(),
         weighted_category={},
         weighted_value=0.5,
     ):
         """
         The `PopularRecommender` class is a type of recommender system that suggests items based on their overall popularity,
-        with an option to incorporate user-specific preferences and categories. The class balances between exploration
+        with an option to incorporate user-specific preferences and genres. The class balances between exploration
         (recommending less popular or random items) and exploitation (recommending the most popular items)
         to provide a diverse slate of recommendations.
 
         Key Features:
         - Maintains historical recommendations and tracks user interactions to inform future recommendations.
         - Incorporates fees for clicks, shows, and subscriptions, allowing for profit calculations based on provider interactions.
-        - Supports specialized and prohibited categories, as well as weighted categories for fine-tuned recommendations.
+        - Supports specialized and prohibited genres, as well as weighted genres for fine-tuned recommendations.
         - Utilizes user category preferences and item popularity to filter and prioritize recommendations.
         - Records and logs interactions to monitor recommendation performance and identify gaps (e.g., undersized recommendation slates).
 
@@ -48,8 +48,8 @@ class GenreCalibratedPopularity(Recommender):
         self.fee_per_show = fee_per_show
         self.base_fee = base_fee
         self.profit = []
-        self.specialized_categories = specialized_categories
-        self.prohibited_categories = prohibited_categories
+        self.specialized_genres = specialized_genres
+        self.prohibited_genres = prohibited_genres
         # weighted category variables
         self.weighted_category = (
             weighted_category  # dictionary of category as key and weight as value
@@ -97,7 +97,7 @@ class GenreCalibratedPopularity(Recommender):
                         genre_filtered_items = [
                             item
                             for item in self.items
-                            if top_genres.intersection(item.categories)
+                            if top_genres.intersection(item.genres)
                         ]
 
                         if len(genre_filtered_items) > slate_size:
@@ -125,7 +125,7 @@ class GenreCalibratedPopularity(Recommender):
                                     item
                                     for item in self.sorted_items
                                     if category_preferences_set.intersection(
-                                        item.categories
+                                        item.genres
                                     )
                                 ]
                                 recommended_items = genre_filtered_items[:slate_size]
@@ -141,7 +141,7 @@ class GenreCalibratedPopularity(Recommender):
                                 item
                                 for item in self.sorted_items
                                 if category_preferences_set.intersection(
-                                    item.categories
+                                    item.genres
                                 )
                             ]
                             recommended_items = genre_filtered_items[:slate_size]
