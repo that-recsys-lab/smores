@@ -2,7 +2,8 @@
 .venv
 venv
 
-# results
+# files
+structure.md
 
 # directories
 data_export_exp1/*
@@ -11,12 +12,15 @@ data_export_exp3/*
 img/*
 experiments/results/*
 experiments/config/*
-data/raw/*
+data/raw/ml-32m
+data/raw/ml-tmdb
 data/processed/*
 tmp/*
 notebooks/*
 docs/*
 /.virtual_documents
+structure.md
+notebooks/*
 
 # files
 paper-viz-3.0.ipynb
