@@ -288,6 +288,34 @@ class Consumer:
         """
         self.connected_recommenders[recommender_system_id] = 0
 
+
+    def remove_user_retain(self):
+        """
+        Unsubscribe the user from all active recommender systems but retain their profile and interaction data.
+        Returns:
+            The user's profile data (e.g., category preferences) that remains stored.
+        """
+        # Remove subscriptions by clearing the connected recommender list
+        self.connected_recommenders = {}
+        return self.category_preferences
+
+    def remove_user_delete(self):
+        """
+        Completely remove the user by unsubscribing them and deleting all their profile and interaction data.
+        Returns:
+            None.
+        """
+        # Remove subscriptions
+        self.connected_recommenders = {}
+        # Delete the user's profile data
+        self.category_preferences = {}
+        # Clear any interaction data stored on the user (if applicable)
+        if hasattr(self, 'interactions'):
+            self.interactions = []
+        # Clear any satisfaction scores or other related data
+        self.satisfaction_scores = {}
+        return None
+
     def choose_recommender(self, preselected_recommender_id=None):
         """
         Choose a recommender system based on the Upper Confidence Bound (UCB) algorithm.
