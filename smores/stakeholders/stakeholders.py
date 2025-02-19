@@ -211,6 +211,19 @@ class Provider:
         return f"Provider {self.provider_id}: items={self.items}, genres={self.genres}"
 
 
+class Interaction:
+    """
+    A simple class to encapsulate a user interaction.
+    Each interaction stores the consumer ID, item ID, and recommender ID.
+    """
+    def __init__(self, consumer_id, item_id, recommender_id):
+        self.consumer_id = consumer_id
+        self.item_id = item_id
+        self.recommender_id = recommender_id
+
+    def __str__(self):
+        return f"Interaction(consumer_id={self.consumer_id}, item_id={self.item_id}, recommender_id={self.recommender_id})"
+        
 class Consumer:
     def __init__(
         self,
@@ -256,6 +269,7 @@ class Consumer:
         self.genre_recommendation_counts = {}
         self.historical_distribution = historical_distribution
         self.kl_divergence = defaultdict(float)
+        self.interactions = []
 
     def subscribe_to_recommender_system(self, recommender_system_id, state=1):
         """
@@ -287,7 +301,16 @@ class Consumer:
             recommender_system_id (str): Identifier of the recommender system to unsubscribe from.
         """
         self.connected_recommenders[recommender_system_id] = 0
-
+        
+    def record_interaction(self, item_id, recommender_id):
+        """
+        Create and store an Interaction object.
+        """
+        interaction = Interaction(self.consumer_id, item_id, recommender_id)
+        self.interactions.append(interaction)
+        print(f"[DEBUG] Recorded interaction for consumer {self.consumer_id}: {interaction}")
+        print(f"[DEBUG] Total interactions for consumer {self.consumer_id}: {len(self.interactions)}")
+        return interaction
 
     def remove_user_retain(self):
         """
@@ -309,7 +332,7 @@ class Consumer:
         self.connected_recommenders = {}
         # Delete the user's profile data
         self.category_preferences = {}
-        # Clear any interaction data stored on the user (if applicable)
+        # Clear any interaction data stored on the user
         if hasattr(self, 'interactions'):
             self.interactions = []
         # Clear any satisfaction scores or other related data
@@ -403,7 +426,7 @@ class Consumer:
 
         # Determine whether the user will click on anything
         click_prob = np.random.random()
-        if click_prob <= 1:  # 100% chance of clicking
+        if click_prob <= 1.0:  # 100% chance of clicking
             # Choice model to select an item from the slate
             selected_index = self.choice_model(
                 items=slate_items,
@@ -463,23 +486,19 @@ class Consumer:
             recommender_system (Recommender): Recommender system instance.
         """
         sim_score = 0
-        for item in slate_items:
-            # dot product of the intersection between the user interest and the item features for each item in the slate
-            intersecting_keys = set(self.category_preferences.keys()).intersection(
-                set(item.normalized_genres_vector.keys())
-            )
-            # Compute the dot product only for the intersecting keys
-            sim_score += sum(
-                self.category_preferences[key] * item.normalized_genres_vector[key]
-                for key in intersecting_keys
-            )
-        # normalize sim_score
-        norm_sim_score = sim_score / len(slate_items)
-
+        # Check if slate_items is empty to avoid division by zero
+        if not slate_items:
+            norm_sim_score = 0
+        else:
+            for item in slate_items:
+                # Compute the intersection between consumer's category preferences and the item's normalized genres vector keys
+                intersecting_keys = set(self.category_preferences.keys()).intersection(set(item.normalized_genres_vector.keys()))
+                # Sum up the dot product for those keys
+                sim_score += sum(self.category_preferences[key] * item.normalized_genres_vector[key] for key in intersecting_keys)
+            norm_sim_score = sim_score / len(slate_items)
         self.satisfaction_scores[recommender_system_id] = (
-            self.satisfaction_scores.get(recommender_system_id, 0) * self.beta
-            + norm_sim_score
-        ) / (1 + self.beta)
+            self.satisfaction_scores.get(recommender_system_id, 0) * self.beta + norm_sim_score
+    ) / (1 + self.beta)
 
     def get_satisfaction_score(self, recommender_system_id="default"):
         """

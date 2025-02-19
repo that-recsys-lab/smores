@@ -2,6 +2,12 @@ import pandas as pd
 import numpy as np
 import random
 
+DEBUG = True
+if DEBUG:
+    print(f"[DEBUG] Something happened")
+
+
+
 
 def threshold_switching(
     consumers,
@@ -37,6 +43,9 @@ def threshold_switching(
     recommender_values = list(recommenders.values())
     mainstream_recommender = recommender_values[0]
     niche_recommender = recommender_values[1]
+
+    if DEBUG:
+        print(f"[DEBUG] Total interactions in mainstream recommender so far: {len(mainstream_recommender.interactions)}")
 
     # Subscribe consumers to mainstream recommender
     for consumer in consumers:
@@ -115,57 +124,71 @@ def threshold_switching(
                 # Collect clicked items
                 for i, response in enumerate(responses):
                     if response.get("click", 0) == 1:
-                        clicked_items[consumer_id].append(slate_items[i])
-                        recommenders[chosen_recommender_id].record_click(
-                            consumer_id, slate_items[i]
-                        )
-                        recommenders[chosen_recommender_id].add_interaction(
-                            consumer_id,
-                            slate_items[i].item_id,
-                            model.predict(consumer_id, slate_items[i].item_id).est,
-                        )
+                        # Define item_id here
+                        item_id = slate_items[i].item_id
+                        
+                        # Now it’s safe to reference item_id
+                        if DEBUG:
+                            print(f"[DEBUG] About to add interaction for consumer {consumer_id} on item {item_id}")
+                        
+                        # If you also need rating:
+                        rating = model.predict(consumer_id, item_id).est
+                        
+                        # Then record the interaction on the recommender:
+                        recommenders[chosen_recommender_id].add_interaction(consumer_id, item_id, rating)
+
+                        print(f"[DEBUG] Interaction added for consumer {consumer_id}")
+
 
         # Switching at the end of each cycle
         for consumer in consumers:
-            # Get the connected recommender
             for key, value in consumer.connected_recommenders.copy().items():
-                if value == 0:  # if not connected; break
+                if value == 0:
                     continue
                 recommender_id = key
-
-                # if consumer.satisfaction_scores[recommender_id] < 0.05:  # kl_divergance threshold
-                if consumer.satisfaction_scores[recommender_id] < 0.1:
-                    # if the current recommender has the highst satisfaction score break
-                    if (max(consumer.satisfaction_scores, key = consumer.satisfaction_scores.get) == recommender_id and all(score > 0 for score in consumer.satisfaction_scores.values())):
+                if consumer.satisfaction_scores[recommender_id] < 0.05:
+                    if (max(consumer.satisfaction_scores, key=consumer.satisfaction_scores.get) == recommender_id
+                        and all(score > 0 for score in consumer.satisfaction_scores.values())):
                         break
-                    # disconnect from the recommender
-                    # if currently connected to mainstream recommender switch to niche
-                    elif (
-                        consumer.consumer_id
-                        in mainstream_recommender.connected_consumers.keys()
-                    ):
-                        # disconnect from recommender
+                    elif consumer.consumer_id in mainstream_recommender.connected_consumers.keys():
                         mainstream_recommender.disconnect_consumer(consumer)
-                        consumer.unsubscribe_from_recommender_system(
-                            mainstream_recommender.recommender_id
-                        )
-                        # connect to new recommender
+                        consumer.unsubscribe_from_recommender_system(mainstream_recommender.recommender_id)
+                        
+                        mainstream_recommender.remove_user_interactions(consumer.consumer_id)
+                        user_interactions = mainstream_recommender.get_user_interactions(consumer.consumer_id)
+                        if user_interactions:
+                            print(f"[DEBUG] Consumer {consumer.consumer_id} interactions before transfer from mainstream: {user_interactions}")
+                        for (uid, iid, rating) in user_interactions:
+                            niche_recommender.add_interaction(uid, iid, rating)
+                        
                         niche_recommender.connect_consumer(consumer)
-                        consumer.subscribe_to_recommender_system(
-                            niche_recommender.recommender_id
-                        )
+                        consumer.subscribe_to_recommender_system(niche_recommender.recommender_id)
                     else:
-                        # else disconnect from niche and connect to mainstream
                         niche_recommender.disconnect_consumer(consumer)
-                        consumer.unsubscribe_from_recommender_system(
-                            niche_recommender.recommender_id
-                        )
-                        # connect to mainstream recommender
+                        consumer.unsubscribe_from_recommender_system(niche_recommender.recommender_id)
+                        
+                        niche_recommender.remove_user_interactions(consumer.consumer_id)
+                        user_interactions = niche_recommender.get_user_interactions(consumer.consumer_id)
+                        if user_interactions:
+                            print(f"[DEBUG] Consumer {consumer.consumer_id} interactions before transfer from niche: {user_interactions}")
+                        for (uid, iid, rating) in user_interactions:
+                            mainstream_recommender.add_interaction(uid, iid, rating)
+                        
                         mainstream_recommender.connect_consumer(consumer)
-                        consumer.subscribe_to_recommender_system(
-                            mainstream_recommender.recommender_id
-                        )
+                        consumer.subscribe_to_recommender_system(mainstream_recommender.recommender_id)
 
+    # --- Global Interaction Count Debug ---
+    total_interactions = sum(len(consumer.interactions) for consumer in consumers)
+    if DEBUG:  
+        print(f"[DEBUG] Total interactions across all consumers at end of cycle {cycle}: {total_interactions}")
+
+    # --- Inspect a Specific Consumer (e.g., Consumer 1) ---
+    for consumer in consumers:
+        if consumer.consumer_id == 1:
+            if DEBUG:
+                print(f"[DEBUG] Consumer 1 category_preferences: {consumer.category_preferences}")
+                print(f"[DEBUG] Consumer 1 total interactions: {len(consumer.interactions)}")
+        
         ### LOGGING ###
         print(
             "Connected to mainstream recommender:",

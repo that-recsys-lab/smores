@@ -282,3 +282,39 @@ class SurpriseSVD(Recommender):
 
         self.historical_recommendations.extend(recommendations.values())
         return recommendations
+
+    def add_interaction(self, consumer_id, item_id, rating):
+        """
+        Add a new interaction to the SVD interaction table.
+        
+        Args:
+            consumer_id (int): ID of the consumer.
+            item_id (int): ID of the item.
+            rating (float): The rating value.
+        """
+        if not hasattr(self, 'interactions'):
+            self.interactions = []
+        self.interactions.append((consumer_id, item_id, rating))
+
+    def remove_user_interactions(self, consumer_id):
+        """
+        Remove all interactions for a specific user (consumer_id) from the SVD internal table.
+        """
+        if not hasattr(self, 'interactions'):
+            # If we never created self.interactions, there's nothing to remove
+            return
+
+        original_count = len(self.interactions)
+        self.interactions = [
+            (uid, iid, rating) for (uid, iid, rating) in self.interactions
+            if uid != consumer_id
+        ]
+
+    def get_user_interactions(self, consumer_id):
+        """
+        Return all interactions for the given consumer.
+        """
+        if not hasattr(self, 'interactions'):
+            return []
+        return [(uid, iid, r) for (uid, iid, r) in self.interactions if uid == consumer_id]
+

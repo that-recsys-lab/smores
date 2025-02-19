@@ -133,7 +133,7 @@ del ratings_df, items_df, consumer_item_rating_genre_df
 
 # Run experiment
 run_experiment(
-    experiment=ucb_switching,
+    experiment=threshold_switching,
     model=model,
     consumer_choice_model=category_similarity_logit,
     experiment_name=experiment_name,
