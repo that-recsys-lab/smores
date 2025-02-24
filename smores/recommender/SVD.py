@@ -12,7 +12,8 @@ import heapq
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import coo_matrix, csr_matrix
 from smores.stakeholders.stakeholders import Recommender
-
+from smores.stakeholders.interaction import Interaction
+import logging
 
 class SurpriseSVD(Recommender):
     def __init__(
@@ -57,51 +58,41 @@ class SurpriseSVD(Recommender):
         print("Training model if ready")
         if len(self.interactions) > 10:  # Arbitrary threshold, adjust as needed
             print("Interactions summary")
-            print(
-                pd.DataFrame(
-                    self.interactions, columns=["consumer_id", "item_id", "rating"]
-                )["rating"].describe()
-            )
+            
+            # 1) Convert each Interaction object into a (consumer_id, item_id, rating) tuple
+            data_list = [
+                (interaction.user_id, interaction.item_id, interaction.rating)
+                for interaction in self.interactions
+            ]
+            
+            # 2) Build a single DataFrame from data_list
+            df = pd.DataFrame(data_list, columns=["consumer_id", "item_id", "rating"])
+            
+            # Now you can safely describe the 'rating' column
+            print(df["rating"].describe())
             print("Training model")
+    
+            # Build Surprise dataset and train the SVD model
             reader = Reader()
-            df = pd.DataFrame(
-                self.interactions, columns=["consumer_id", "item_id", "rating"]
-            )
-
+            data = Dataset.load_from_df(df, reader)
+            trainset = data.build_full_trainset()
+            self.algo.fit(trainset)
+    
+            # Additional logs
             num_missing_interactions = len(
                 set(consumer.consumer_id for consumer in self.consumers)
                 - set(df["consumer_id"].unique())
             )
-            print(
-                f"Number of consumers missing in interactions dataset: {num_missing_interactions}"
-            )
-
-            data = Dataset.load_from_df(df, reader)
-            trainset = data.build_full_trainset()
-            self.algo.fit(trainset)
-
-            # Create user-item matrix for clustering using a sparse matrix
-            consumer_map = {
-                id: idx for idx, id in enumerate(df["consumer_id"].unique())
-            }
-            item_map = {id: idx for idx, id in enumerate(df["item_id"].unique())}
-
-            df["consumer_idx"] = df["consumer_id"].map(consumer_map)
-            df["item_idx"] = df["item_id"].map(item_map)
-
-            user_item_matrix = coo_matrix(
-                (df["rating"], (df["consumer_idx"], df["item_idx"])),
-                shape=(len(consumer_map), len(item_map)),
-            ).tocsr()
-
-            self._create_user_clusters(user_item_matrix, consumer_map)
-
-            self.has_trained_model = True
-            print("Model training completed")
-            self.compute_and_store_recommendations()
-            self.load_recommendations()
+            print(f"Number of consumers missing in interactions dataset: {num_missing_interactions}")
+    
         else:
             print("Not enough interactions to train the model yet")
+    def get_user_interactions(self, user_id):
+        """
+        Return all Interaction objects for a given user.
+        """
+        return [i for i in self.interactions if i.user_id == user_id]
+
 
     def _create_user_clusters(self, user_item_matrix, consumer_map):
         """Cluster users based on their clicked items using KNN."""
@@ -242,6 +233,7 @@ class SurpriseSVD(Recommender):
 
                 sampled_item_ids = (
                     random.sample(list(available_item_ids), slate_size)
+
                     if len(available_item_ids) > slate_size
                     else list(available_item_ids)
                 )
@@ -282,39 +274,4 @@ class SurpriseSVD(Recommender):
 
         self.historical_recommendations.extend(recommendations.values())
         return recommendations
-
-    def add_interaction(self, consumer_id, item_id, rating):
-        """
-        Add a new interaction to the SVD interaction table.
         
-        Args:
-            consumer_id (int): ID of the consumer.
-            item_id (int): ID of the item.
-            rating (float): The rating value.
-        """
-        if not hasattr(self, 'interactions'):
-            self.interactions = []
-        self.interactions.append((consumer_id, item_id, rating))
-
-    def remove_user_interactions(self, consumer_id):
-        """
-        Remove all interactions for a specific user (consumer_id) from the SVD internal table.
-        """
-        if not hasattr(self, 'interactions'):
-            # If we never created self.interactions, there's nothing to remove
-            return
-
-        original_count = len(self.interactions)
-        self.interactions = [
-            (uid, iid, rating) for (uid, iid, rating) in self.interactions
-            if uid != consumer_id
-        ]
-
-    def get_user_interactions(self, consumer_id):
-        """
-        Return all interactions for the given consumer.
-        """
-        if not hasattr(self, 'interactions'):
-            return []
-        return [(uid, iid, r) for (uid, iid, r) in self.interactions if uid == consumer_id]
-

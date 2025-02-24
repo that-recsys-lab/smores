@@ -4,6 +4,9 @@ import math
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from smores.stakeholders.choice import category_similarity_logit
+from smores.stakeholders.interaction import Interaction
+import logging
+logger = logging.getLogger(__name__)
 
 
 class Item:
@@ -211,19 +214,6 @@ class Provider:
         return f"Provider {self.provider_id}: items={self.items}, genres={self.genres}"
 
 
-class Interaction:
-    """
-    A simple class to encapsulate a user interaction.
-    Each interaction stores the consumer ID, item ID, and recommender ID.
-    """
-    def __init__(self, consumer_id, item_id, recommender_id):
-        self.consumer_id = consumer_id
-        self.item_id = item_id
-        self.recommender_id = recommender_id
-
-    def __str__(self):
-        return f"Interaction(consumer_id={self.consumer_id}, item_id={self.item_id}, recommender_id={self.recommender_id})"
-        
 class Consumer:
     def __init__(
         self,
@@ -269,7 +259,6 @@ class Consumer:
         self.genre_recommendation_counts = {}
         self.historical_distribution = historical_distribution
         self.kl_divergence = defaultdict(float)
-        self.interactions = []
 
     def subscribe_to_recommender_system(self, recommender_system_id, state=1):
         """
@@ -301,43 +290,27 @@ class Consumer:
             recommender_system_id (str): Identifier of the recommender system to unsubscribe from.
         """
         self.connected_recommenders[recommender_system_id] = 0
-        
-    def record_interaction(self, item_id, recommender_id):
-        """
-        Create and store an Interaction object.
-        """
-        interaction = Interaction(self.consumer_id, item_id, recommender_id)
-        self.interactions.append(interaction)
-        print(f"[DEBUG] Recorded interaction for consumer {self.consumer_id}: {interaction}")
-        print(f"[DEBUG] Total interactions for consumer {self.consumer_id}: {len(self.interactions)}")
-        return interaction
+    # In smores/stakeholders/stakeholders.py, inside the Consumer class
 
-    def remove_user_retain(self):
+    def remove_user(self, retain_profile=True):
         """
-        Unsubscribe the user from all active recommender systems but retain their profile and interaction data.
-        Returns:
-            The user's profile data (e.g., category preferences) that remains stored.
+        Unsubscribe the consumer from all recommenders.
+        If retain_profile is False, also clear internal interaction data.
         """
-        # Remove subscriptions by clearing the connected recommender list
-        self.connected_recommenders = {}
-        return self.category_preferences
-
-    def remove_user_delete(self):
+        # Unsubscribe from each recommender by setting its status to 0.
+        for recommender_id in list(self.connected_recommenders.keys()):
+            self.unsubscribe_from_recommender_system(recommender_id)
+        # If we are not retaining the profile, clear records.
+        if not retain_profile:
+            self.forget_interactions()
+    
+    def forget_interactions(self):
         """
-        Completely remove the user by unsubscribing them and deleting all their profile and interaction data.
-        Returns:
-            None.
+        Clear out the consumer's internal interaction-related data.
+        This simulates "forgetting" the past interactions.
         """
-        # Remove subscriptions
-        self.connected_recommenders = {}
-        # Delete the user's profile data
-        self.category_preferences = {}
-        # Clear any interaction data stored on the user
-        if hasattr(self, 'interactions'):
-            self.interactions = []
-        # Clear any satisfaction scores or other related data
-        self.satisfaction_scores = {}
-        return None
+        self.genre_recommendation_counts = {} 
+        self.satisfaction_scores = {} 
 
     def choose_recommender(self, preselected_recommender_id=None):
         """
@@ -426,7 +399,7 @@ class Consumer:
 
         # Determine whether the user will click on anything
         click_prob = np.random.random()
-        if click_prob <= 1.0:  # 100% chance of clicking
+        if click_prob <= 1:  # 100% chance of clicking
             # Choice model to select an item from the slate
             selected_index = self.choice_model(
                 items=slate_items,
@@ -486,19 +459,26 @@ class Consumer:
             recommender_system (Recommender): Recommender system instance.
         """
         sim_score = 0
-        # Check if slate_items is empty to avoid division by zero
-        if not slate_items:
-            norm_sim_score = 0
-        else:
-            for item in slate_items:
-                # Compute the intersection between consumer's category preferences and the item's normalized genres vector keys
-                intersecting_keys = set(self.category_preferences.keys()).intersection(set(item.normalized_genres_vector.keys()))
-                # Sum up the dot product for those keys
-                sim_score += sum(self.category_preferences[key] * item.normalized_genres_vector[key] for key in intersecting_keys)
+        for item in slate_items:
+            # dot product of the intersection between the user interest and the item features for each item in the slate
+            intersecting_keys = set(self.category_preferences.keys()).intersection(
+                set(item.normalized_genres_vector.keys())
+            )
+            # Compute the dot product only for the intersecting keys
+            sim_score += sum(
+                self.category_preferences[key] * item.normalized_genres_vector[key]
+                for key in intersecting_keys
+            )
+        # normalize sim_score
+        if len(slate_items) > 0:
             norm_sim_score = sim_score / len(slate_items)
+        else:
+            norm_sim_score = 0  # or some default value
+
         self.satisfaction_scores[recommender_system_id] = (
-            self.satisfaction_scores.get(recommender_system_id, 0) * self.beta + norm_sim_score
-    ) / (1 + self.beta)
+            self.satisfaction_scores.get(recommender_system_id, 0) * self.beta
+            + norm_sim_score
+        ) / (1 + self.beta)
 
     def get_satisfaction_score(self, recommender_system_id="default"):
         """
@@ -526,39 +506,47 @@ class Consumer:
 
     def compute_kl_divergence(self, recommender_system_id):
         """
-        Compute the KL divergence between the consumer's category preferences and the historical distribution.
-
+        Compute the KL divergence between the consumer's category preferences
+        and the historical distribution for the given recommender.
         """
-        # Normalize historical_distribution
-        profile_historical = sum(self.historical_distribution.values())
-        historical_distribution_normalized = {
-            genre: count / profile_historical
-            for genre, count in self.historical_distribution.items()
+        import math
+    
+        # 1) Handle zero-sum historical distribution
+        hist_sum = sum(self.historical_distribution.values())
+        if hist_sum == 0:
+            self.kl_divergence[recommender_system_id] = 0.0
+            return 0.0
+    
+        hist_norm = {
+            genre: count / hist_sum for genre, count in self.historical_distribution.items()
         }
+    
+        # 2) Handle zero-sum consumer genre counts
+        genre_counts = self.genre_recommendation_counts.get(recommender_system_id, {})
+        total_count = sum(genre_counts.values())
+        if total_count == 0:
+            self.kl_divergence[recommender_system_id] = 0.0
+            return 0.0
+    
+        rec_norm = {genre: count / total_count for genre, count in genre_counts.items()}
+    
+        # 3) Compute KL divergence with a fallback if q == 0
+        kl_div = 0.0
+        for genre, p in rec_norm.items():
+            q = hist_norm.get(genre, 0.0)
+            # If q is actually 0, force a small epsilon to avoid division by zero
+            if q == 0.0:
+                q = 1e-10
+            # If p is also 0.0, then p * log(0/anything) is effectively 0, 
+            # but let's handle it consistently anyway:
+            if p == 0.0:
+                continue  # or p * log(0 / q) => 0, so can skip or just let it be 0
+            kl_div += p * math.log(p / q)
+    
+        self.kl_divergence[recommender_system_id] = kl_div
+        return kl_div
 
-        # Normalize consumer's genre preferences
-        total_count = sum(
-            self.genre_recommendation_counts[recommender_system_id].values()
-        )
-        genre_preferences_normalized = {
-            genre: count / total_count
-            for genre, count in self.genre_recommendation_counts[recommender_system_id].items()
-        }
 
-        # Compute KL divergence
-        kl_divergence = 0
-        for genre, p in genre_preferences_normalized.items():
-            q = historical_distribution_normalized.get(genre, 0.0)  # Default to 0 if genre is not in historical_distribution
-            if p > 0:
-                if q > 0:
-                    kl_divergence += p * math.log(p / q)
-                else:
-                    # Avoid division by zero; handle cases where q is 0
-                    kl_divergence += p * math.log(p / 1e-10)
-
-        self.kl_divergence[recommender_system_id] = kl_divergence
-
-        return kl_divergence
 
         # print("genre_recommendation_counts",self.genre_recommendation_counts[recommender_system_id].keys())
         # print("historical_distribution",self.historical_distribution.keys())
@@ -948,4 +936,22 @@ class Recommender(ABC):
             rating (boolean): 1 if the consumer clicked on the item, 0 otherwise.
 
         """
-        self.interactions.append((consumer_id, item_id, rating))
+        # Create an Interaction object with the current recommender's ID.
+        interaction = Interaction(consumer_id, item_id, self.recommender_id, rating)
+        # Append the structured Interaction to the interactions list.
+        self.interactions.append(interaction)
+        
+    def remove_user_interactions(self, user_id):
+        """
+        Removes all interactions for a given user from this recommender.
+        Logs the before and after count to verify removal.
+        """
+        original_count = len(self.interactions)
+        # Filter out interactions that belong to the specified user.
+        self.interactions = [i for i in self.interactions if i.user_id != user_id]
+        new_count = len(self.interactions)
+        logger.debug(
+            f"Removed user {user_id} from {self.recommender_id}, interactions: {original_count} -> {new_count}"
+        )
+
+    
