@@ -53,7 +53,6 @@ smores/
 ## Additional Notes
 - Ensure that the dataset files are properly placed in the `data/raw/` directory before running experiments.
 - If additional preprocessing is needed, modify the scripts accordingly.
-- Results from the experiments will be stored in the respective `data/processed/` directory.
 
 ## License
 This project is licensed under the terms specified in the `LICENSE` file.
