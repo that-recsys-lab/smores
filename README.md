@@ -43,6 +43,7 @@ python smores-ml1m-run.py
 smores/
 │── data/                # Raw and processed data files
 │   ├── raw/             # Contains original datasets
+│── smores/              # Contains the simulation modules
 │── smores-ambar-run.py  # Script for running AMBAR dataset experiment
 │── smores-ml1m-run.py   # Script for running ML1M dataset experiment
 │── requirements.txt     # Python dependencies
