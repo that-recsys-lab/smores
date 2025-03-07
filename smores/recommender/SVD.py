@@ -241,7 +241,7 @@ class SurpriseSVD(Recommender):
                 available_item_ids = popular_item_ids.difference(clicked_items)
 
                 sampled_item_ids = (
-                    random.sample(available_item_ids, slate_size)
+                    random.sample(sorted(available_item_ids), slate_size)
                     if len(available_item_ids) > slate_size
                     else list(available_item_ids)
                 )
@@ -265,7 +265,7 @@ class SurpriseSVD(Recommender):
                     available_item_ids = popular_item_ids.difference(clicked_items)
 
                     sampled_item_ids = (
-                        random.sample(available_item_ids, slate_size)
+                        random.sample(list(available_item_ids), slate_size)
                         if len(available_item_ids) > slate_size
                         else list(available_item_ids)
                     )
