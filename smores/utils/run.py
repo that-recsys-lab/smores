@@ -114,6 +114,7 @@ def run_experiment(
     consumers,
     providers,
     base_dir="experiments/results",
+    **kwargs
 ):
     """
     Run the experiment with the given parameters.
@@ -171,6 +172,7 @@ def run_experiment(
         slate_size=slate_size,
         num_cycles=num_cycles,
         model=model,
+        **kwargs  # Forward extra keyword arguments (e.g., forget_interactions, transfer_interactions)
     )
 
     # Calculate category frequencies

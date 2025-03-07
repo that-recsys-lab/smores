@@ -258,7 +258,6 @@ class Consumer:
         self.choice_model = choice_model
         self.genre_recommendation_counts = {}
         self.historical_distribution = historical_distribution
-        self.kl_divergence = defaultdict(float)
 
     def subscribe_to_recommender_system(self, recommender_system_id, state=1):
         """
@@ -269,9 +268,6 @@ class Consumer:
         """
         self.connected_recommenders[recommender_system_id] = state
         self.satisfaction_scores[recommender_system_id] = self.satisfaction_scores.get(
-            recommender_system_id, 0
-        )
-        self.kl_divergence[recommender_system_id] = self.kl_divergence.get(
             recommender_system_id, 0
         )
         self.recommender_counts[recommender_system_id] = self.recommender_counts.get(
@@ -305,12 +301,10 @@ class Consumer:
             self.forget_interactions()
     
     def forget_interactions(self):
-        """
-        Clear out the consumer's internal interaction-related data.
-        This simulates "forgetting" the past interactions.
-        """
-        self.genre_recommendation_counts = {} 
-        self.satisfaction_scores = {} 
+        self.genre_recommendation_counts = {}
+        self.satisfaction_scores = {}
+        self.recommender_counts = {}
+        self.ucb_scores = {} 
 
     def choose_recommender(self, preselected_recommender_id=None):
         """
@@ -502,55 +496,9 @@ class Consumer:
             {}
         )  # Dictionary to store how many times the recommender system has been chosen
         self.ucb_scores = {}  # Store UCB scores for each recommender system
-        self.kl_divergence = defaultdict(float)
-
-    def compute_kl_divergence(self, recommender_system_id):
-        """
-        Compute the KL divergence between the consumer's category preferences
-        and the historical distribution for the given recommender.
-        """
-        import math
-    
-        # 1) Handle zero-sum historical distribution
-        hist_sum = sum(self.historical_distribution.values())
-        if hist_sum == 0:
-            self.kl_divergence[recommender_system_id] = 0.0
-            return 0.0
-    
-        hist_norm = {
-            genre: count / hist_sum for genre, count in self.historical_distribution.items()
-        }
-    
-        # 2) Handle zero-sum consumer genre counts
-        genre_counts = self.genre_recommendation_counts.get(recommender_system_id, {})
-        total_count = sum(genre_counts.values())
-        if total_count == 0:
-            self.kl_divergence[recommender_system_id] = 0.0
-            return 0.0
-    
-        rec_norm = {genre: count / total_count for genre, count in genre_counts.items()}
-    
-        # 3) Compute KL divergence with a fallback if q == 0
-        kl_div = 0.0
-        for genre, p in rec_norm.items():
-            q = hist_norm.get(genre, 0.0)
-            # If q is actually 0, force a small epsilon to avoid division by zero
-            if q == 0.0:
-                q = 1e-10
-            # If p is also 0.0, then p * log(0/anything) is effectively 0, 
-            # but let's handle it consistently anyway:
-            if p == 0.0:
-                continue  # or p * log(0 / q) => 0, so can skip or just let it be 0
-            kl_div += p * math.log(p / q)
-    
-        self.kl_divergence[recommender_system_id] = kl_div
-        return kl_div
-
-
 
         # print("genre_recommendation_counts",self.genre_recommendation_counts[recommender_system_id].keys())
         # print("historical_distribution",self.historical_distribution.keys())
-        # print(self.consumer_id, kl_divergence)
 
 
 class Recommender(ABC):
