@@ -1,4 +1,3 @@
-# Represents a interaction between a user and an item through a recommender.
 class Interaction:
     def __init__(self, user_id, item_id, recommender_id, rating=None):
         self.user_id = user_id # Consumer/user

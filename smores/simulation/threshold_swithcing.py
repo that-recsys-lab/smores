@@ -11,8 +11,8 @@ def threshold_switching(
     slate_size=3,
     num_cycles=1,
     model=None,
-    forget_interactions=True,      # True deleted (Cold Start), False (not cleared) available
-    transfer_interactions=True     # True consumer history is available (not), False no interaction transfer.
+    forget_interactions=True,
+    transfer_interactions=True
 ):
     """
     Run a multi-recommender experiment.
@@ -32,11 +32,6 @@ def threshold_switching(
         pd.DataFrame: DataFrame containing recommender system data.
         pd.DataFrame: DataFrame containing consumers' recommender choice history.
     """
-
-    # Validate flag combination: cannot transfer interactions if they are forgotten.
-    if forget_interactions and transfer_interactions:
-        raise ValueError("Invalid flag combination: cannot transfer interactions when forgetting them.")
-
     print("Running threshold-switching recsys experiment")
 
     provider_data = []
@@ -69,12 +64,21 @@ def threshold_switching(
 
     # Run the simulation for the specified number of cycles and days
     for cycle in range(1, num_cycles + 1):
+        # Reset switch flag for the cycle
+        switch_occurred = False
+        
         for day in range(1, num_days + 1):
             print("===============> Day:", day, "<===============")
             # Organize consumers by the recommender they choose via UCB
             consumers_by_recommender = {rec_id: [] for rec_id in recommenders.keys()}
             for consumer in consumers:
-                chosen_recommender_id = consumer.choose_recommender()
+                # For the first 5 cycles, force the mainstream recommender
+                if cycle <= 5:
+                    chosen_recommender_id = consumer.choose_recommender(
+                        preselected_recommender_id=mainstream_recommender.recommender_id
+                    )
+                else:
+                    chosen_recommender_id = consumer.choose_recommender()
                 if chosen_recommender_id is None:
                     continue
                 consumers_recommender_choice.append([consumer.consumer_id, chosen_recommender_id])
@@ -113,106 +117,126 @@ def threshold_switching(
                             model.predict(consumer_id, slate_items[i].item_id).est,
                         )
         
-        # After all days in the cycle, switch low-satisfaction consumers.
-        for consumer in consumers:
-            for rec_id, status in list(consumer.connected_recommenders.items()):
-                if status == 1 and consumer.get_satisfaction_score(rec_id) < 0.1:
-                    # Determine the old and new recommender based on the current rec_id.
-                    if rec_id == mainstream_recommender.recommender_id:
-                        old_rec = mainstream_recommender
-                        new_rec = niche_recommender
-                    else:
-                        old_rec = niche_recommender
-                        new_rec = mainstream_recommender
-
-                    # Retrieve interactions from the old recommender if needed.
-                    # Only transfer if interactions are not being forgotten AND transfer_interactions is True.
-                    old_interactions = old_rec.get_user_interactions(consumer.consumer_id) if ((not forget_interactions) and transfer_interactions) else []
-
-                    # Disconnect consumer from the old recommender.
-                    old_rec.disconnect_consumer(consumer)
-                    consumer.unsubscribe_from_recommender_system(old_rec.recommender_id)
-                    # CASE 22, clear the consumer's interactions (if forget_interactions is True).
-                    consumer.remove_user(retain_profile=not forget_interactions)
-                    
-                    # If transfer_interactions is enabled, transfer the old interactions before connecting the consumer to the new recommender.
-                    if transfer_interactions:
-                        for interaction in old_interactions:
-                            new_rec.add_interaction(
-                                interaction.user_id,
-                                interaction.item_id,
-                                interaction.rating
-                            )
-                        # Remove all interactions for this consumer from the old recommender to avoid duplication.
-                        old_rec.remove_user_interactions(consumer.consumer_id)
-                    
-                    # Connect consumer to the new recommender.
-                    new_rec.connect_consumer(consumer)
-                    consumer.subscribe_to_recommender_system(new_rec.recommender_id)
-                    
-                    # Once switched, break out so that the consumer is processed only once.
-                    break
-
-        # ---- Verification: Confirm unsubscribed consumers from the old recommender ----
-        low_sat_total = 0
-        still_connected = 0
-        for consumer in consumers:
-            if consumer.get_satisfaction_score(mainstream_recommender.recommender_id) < 0.05:
-                low_sat_total += 1
-                if consumer.consumer_id in mainstream_recommender.connected_consumers:
-                    still_connected += 1
-
-        if low_sat_total == 0:
-            print("No consumers had low satisfaction for the old recommender.")
-        elif still_connected == 0:
-            print(f"Success: All {low_sat_total} low-satisfaction consumers have been unsubscribed from the old recommender.")
+        # After all days in the cycle
+        if cycle > 5:
+            # Switch low-satisfaction consumers.
+            for consumer in consumers:
+                for rec_id, status in list(consumer.connected_recommenders.items()):
+                    if status == 1 and consumer.get_satisfaction_score(rec_id) < 0.1:
+                        # Determine the old and new recommender based on the current rec_id.
+                        if rec_id == mainstream_recommender.recommender_id:
+                            old_rec = mainstream_recommender
+                            new_rec = niche_recommender
+                        else:
+                            old_rec = niche_recommender
+                            new_rec = mainstream_recommender
+        
+                        # Retrieve interactions from the old recommender if transferring.
+                        old_interactions = old_rec.get_user_interactions(consumer.consumer_id) if transfer_interactions else []
+        
+                        # Disconnect consumer from the old recommender.
+                        old_rec.disconnect_consumer(consumer)
+                        consumer.unsubscribe_from_recommender_system(old_rec.recommender_id)
+        
+                        # If forget_interactions is True, delete interactions from the old recommender.
+                        if forget_interactions:
+                            old_rec.remove_user_interactions(consumer.consumer_id)
+        
+                        # Clear consumer's internal state if forget_interactions is True.
+                        consumer.remove_user(retain_profile=not forget_interactions)
+                        
+                        # If transfer_interactions is True, transfer the old interactions to the new recommender.
+                        if transfer_interactions:
+                            for interaction in old_interactions:
+                                new_rec.add_interaction(
+                                    interaction.user_id,
+                                    interaction.item_id,
+                                    interaction.rating
+                                )
+                        
+                        # Connect consumer to the new recommender.
+                        new_rec.connect_consumer(consumer)
+                        consumer.subscribe_to_recommender_system(new_rec.recommender_id)
+                        
+                        switch_occurred = True
+                        break
         else:
-            print(f"Error: {still_connected} out of {low_sat_total} low-satisfaction consumers are still connected to the old recommender.")
+            print(f"Cycle {cycle}: Skipping switching due to startup phase (mainstream enforced).")
 
-        # Print a summary of interactions in the old recommender
-        old_rec = mainstream_recommender
-        print("\n=== Old Recommender Interactions Summary ===")
-        sample_consumers = consumers[:10]
-        for consumer in sample_consumers:
-            old_ints = old_rec.get_user_interactions(consumer.consumer_id)
-            if old_ints:
-                snippet = old_ints[:2]
-                print(f"User {consumer.consumer_id} has {len(old_ints)} interactions. First few: {snippet}")
-            else:
-                print(f"User {consumer.consumer_id} has 0 interactions.")
+        # ---- Summary Logs Per Cycle ----
+        mainstream_to_niche = 0
+        niche_to_mainstream = 0
+        switching_satisfaction_scores = []
         
-        total_consumers = len(consumers)
-        remaining = total_consumers - len(sample_consumers)
-        if remaining > 0:
-            zero_count = sum(1 for consumer in consumers[10:] if not old_rec.get_user_interactions(consumer.consumer_id))
-            nonzero_count = remaining - zero_count
-            print(f"... and {remaining} more consumers ({nonzero_count} with interactions, {zero_count} with 0 interactions).")
+        for consumer in consumers:
+            for rec_id, status in consumer.connected_recommenders.items():
+                if status == 1 and consumer.get_satisfaction_score(rec_id) < 0.1:
+                    if rec_id == mainstream_recommender.recommender_id:
+                        mainstream_to_niche += 1
+                    else:
+                        niche_to_mainstream += 1
+                    switching_satisfaction_scores.append(consumer.get_satisfaction_score(rec_id))
         
-        # Verification, subscribe sample consumers to the new recommender and verify their interactions.
-        new_rec = niche_recommender
-        print("\n=== New Recommender Interactions Summary ===")
-        for consumer in sample_consumers:
-            new_rec.connect_consumer(consumer)
-            consumer.subscribe_to_recommender_system(new_rec.recommender_id)
-            if not forget_interactions:
-                old_ints = old_rec.get_user_interactions(consumer.consumer_id)
-                for interaction in old_ints:
-                    new_rec.add_interaction(interaction.user_id, interaction.item_id, interaction.rating)
-            new_ints = new_rec.get_user_interactions(consumer.consumer_id)
-            if new_ints:
-                snippet = new_ints[:2]
-                print(f"User {consumer.consumer_id} now has {len(new_ints)} interactions. First few: {snippet}")
-            else:
-                print(f"User {consumer.consumer_id} has 0 interactions in new recommender.")
+        if switching_satisfaction_scores:
+            avg_switching_satisfaction = sum(switching_satisfaction_scores) / len(switching_satisfaction_scores)
+        else:
+            avg_switching_satisfaction = "N/A"
         
-        if remaining > 0:
-            total_new = sum(len(new_rec.get_user_interactions(c.consumer_id)) for c in consumers[10:])
-            print(f"... and interactions for the remaining {remaining} consumers were processed (total new interactions: {total_new}).")
+        print(f"Cycle {cycle}: {mainstream_to_niche} switched to niche, {niche_to_mainstream} switched to mainstream.")
+        print(f"Average satisfaction score before switching: {avg_switching_satisfaction}")
+
+        # Provider Utility Distribution
+        mainstream_profit = sum(mainstream_recommender.profit)
+        niche_profit = sum(niche_recommender.profit)
         
-        # Force training on the new recommender to verify that transferred interactions are recognized.
-        print("\nForcing training on new recommender to verify recognized interactions:")
-        new_rec.train_model_if_ready()
-        # Ensures the new recommender model updates with transferred interactions.
+        mainstream_providers = len(mainstream_recommender.connected_providers)
+        niche_providers = len(niche_recommender.connected_providers)
+        
+        print(f"Cycle {cycle}: Mainstream Profit = {mainstream_profit}, Niche Profit = {niche_profit}")
+        print(f"Cycle {cycle}: Active Providers - Mainstream: {mainstream_providers}, Niche: {niche_providers}")
+
+        # User Distribution Summary
+        mainstream_users = len(mainstream_recommender.connected_consumers)
+        niche_users = len(niche_recommender.connected_consumers)
+        
+        total_users = mainstream_users + niche_users
+        switching_users = mainstream_to_niche + niche_to_mainstream
+        
+        print(f"Cycle {cycle}: {mainstream_users} users in mainstream, {niche_users} in niche.")
+        if total_users > 0:
+            print(f"Cycle {cycle}: {switching_users}/{total_users} users switched recommenders ({(switching_users/total_users)*100:.2f}%).")
+
+        # Verification: subscribe sample consumers to the new recommender and verify their interactions.
+        if switch_occurred:
+            representative_new_rec = niche_recommender if mainstream_to_niche > 0 else mainstream_recommender
+
+            sample_consumers = consumers[:10]  
+            remaining = len(consumers) - len(sample_consumers) 
+            
+            print("\n=== New Recommender Interactions Summary ===")
+            for consumer in sample_consumers:
+                representative_new_rec.connect_consumer(consumer)
+                consumer.subscribe_to_recommender_system(representative_new_rec.recommender_id)
+                if not forget_interactions:
+                    old_ints = old_rec.get_user_interactions(consumer.consumer_id)
+                    for interaction in old_ints:
+                        representative_new_rec.add_interaction(interaction.user_id, interaction.item_id, interaction.rating)
+                new_ints = representative_new_rec.get_user_interactions(consumer.consumer_id)
+                if new_ints:
+                    snippet = new_ints[:2]
+                    print(f"User {consumer.consumer_id} now has {len(new_ints)} interactions. First few: {snippet}")
+                else:
+                    print(f"User {consumer.consumer_id} has 0 interactions in new recommender.")
+            
+            if remaining > 0:
+                total_new = sum(len(representative_new_rec.get_user_interactions(c.consumer_id)) for c in consumers[10:])
+                print(f"... and interactions for the remaining {remaining} consumers were processed (total new interactions: {total_new}).")
+            
+            # Force training on the representative new recommender to verify that transferred interactions are recognized.
+            print("\nForcing training on new recommender to verify recognized interactions:")
+            representative_new_rec.train_model_if_ready()
+        else:
+            print("No switching occurred this cycle; skipping verification block that requires a new recommender.")
 
         # Continue with fee charging and logging.
         removed_count = 0
@@ -264,7 +288,6 @@ def threshold_switching(
                         consumer_satisfaction_score,
                         rec_state
                     ])
-
 
         # Update provider subscriptions based on performance
         for provider in providers:
