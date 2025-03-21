@@ -117,6 +117,7 @@ def threshold_switching(
                             model.predict(consumer_id, slate_items[i].item_id).est,
                         )
         
+        # After all days in the cycle
         if cycle > 5:
             for consumer in consumers:
                 for key, value in consumer.connected_recommenders.copy().items():
