@@ -117,49 +117,45 @@ def threshold_switching(
                             model.predict(consumer_id, slate_items[i].item_id).est,
                         )
         
-        # After all days in the cycle
         if cycle > 5:
-            # Switch low-satisfaction consumers.
             for consumer in consumers:
-                for rec_id, status in list(consumer.connected_recommenders.items()):
-                    if status == 1 and consumer.get_satisfaction_score(rec_id) < 0.1:
-                        # Determine the old and new recommender based on the current rec_id.
-                        if rec_id == mainstream_recommender.recommender_id:
-                            old_rec = mainstream_recommender
-                            new_rec = niche_recommender
-                        else:
-                            old_rec = niche_recommender
-                            new_rec = mainstream_recommender
+                for key, value in consumer.connected_recommenders.copy().items():
+                    if value == 0:  
+                        continue
+                    recommender_id = key
+                    if consumer.satisfaction_scores[recommender_id] < 0.1:
+                        if (max(consumer.satisfaction_scores, key=consumer.satisfaction_scores.get) == recommender_id and 
+                            all(score > 0 for score in consumer.satisfaction_scores.values())):
+                            break  
+                        else:  
+                            if recommender_id == mainstream_recommender.recommender_id:
+                                old_rec = mainstream_recommender
+                                new_rec = niche_recommender
+                            else:
+                                old_rec = niche_recommender
+                                new_rec = mainstream_recommender
+                            # Retrieve interactions from the old recommender if transferring
+                            old_interactions = old_rec.get_user_interactions(consumer.consumer_id) if transfer_interactions else []
+                            # Disconnect consumer from the old recommender
+                            old_rec.disconnect_consumer(consumer)
+                            consumer.unsubscribe_from_recommender_system(old_rec.recommender_id)
+                            # If forget_interactions is True, delete interactions from the old recommender
+                            if forget_interactions:
+                                old_rec.remove_user_interactions(consumer.consumer_id)
+                            
+                            # Clear consumer's internal state if forget_interactions is True
+                            consumer.remove_user(retain_profile=not forget_interactions)
+                            
+                            # If transfer_interactions is True, transfer the old interactions to the new recommender
+                            if transfer_interactions:
+                                for interaction in old_interactions:
+                                    new_rec.add_interaction(interaction.user_id, interaction.item_id, interaction.rating)
         
-                        # Retrieve interactions from the old recommender if transferring.
-                        old_interactions = old_rec.get_user_interactions(consumer.consumer_id) if transfer_interactions else []
-        
-                        # Disconnect consumer from the old recommender.
-                        old_rec.disconnect_consumer(consumer)
-                        consumer.unsubscribe_from_recommender_system(old_rec.recommender_id)
-        
-                        # If forget_interactions is True, delete interactions from the old recommender.
-                        if forget_interactions:
-                            old_rec.remove_user_interactions(consumer.consumer_id)
-        
-                        # Clear consumer's internal state if forget_interactions is True.
-                        consumer.remove_user(retain_profile=not forget_interactions)
-                        
-                        # If transfer_interactions is True, transfer the old interactions to the new recommender.
-                        if transfer_interactions:
-                            for interaction in old_interactions:
-                                new_rec.add_interaction(
-                                    interaction.user_id,
-                                    interaction.item_id,
-                                    interaction.rating
-                                )
-                        
-                        # Connect consumer to the new recommender.
-                        new_rec.connect_consumer(consumer)
-                        consumer.subscribe_to_recommender_system(new_rec.recommender_id)
-                        
-                        switch_occurred = True
-                        break
+                            # Connect consumer to the new recommender
+                            new_rec.connect_consumer(consumer)
+                            consumer.subscribe_to_recommender_system(new_rec.recommender_id)
+                            switch_occurred = True
+                            break
         else:
             print(f"Cycle {cycle}: Skipping switching due to startup phase (mainstream enforced).")
 
