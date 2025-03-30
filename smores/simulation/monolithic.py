@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import random
 
-
 def monolithic(
     consumers,
     providers,
@@ -11,9 +10,11 @@ def monolithic(
     slate_size=3,
     num_cycles=1,
     model=None,
+    forget_interactions=True,  # Added for profile handling
+    transfer_interactions=False  # Added for profile handling
 ):
     """
-    Run a multi-recommender experiment.
+    Run a multi-recommender experiment with support for four profile handling cases.
 
     Args:
         consumers (list): List of Consumer instances.
@@ -21,13 +22,17 @@ def monolithic(
         recommenders (dict): Dictionary of Recommender instances where keys are recommender IDs.
         num_days (int, optional): Number of days to run the experiment (default is 5).
         slate_size (int, optional): Number of items to recommend to each consumer (default is 3).
+        num_cycles (int, optional): Number of cycles to run (default is 1).
+        model: A prediction model.
+        forget_interactions (bool): Whether to delete user interactions when switching.
+        transfer_interactions (bool): Whether to transfer past interactions to the new recommender.
 
     Returns:
         pd.DataFrame: DataFrame containing provider data.
         pd.DataFrame: DataFrame containing consumer data.
         pd.DataFrame: DataFrame containing recommender system data.
+        pd.DataFrame: DataFrame containing consumers' recommender choice history.
     """
-
     print("Running monolithic recsys experiment")
 
     provider_data = []
@@ -35,7 +40,29 @@ def monolithic(
     recommender_data = []
     consumers_recommender_choice = []
 
-    # Run the experiment for the specified number of days
+    # Assume we have two recommenders: mainstream and niche
+    recommender_values = list(recommenders.values())
+    mainstream_recommender = recommender_values[0]
+    niche_recommender = recommender_values[1]
+
+    # Initially subscribe each consumer to both recommenders
+    for consumer in consumers:
+        mainstream_recommender.connect_consumer(consumer)
+        consumer.subscribe_to_recommender_system(mainstream_recommender.recommender_id)
+        niche_recommender.connect_consumer(consumer)
+        consumer.subscribe_to_recommender_system(niche_recommender.recommender_id)
+
+    print("mainstream consumers count:", len(mainstream_recommender.connected_consumers.keys()))
+    print("niche consumers count:", len(niche_recommender.connected_consumers.keys()))
+
+    # Subscribe providers to both recommenders
+    for provider in providers:
+        mainstream_recommender.connect_provider(provider)
+        provider.subscribe_to_recommender_system(mainstream_recommender.recommender_id)
+        niche_recommender.connect_provider(provider)
+        provider.subscribe_to_recommender_system(niche_recommender.recommender_id)
+
+    # Run the experiment for the specified number of cycles
     for cycle in range(1, num_cycles + 1):
         for day in range(1, num_days + 1):
             print("===============> Day:", day, "<===============")
@@ -43,40 +70,30 @@ def monolithic(
             consumers_by_recommender = {
                 recommender_id: [] for recommender_id in recommenders.keys()
             }
-            for (
-                consumer
-            ) in consumers:  # Iterate over the consumers for the current recommender ID
-                chosen_recommender_id = consumer.choose_recommender()
+            for consumer in consumers:
+                # For the first cycle, preselect the mainstream recommender (to align with ucb_switching)
+                if cycle == 1:
+                    chosen_recommender_id = consumer.choose_recommender(
+                        preselected_recommender_id=mainstream_recommender.recommender_id
+                    )
+                else:
+                    chosen_recommender_id = consumer.choose_recommender()
                 if chosen_recommender_id is None:
                     continue
-                # Append recommender to consumer to evaluate UCB
-                consumers_recommender_choice.append(
-                    [consumer.consumer_id, chosen_recommender_id]
-                )  # used for analysis
+                consumers_recommender_choice.append([consumer.consumer_id, chosen_recommender_id])
                 consumers_by_recommender[chosen_recommender_id].append(consumer)
 
             # Make recommendations for each recommender's associated consumers
             recommendations = {}
-            for (
-                recommender_id,
-                recommender_consumers,
-            ) in consumers_by_recommender.items():
+            for recommender_id, recommender_consumers in consumers_by_recommender.items():
                 recommender = recommenders[recommender_id]
-                slate_items = recommender.recommend_items(
-                    recommender_consumers, slate_size=slate_size
-                )
+                slate_items = recommender.recommend_items(recommender_consumers, slate_size=slate_size)
                 for consumer in recommender_consumers:
-                    recommendations[consumer.consumer_id] = (
-                        recommender_id,
-                        slate_items[consumer.consumer_id],
-                    )
+                    recommendations[consumer.consumer_id] = (recommender_id, slate_items[consumer.consumer_id])
 
             # Simulate user response, update satisfaction scores, and record clicks
-            clicked_items = {
-                consumer.consumer_id: [] for consumer in consumers
-            }  # Initialize with empty lists
+            clicked_items = {consumer.consumer_id: [] for consumer in consumers}
             for consumer in consumers:
-                # continue if the consumer is not connected to any recommenders
                 if len(consumer.available_recommenders) == 0:
                     print("Consumer is not connected to any recommenders")
                     continue
@@ -84,26 +101,72 @@ def monolithic(
                 consumer_id = consumer.consumer_id
                 recommender_id, recommended_items = recommendations[consumer_id]
                 slate_items = recommended_items
-                chosen_recommender_id = (
-                    recommender_id  # Choose recommender for the current user
-                )
-                responses = consumer.simulate_response(
-                    slate_items, recommender_system_id=chosen_recommender_id
-                )
+                chosen_recommender_id = recommender_id
+                responses = consumer.simulate_response(slate_items, recommender_system_id=chosen_recommender_id)
 
                 # Collect clicked items
                 for i, response in enumerate(responses):
-                    # record interaction (consumer_id, item_id, rating)
                     if response.get("click", 0) == 1:
                         clicked_items[consumer_id].append(slate_items[i])
-                        recommenders[chosen_recommender_id].record_click(
-                            consumer_id, slate_items[i]
-                        )
+                        recommenders[chosen_recommender_id].record_click(consumer_id, slate_items[i])
                         recommenders[chosen_recommender_id].add_interaction(
                             consumer_id,
                             slate_items[i].item_id,
                             model.predict(consumer_id, slate_items[i].item_id).est,
                         )
+
+        # --- Switching Block ---
+        # For each consumer, check satisfaction for the recommender they last used
+        if cycle > 5:
+            for consumer in consumers:
+                for key, value in consumer.connected_recommenders.copy().items():
+                    if value == 0:
+                        continue
+                    recommender_id = key
+                    if consumer.satisfaction_scores[recommender_id] < 0.1:
+                        if (max(consumer.satisfaction_scores, key=consumer.satisfaction_scores.get) == recommender_id and 
+                            all(score > 0 for score in consumer.satisfaction_scores.values())):
+                            break
+                        else:
+                            if recommender_id == mainstream_recommender.recommender_id:
+                                old_rec = mainstream_recommender
+                                new_rec = niche_recommender
+                            else:
+                                old_rec = niche_recommender
+                                new_rec = mainstream_recommender
+
+                        # Retrieve interactions if transferring
+                        old_interactions = (
+                            old_rec.get_user_interactions(consumer.consumer_id)
+                            if transfer_interactions else []
+                        )
+
+                        # Disconnect consumer from the old recommender
+                        old_rec.disconnect_consumer(consumer)
+                        consumer.unsubscribe_from_recommender_system(old_rec.recommender_id)
+
+                        # Optionally forget interactions
+                        if forget_interactions:
+                            old_rec.remove_user_interactions(consumer.consumer_id)
+                            consumer.remove_user(retain_profile=False)
+                        else:
+                            consumer.remove_user(retain_profile=True)
+
+                        # Transfer interactions if needed
+                        if transfer_interactions:
+                            for interaction in old_interactions:
+                                new_rec.add_interaction(
+                                    interaction.user_id,
+                                    interaction.item_id,
+                                    interaction.rating
+                                )
+
+                        # Connect consumer to the new recommender
+                        new_rec.connect_consumer(consumer)
+                        consumer.subscribe_to_recommender_system(new_rec.recommender_id)
+
+                        # For simplicity, break after one switch per consumer
+                        break
 
         # Charge subscription fees to providers
         for recommender in recommenders.values():
@@ -113,78 +176,32 @@ def monolithic(
         for provider in providers:
             for recommender_id, recommender in recommenders.items():
                 if recommender_id in provider.connected_recommenders.keys():
-                    provider_data.append(
-                        [
-                            provider.provider_id,
-                            recommender_id,
-                            (
-                                provider.profit.get(recommender_id, [0])[cycle - 1]
-                                if cycle
-                                <= len(provider.profit.get(recommender_id, [0]))
-                                else 0
-                            ),
-                            cycle,
-                            (
-                                provider.pay_cycle_fee.get(recommender_id, [0])[
-                                    cycle - 1
-                                ]
-                                if cycle
-                                <= len(provider.pay_cycle_fee.get(recommender_id, [0]))
-                                else 0
-                            ),
-                            (
-                                provider.pay_cycle_clicks.get(recommender_id, [0])[
-                                    cycle - 1
-                                ]
-                                if cycle
-                                <= len(
-                                    provider.pay_cycle_clicks.get(recommender_id, [0])
-                                )
-                                else 0
-                            ),
-                            (
-                                provider.pay_cycle_shows.get(recommender_id, [0])[
-                                    cycle - 1
-                                ]
-                                if cycle
-                                <= len(
-                                    provider.pay_cycle_shows.get(recommender_id, [0])
-                                )
-                                else 0
-                            ),
-                            len(
-                                [
-                                    rec
-                                    for rec in provider.connected_recommenders.keys()
-                                    if provider.connected_recommenders[rec] == 1
-                                ]
-                            ),
-                        ]
-                    )
+                    provider_data.append([
+                        provider.provider_id,
+                        recommender_id,
+                        provider.profit.get(recommender_id, [0])[cycle - 1] if cycle <= len(provider.profit.get(recommender_id, [0])) else 0,
+                        cycle,
+                        provider.pay_cycle_fee.get(recommender_id, [0])[cycle - 1] if cycle <= len(provider.pay_cycle_fee.get(recommender_id, [0])) else 0,
+                        provider.pay_cycle_clicks.get(recommender_id, [0])[cycle - 1] if cycle <= len(provider.pay_cycle_clicks.get(recommender_id, [0])) else 0,
+                        provider.pay_cycle_shows.get(recommender_id, [0])[cycle - 1] if cycle <= len(provider.pay_cycle_shows.get(recommender_id, [0])) else 0,
+                        len([rec for rec in provider.connected_recommenders.keys() if provider.connected_recommenders[rec] == 1]),
+                    ])
 
         for consumer in consumers:
             for recommender_id, recommender in recommenders.items():
                 if recommender_id in consumer.connected_recommenders.keys():
                     consumer_id = consumer.consumer_id
-                    consumer_satisfaction_score = consumer.get_satisfaction_score(
-                        recommender_system_id=recommender_id
-                    )
-                    rec_state = (
-                        "connected"
-                        if consumer.connected_recommenders[recommender_id] == 1
-                        else ""
-                    )
-                    kl_divergence = consumer.compute_kl_divergence(recommender_id)
-                    consumer_data.append(
-                        [
-                            consumer_id,
-                            recommender_id,
-                            cycle,
-                            consumer_satisfaction_score,
-                            rec_state,
-                            kl_divergence,
-                        ]
-                    )
+                    consumer_satisfaction_score = consumer.get_satisfaction_score(recommender_system_id=recommender_id)
+                    rec_state = "connected" if consumer.connected_recommenders[recommender_id] == 1 else ""
+                    #kl_divergence = consumer.compute_kl_divergence(recommender_id)
+                    consumer_data.append([
+                        consumer_id,
+                        recommender_id,
+                        cycle,
+                        consumer_satisfaction_score,
+                        rec_state,
+                        #kl_divergence,
+                    ])
 
         # Update the subscription for each provider
         for provider in providers:
@@ -197,21 +214,19 @@ def monolithic(
             num_connected_providers = len(recommender.connected_providers)
             num_connected_consumers = len(recommender.connected_consumers)
             total_profit = recommender.profit[-1]
-            recommender_data.append(
-                [
-                    recommender_id,
-                    num_connected_providers,
-                    num_connected_consumers,
-                    total_profit,
-                    cycle,
-                ]
-            )
+            recommender_data.append([
+                recommender_id,
+                num_connected_providers,
+                num_connected_consumers,
+                total_profit,
+                cycle,
+            ])
 
         print("\n")
         print("Consumer KL Divergence")
         print("\n")
-        for consumer in consumers[:5]:
-            consumer.compute_kl_divergence(recommender_id)
+        # for consumer in consumers[:5]:
+            #consumer.compute_kl_divergence(recommender_id)
 
         print("\n====================================================")
         print("===============> Finished Cycle:", cycle, "<================")
@@ -239,7 +254,7 @@ def monolithic(
             "cycle",
             "satisfaction_score",
             "rec_state",
-            "kl_divergence",
+            #"kl_divergence",
         ],
     )
     recommender_df = pd.DataFrame(
@@ -256,9 +271,4 @@ def monolithic(
         consumers_recommender_choice, columns=["consumer_id", "recommender_id"]
     )
 
-    return (
-        provider_df,
-        consumer_df,
-        recommender_df,
-        consumer_recommender_df,
-    )
+    return provider_df, consumer_df, recommender_df, consumer_recommender_df

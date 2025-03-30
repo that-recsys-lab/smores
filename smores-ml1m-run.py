@@ -144,7 +144,7 @@ for scenario in scenarios:
     print(f"\nRunning scenario: {scenario['name']} with settings: {scenario}\n")
     
     run_experiment(
-        experiment=threshold_switching,
+        experiment=ucb_switching,
         model=model,
         consumer_choice_model=category_similarity_logit,
         experiment_name=scenario_experiment_name,
