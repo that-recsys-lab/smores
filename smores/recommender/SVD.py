@@ -12,8 +12,7 @@ import heapq
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import coo_matrix, csr_matrix
 from smores.stakeholders.stakeholders import Recommender
-from smores.stakeholders.interaction import Interaction
-import logging
+
 
 class SurpriseSVD(Recommender):
     def __init__(
@@ -58,41 +57,54 @@ class SurpriseSVD(Recommender):
         print("Training model if ready")
         if len(self.interactions) > 10:  # Arbitrary threshold, adjust as needed
             print("Interactions summary")
-            
-            # 1) Convert each Interaction object into a (consumer_id, item_id, rating) tuple
-            data_list = [
-                (interaction.user_id, interaction.item_id, interaction.rating)
-                for interaction in self.interactions
-            ]
-            
-            # 2) Build a single DataFrame from data_list
-            df = pd.DataFrame(data_list, columns=["consumer_id", "item_id", "rating"])
-            
-            # Now you can safely describe the 'rating' column
-            print(df["rating"].describe())
+            print(
+                pd.DataFrame(
+                    self.interactions, columns=["consumer_id", "item_id", "rating"]
+                )["rating"].describe()
+            )
             print("Training model")
-    
-            # Build Surprise dataset and train the SVD model
             reader = Reader()
-            data = Dataset.load_from_df(df, reader)
-            trainset = data.build_full_trainset()
-            self.algo.fit(trainset)
-    
-            # Additional logs
+            df = pd.DataFrame(
+                self.interactions, columns=["consumer_id", "item_id", "rating"]
+            )
+
             num_missing_interactions = len(
                 set(consumer.consumer_id for consumer in self.consumers)
                 - set(df["consumer_id"].unique())
             )
-            print(f"Number of consumers missing in interactions dataset: {num_missing_interactions}")
-    
+            print(
+                f"Number of consumers missing in interactions dataset: {num_missing_interactions}"
+            )
+
+            data = Dataset.load_from_df(df, reader)
+            trainset = data.build_full_trainset()
+            self.algo.fit(trainset)
+
+            # Create user-item matrix for clustering using a sparse matrix
+            consumer_map = {
+                id: idx for idx, id in enumerate(df["consumer_id"].unique())
+            }
+            item_map = {id: idx for idx, id in enumerate(df["item_id"].unique())}
+
+            df["consumer_idx"] = df["consumer_id"].map(consumer_map)
+            df["item_idx"] = df["item_id"].map(item_map)
+
+            user_item_matrix = coo_matrix(
+                (df["rating"], (df["consumer_idx"], df["item_idx"])),
+                shape=(len(consumer_map), len(item_map)),
+            ).tocsr()
+
+            self._create_user_clusters(user_item_matrix, consumer_map)
+
+            self.has_trained_model = True
+            print("Model training completed")
+            self.compute_and_store_recommendations()
+            self.load_recommendations()
         else:
             print("Not enough interactions to train the model yet")
+            
     def get_user_interactions(self, user_id):
-        """
-        Return all Interaction objects for a given user.
-        """
-        return [i for i in self.interactions if i.user_id == user_id]
-
+        return [(cid, iid, rating) for cid, iid, rating in self.interactions if cid == user_id]
 
     def _create_user_clusters(self, user_item_matrix, consumer_map):
         """Cluster users based on their clicked items using KNN."""
@@ -232,8 +244,7 @@ class SurpriseSVD(Recommender):
                 available_item_ids = popular_item_ids.difference(clicked_items)
 
                 sampled_item_ids = (
-                    random.sample(list(available_item_ids), slate_size)
-
+                    random.sample(sorted(available_item_ids), slate_size)
                     if len(available_item_ids) > slate_size
                     else list(available_item_ids)
                 )
@@ -274,4 +285,3 @@ class SurpriseSVD(Recommender):
 
         self.historical_recommendations.extend(recommendations.values())
         return recommendations
-        

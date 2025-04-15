@@ -4,9 +4,6 @@ import math
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from smores.stakeholders.choice import category_similarity_logit
-from smores.stakeholders.interaction import Interaction
-import logging
-logger = logging.getLogger(__name__)
 
 
 class Item:
@@ -258,6 +255,7 @@ class Consumer:
         self.choice_model = choice_model
         self.genre_recommendation_counts = {}
         self.historical_distribution = historical_distribution
+        self.kl_divergence = defaultdict(float)
 
     def subscribe_to_recommender_system(self, recommender_system_id, state=1):
         """
@@ -268,6 +266,9 @@ class Consumer:
         """
         self.connected_recommenders[recommender_system_id] = state
         self.satisfaction_scores[recommender_system_id] = self.satisfaction_scores.get(
+            recommender_system_id, 0
+        )
+        self.kl_divergence[recommender_system_id] = self.kl_divergence.get(
             recommender_system_id, 0
         )
         self.recommender_counts[recommender_system_id] = self.recommender_counts.get(
@@ -286,25 +287,6 @@ class Consumer:
             recommender_system_id (str): Identifier of the recommender system to unsubscribe from.
         """
         self.connected_recommenders[recommender_system_id] = 0
-    # In smores/stakeholders/stakeholders.py, inside the Consumer class
-
-    def remove_user(self, retain_profile=True):
-        """
-        Unsubscribe the consumer from all recommenders.
-        If retain_profile is False, also clear internal interaction data.
-        """
-        # Unsubscribe from each recommender by setting its status to 0.
-        for recommender_id in list(self.connected_recommenders.keys()):
-            self.unsubscribe_from_recommender_system(recommender_id)
-        # If we are not retaining the profile, clear records.
-        if not retain_profile:
-            self.forget_interactions()
-    
-    def forget_interactions(self):
-        self.genre_recommendation_counts = {}
-        self.satisfaction_scores = {}
-        self.recommender_counts = {}
-        self.ucb_scores = {} 
 
     def choose_recommender(self, preselected_recommender_id=None):
         """
@@ -425,6 +407,17 @@ class Consumer:
         self.update_state(slate_items, responses, recommender_system_id)
 
         return responses
+        
+    def remove_user(self, retain_profile=True):
+        for recommender_id in list(self.connected_recommenders.keys()):
+            self.unsubscribe_from_recommender_system(recommender_id)
+        if not retain_profile:
+            self.net_quality_exposure = {}
+            self.satisfaction_scores = {}
+            self.recommender_counts = {}
+            self.recommender_category_success = {}
+            self.ucb_scores = {}
+            self.genre_recommendation_counts = {}
 
     def update_genre_recommendation(self, recommender_system_id, items):
         """
@@ -464,10 +457,7 @@ class Consumer:
                 for key in intersecting_keys
             )
         # normalize sim_score
-        if len(slate_items) > 0:
-            norm_sim_score = sim_score / len(slate_items)
-        else:
-            norm_sim_score = 0  # or some default value
+        norm_sim_score = sim_score / len(slate_items)
 
         self.satisfaction_scores[recommender_system_id] = (
             self.satisfaction_scores.get(recommender_system_id, 0) * self.beta
@@ -496,9 +486,47 @@ class Consumer:
             {}
         )  # Dictionary to store how many times the recommender system has been chosen
         self.ucb_scores = {}  # Store UCB scores for each recommender system
+        self.kl_divergence = defaultdict(float)
+
+    def compute_kl_divergence(self, recommender_system_id):
+        """
+        Compute the KL divergence between the consumer's category preferences and the historical distribution.
+
+        """
+        # Normalize historical_distribution
+        profile_historical = sum(self.historical_distribution.values())
+        historical_distribution_normalized = {
+            genre: count / profile_historical
+            for genre, count in self.historical_distribution.items()
+        }
+
+        # Normalize consumer's genre preferences
+        total_count = sum(
+            self.genre_recommendation_counts[recommender_system_id].values()
+        )
+        genre_preferences_normalized = {
+            genre: count / total_count
+            for genre, count in self.genre_recommendation_counts[recommender_system_id].items()
+        }
+
+        # Compute KL divergence
+        kl_divergence = 0
+        for genre, p in genre_preferences_normalized.items():
+            q = historical_distribution_normalized.get(genre, 0.0)  # Default to 0 if genre is not in historical_distribution
+            if p > 0:
+                if q > 0:
+                    kl_divergence += p * math.log(p / q)
+                else:
+                    # Avoid division by zero; handle cases where q is 0
+                    kl_divergence += p * math.log(p / 1e-10)
+
+        self.kl_divergence[recommender_system_id] = kl_divergence
+
+        return kl_divergence
 
         # print("genre_recommendation_counts",self.genre_recommendation_counts[recommender_system_id].keys())
         # print("historical_distribution",self.historical_distribution.keys())
+        # print(self.consumer_id, kl_divergence)
 
 
 class Recommender(ABC):
@@ -547,6 +575,15 @@ class Recommender(ABC):
             self.connect_provider(provider)
             provider.subscribe_to_recommender_system(self.recommender_id)
 
+    def add_interaction(self, consumer_id, item_id, rating):
+        self.interactions.append((consumer_id, item_id, rating))
+
+    def get_user_interactions(self, user_id):
+        return [(cid, iid, rating) for cid, iid, rating in self.interactions if cid == user_id]
+
+    def remove_user_interactions(self, user_id):
+        self.interactions = [(cid, iid, rating) for cid, iid, rating in self.interactions if cid != user_id]
+        
     @abstractmethod
     def recommend_items(self, consumers, slate_size=1):
         """
@@ -688,7 +725,7 @@ class Recommender(ABC):
             self.clicks[clicked_provider_id] += 1
             if clicked_document not in self.provider_docs_clicked[clicked_provider_id]:
                 self.provider_docs_clicked[clicked_provider_id].append(clicked_document)
-
+            
             # Add the clicked item to both tracking dictionaries
             self.consumer_docs_clicked[consumer_id].add(clicked_document)
             self.consumer_docs_ids_clicked[consumer_id].add(clicked_document_id)
@@ -884,22 +921,4 @@ class Recommender(ABC):
             rating (boolean): 1 if the consumer clicked on the item, 0 otherwise.
 
         """
-        # Create an Interaction object with the current recommender's ID.
-        interaction = Interaction(consumer_id, item_id, self.recommender_id, rating)
-        # Append the structured Interaction to the interactions list.
-        self.interactions.append(interaction)
-        
-    def remove_user_interactions(self, user_id):
-        """
-        Removes all interactions for a given user from this recommender.
-        Logs the before and after count to verify removal.
-        """
-        original_count = len(self.interactions)
-        # Filter out interactions that belong to the specified user.
-        self.interactions = [i for i in self.interactions if i.user_id != user_id]
-        new_count = len(self.interactions)
-        logger.debug(
-            f"Removed user {user_id} from {self.recommender_id}, interactions: {original_count} -> {new_count}"
-        )
-
-    
+        self.interactions.append((consumer_id, item_id, rating))

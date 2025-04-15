@@ -131,48 +131,68 @@ niche_genres_most_popular_item_ids = get_top_items(ratings_df, items_df, n=30, g
 # Clear up memory
 del ratings_df, items_df, consumer_item_rating_genre_df
 
-# Run experiment
-run_experiment(
-    experiment=threshold_switching,
-    model=model,
-    consumer_choice_model=category_similarity_logit,
-    experiment_name=experiment_name,
-    num_days=10,
-    num_cycles=10,
-    slate_size=5,
-    consumers=consumers_list,
-    providers=providers_list,
-    recommenders=[
-        {
-            "type": SurpriseSVD,
-            "name": "mainstream_recommender",
-            "params": {
-                "fee_per_click": 0.1,
-                "fee_per_show": 0.01,
-                "base_fee": 0.0,
-                "most_popular_item_ids": all_genres_most_popular_item_ids,
-                "prohibited_genres": set(),
-                "weighted_category": {},
-                "specialized_genres": set(),
-                "consumers": consumers_list,  # optional
-                # "providers": recommender_1_providers # optional
-            },
-        },
-        {
-            "type": SurpriseSVD,
-            "name": "niche_recommender",
-            "params": {
-                "fee_per_click": 0.1,
-                "fee_per_show": 0.01,
-                "base_fee": 0.0,
-                "most_popular_item_ids": niche_genres_most_popular_item_ids,
-                "prohibited_genres": set(),
-                "weighted_category": {},
-                "specialized_genres": set(["Soul/funk"]),
-                "consumers": [], # optional
-                # "providers": recommender_1_providers # optional
-            },
-        },
-    ],
-    base_dir="experiments/results",
-)
+# Define scenarios
+scenarios = [
+    {"name": "cold_start", "forget_interactions": True, "transfer_interactions": False},
+    {"name": "user_ownership", "forget_interactions": True, "transfer_interactions": True},
+    {"name": "universal_profile", "forget_interactions": False, "transfer_interactions": True},
+    {"name": "algorithm_specific_profile", "forget_interactions": False, "transfer_interactions": False},
+]
+
+# Define experiment types
+experiments = [
+    ("threshold_switching", threshold_switching),
+    ("monolithic", monolithic),
+    ("ucb_switching", ucb_switching),
+]
+
+# Run all experiment types for all scenarios
+for scenario in scenarios:
+    for exp_name, experiment_func in experiments:
+        scenario_experiment_name = f"{experiment_name}_{exp_name}_{scenario['name']}"
+        print(f"\nRunning {exp_name} for scenario: {scenario['name']} with settings: {scenario}\n")
+
+        run_experiment(
+            experiment=experiment_func,
+            model=model,
+            consumer_choice_model=category_similarity_logit,
+            experiment_name=scenario_experiment_name,
+            num_days=10,
+            num_cycles=10,
+            slate_size=5,
+            consumers=consumers_list,
+            providers=providers_list,
+            recommenders=[
+                {
+                    "type": SurpriseSVD,
+                    "name": "mainstream_recommender",
+                    "params": {
+                        "fee_per_click": 0.1,
+                        "fee_per_show": 0.01,
+                        "base_fee": 0.0,
+                        "most_popular_item_ids": all_genres_most_popular_item_ids,
+                        "prohibited_genres": set(),
+                        "weighted_category": {},
+                        "specialized_genres": set(),
+                        "consumers": consumers_list,
+                    },
+                },
+                {
+                    "type": SurpriseSVD,
+                    "name": "niche_recommender",
+                    "params": {
+                        "fee_per_click": 0.1,
+                        "fee_per_show": 0.01,
+                        "base_fee": 0.0,
+                        "most_popular_item_ids": niche_genres_most_popular_item_ids,
+                        "prohibited_genres": set(),
+                        "weighted_category": {},
+                        "specialized_genres": set(["Soul/funk"]),
+                        "consumers": [],
+                    },
+                },
+            ],
+            base_dir="experiments/results",
+            forget_interactions=scenario["forget_interactions"],
+            transfer_interactions=scenario["transfer_interactions"]
+        )

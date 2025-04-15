@@ -15,17 +15,9 @@ from smores.preprocessing.create_item_objects import create_item_objects_from_cs
 from smores.preprocessing.historical_distribution import historical_distribution
 import pickle
 
-# Define the dataset directory
-# dataset_directory = "data/raw/ml-tmdb"
-# experiment_name = "divergance_full"
-
-# dataset_directory = "data/raw/ml-latest-small"
-# experiment_name = "divergance_small"
-
 dataset_directory = "data/raw/ml-1m"
 experiment_name = "ml-1m-ucb-switching"
 
-# Load datasets
 print("Loading datasets...")
 ratings_path = os.path.join(dataset_directory, "ratings.csv")
 items_path = os.path.join(dataset_directory, "provider_items.csv")
@@ -33,19 +25,9 @@ items_path = os.path.join(dataset_directory, "provider_items.csv")
 ratings_df = pd.read_csv(ratings_path)
 items_df = pd.read_csv(items_path)
 
-# Renaming columns
-items_df.rename(columns={
-    "movieId": "itemId", 
-    "genres": "genres", 
-    "providerId": "providerId"
-    }, inplace=True)
-ratings_df.rename(columns={
-    "userId": "consumerId", 
-    "movieId": "itemId", 
-    "rating": "rating"
-    }, inplace=True)
+items_df.rename(columns={"movieId": "itemId", "genres": "genres", "providerId": "providerId"}, inplace=True)
+ratings_df.rename(columns={"userId": "consumerId", "movieId": "itemId", "rating": "rating"}, inplace=True)
 
-# Merge datasets
 consumer_item_rating_genre_df = ratings_df.merge(items_df, on="itemId", how="left")
 items_df = (
     consumer_item_rating_genre_df[["itemId", "rating", "genres", "providerId"]]
@@ -54,7 +36,6 @@ items_df = (
     .reset_index()
 )
 
-# Check if the model already exists
 print("Checking for existing model...")
 model_filename = f"experiments/results/{experiment_name}/model.pkl"
 
@@ -73,20 +54,16 @@ else:
     model = train_model(ratings_df, experiment_name)
 
 try:
-    print("Genrating consumer historical distribution...")
-    # Generate historical distribution for consumers
+    print("Generating consumer historical distribution...")
     historical_distribution = historical_distribution(ratings_df, items_df, dataset_directory)
 
     print("Generating consumer preferences based on genre preferences...")
-    # Pass the dataset directory to genre_preferences
     consumers_list, consumers_set = genre_preferences(
         consumer_item_rating_genre_df, historical_distribution, dataset_directory
     )
 
-    # Get unique genres from the dataset
     unique_genres = items_df["genres"].str.split("|").explode().unique()
 
-    # Group by 'providerId' and create provider objects
     providers_list = []
     for provider_id, items in items_df.groupby("providerId"):
         provider_items = create_item_objects_from_csv(items, provider_id, unique_genres)
@@ -104,7 +81,6 @@ try:
 except Exception as e:
     print(f"Error during data preprocessing or provider setup: {e}")
     raise
-
 
 # Get a list of the most popular items => items with the most ratings
 def get_top_items(ratings_df, items_df, n=30, genre=None):
@@ -128,10 +104,6 @@ def get_top_items(ratings_df, items_df, n=30, genre=None):
 all_genres_most_popular_item_ids = get_top_items(ratings_df, items_df, n=30)
 niche_genres_most_popular_item_ids = get_top_items(ratings_df, items_df, n=30, genre="Horror")
 
-# Clear up memory
-del ratings_df, items_df, consumer_item_rating_genre_df
-
-# Run experiment all expierments
 scenarios = [
     {"name": "cold_start", "forget_interactions": True, "transfer_interactions": False},
     {"name": "user_ownership", "forget_interactions": True, "transfer_interactions": True},
@@ -140,11 +112,11 @@ scenarios = [
 ]
 
 for scenario in scenarios:
-    scenario_experiment_name = f"{experiment_name}_{scenario['name']}"
-    print(f"\nRunning scenario: {scenario['name']} with settings: {scenario}\n")
+    scenario_experiment_name = f"{experiment_name}_threshold_switching_{scenario['name']}"
+    print(f"\nRunning threshold_switching for scenario: {scenario['name']} with settings: {scenario}\n")
     
     run_experiment(
-        experiment=ucb_switching,
+        experiment=threshold_switching,
         model=model,
         consumer_choice_model=category_similarity_logit,
         experiment_name=scenario_experiment_name,
