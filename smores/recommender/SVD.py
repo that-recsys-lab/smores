@@ -12,6 +12,8 @@ import heapq
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import coo_matrix, csr_matrix
 from smores.stakeholders.stakeholders import Recommender
+from smores.stakeholders.interaction import Interaction
+
 
 
 class SurpriseSVD(Recommender):
@@ -57,29 +59,39 @@ class SurpriseSVD(Recommender):
         print("Training model if ready")
         if len(self.interactions) > 10:  # Arbitrary threshold, adjust as needed
             print("Interactions summary")
-            print(
-                pd.DataFrame(
+            try:
+                print(pd.DataFrame(
                     self.interactions, columns=["consumer_id", "item_id", "rating"]
-                )["rating"].describe()
-            )
+                )["rating"].describe())
+            except Exception as e:
+                print("Direct DataFrame construction failed:", e)
+            
             print("Training model")
             reader = Reader()
-            df = pd.DataFrame(
-                self.interactions, columns=["consumer_id", "item_id", "rating"]
-            )
-
+            print("Sample interactions:")
+            for i in self.interactions[:5]:
+                print(i, type(i))
+            
+            # 1) Convert each valid Interaction object into a tuple (user_id, item_id, rating)
+            data_list = [
+                (interaction.user_id, interaction.item_id, interaction.rating)
+                for interaction in self.interactions if hasattr(interaction, "user_id")
+            ]
+            
+            # 2) Build a DataFrame from the list of tuples
+            df = pd.DataFrame(data_list, columns=["consumer_id", "item_id", "rating"])
+            print("Interaction DataFrame shape:", df.shape)
+            
             num_missing_interactions = len(
-                set(consumer.consumer_id for consumer in self.consumers)
-                - set(df["consumer_id"].unique())
+                set(consumer.consumer_id for consumer in self.consumers) - set(df["consumer_id"].unique())
             )
-            print(
-                f"Number of consumers missing in interactions dataset: {num_missing_interactions}"
-            )
-
+            print(f"Number of consumers missing in interactions dataset: {num_missing_interactions}")
+            
+            # Build Surprise dataset and train the model
             data = Dataset.load_from_df(df, reader)
             trainset = data.build_full_trainset()
             self.algo.fit(trainset)
-
+        
             # Create user-item matrix for clustering using a sparse matrix
             consumer_map = {
                 id: idx for idx, id in enumerate(df["consumer_id"].unique())
@@ -104,8 +116,8 @@ class SurpriseSVD(Recommender):
             print("Not enough interactions to train the model yet")
             
     def get_user_interactions(self, user_id):
-        return [(cid, iid, rating) for cid, iid, rating in self.interactions if cid == user_id]
-
+        return [interaction for interaction in self.interactions if interaction.user_id == user_id]
+                             
     def _create_user_clusters(self, user_item_matrix, consumer_map):
         """Cluster users based on their clicked items using KNN."""
         print("Clustering users based on their clicked items")

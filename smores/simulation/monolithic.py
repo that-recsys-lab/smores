@@ -11,8 +11,6 @@ def monolithic(
     slate_size=3,
     num_cycles=1,
     model=None,
-    forget_interactions=True,
-    transfer_interactions=True
 ):
     """
     Run a multi-recommender experiment.
@@ -39,23 +37,22 @@ def monolithic(
 
     # Run the experiment for the specified number of days
     for cycle in range(1, num_cycles + 1):
-        # Restore interactions from the previous cycle if transfer_interactions is True
-        if transfer_interactions and 'previous_interactions' in locals():
-            for recommender_id, recommender in recommenders.items():
-                if recommender_id in previous_interactions:
-                    for interaction in previous_interactions[recommender_id]:
-                        consumer_id, item_id, rating = interaction
-                        recommender.add_interaction(consumer_id, item_id, rating)
-    
         for day in range(1, num_days + 1):
             print("===============> Day:", day, "<===============")
             # Organize consumers into lists based on the recommender they chose
             consumers_by_recommender = {
                 recommender_id: [] for recommender_id in recommenders.keys()
             }
-            for consumer in consumers:
-                chosen_recommender_id = list(recommenders.keys())[0]  # Use the first recommender
-                consumers_recommender_choice.append([consumer.consumer_id, chosen_recommender_id])
+            for (
+                consumer
+            ) in consumers:  # Iterate over the consumers for the current recommender ID
+                chosen_recommender_id = consumer.choose_recommender()
+                if chosen_recommender_id is None:
+                    continue
+                # Append recommender to consumer to evaluate UCB
+                consumers_recommender_choice.append(
+                    [consumer.consumer_id, chosen_recommender_id]
+                )  # used for analysis
                 consumers_by_recommender[chosen_recommender_id].append(consumer)
 
             # Make recommendations for each recommender's associated consumers
@@ -109,15 +106,6 @@ def monolithic(
                         )
 
         # Charge subscription fees to providers
-        previous_interactions = {}
-        if transfer_interactions:
-            for recommender_id, recommender in recommenders.items():
-                previous_interactions[recommender_id] = recommender.interactions
-        if forget_interactions:
-            for recommender_id, recommender in recommenders.items():
-                recommender.interactions = []
-                for consumer in consumers:
-                    consumer.remove_user(retain_profile=False)
         for recommender in recommenders.values():
             recommender.charge_subscription_fees()
 

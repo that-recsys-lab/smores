@@ -82,8 +82,9 @@ def threshold_switching(
                     recommendations[consumer.consumer_id] = (recommender_id, slate_items[consumer.consumer_id])
                     
             # Simulate user response, update satisfaction scores, and record clicks
-            clicked_items = {consumer.consumer_id: [] for consumer in consumers}
+            clicked_items = {consumer.consumer_id: [] for consumer in consumers} # Initialize with empty lists
             for consumer in consumers:
+                # continue if the consumer is not connected to any recommenders
                 if len(consumer.available_recommenders) == 0:
                     print("Consumer is not connected to any recommenders")
                     continue
@@ -91,9 +92,10 @@ def threshold_switching(
                 consumer_id = consumer.consumer_id
                 recommender_id, recommended_items = recommendations[consumer_id]
                 slate_items = recommended_items
-                chosen_recommender_id = recommender_id
+                chosen_recommender_id = recommender_id # Choose recommender for the current user
                 responses = consumer.simulate_response(slate_items, recommender_system_id=chosen_recommender_id)
 
+                # Collect clicked items
                 for i, response in enumerate(responses):
                     if response.get("click", 0) == 1:
                         clicked_items[consumer_id].append(slate_items[i])
@@ -105,41 +107,49 @@ def threshold_switching(
                         )
 
         # Switching logic with interaction handling
-        for consumer in consumers:
-            for key, value in consumer.connected_recommenders.copy().items():
-                if value == 0:
-                    continue
-                recommender_id = key
-                if consumer.satisfaction_scores[recommender_id] < 0.1:
-                    if (max(consumer.satisfaction_scores, key=consumer.satisfaction_scores.get) == recommender_id and 
-                        all(score > 0 for score in consumer.satisfaction_scores.values())):
-                        break
-                    elif consumer.consumer_id in mainstream_recommender.connected_consumers.keys():
-                        old_rec = mainstream_recommender
-                        new_rec = niche_recommender
-                    else:
-                        old_rec = niche_recommender
-                        new_rec = mainstream_recommender
-                    
-                    old_interactions = old_rec.get_user_interactions(consumer.consumer_id) if transfer_interactions else []
-                    old_rec.disconnect_consumer(consumer)
-                    consumer.unsubscribe_from_recommender_system(old_rec.recommender_id)
-                    if forget_interactions:
-                        old_rec.remove_user_interactions(consumer.consumer_id)
-                        consumer.remove_user(retain_profile=False)
-                    if transfer_interactions:
-                        for interaction in old_interactions:
-                            consumer_id, item_id, rating = interaction
-                            new_rec.add_interaction(consumer_id, item_id, rating)
-                    new_rec.connect_consumer(consumer)
-                    consumer.subscribe_to_recommender_system(new_rec.recommender_id)
+        if cycle > 5:
+            for consumer in consumers:
+                for key, value in consumer.connected_recommenders.copy().items():
+                    if value == 0:
+                        continue
+                    recommender_id = key
+                    if consumer.satisfaction_scores[recommender_id] < 0.1:
+                        # Max value of alii
+                        if (max(consumer.satisfaction_scores, key=consumer.satisfaction_scores.get) == recommender_id and 
+                            all(score > 0 for score in consumer.satisfaction_scores.values())):
+                            break
+                        elif consumer.consumer_id in mainstream_recommender.connected_consumers.keys():
+                            old_rec = mainstream_recommender
+                            new_rec = niche_recommender
+                        else:
+                            old_rec = niche_recommender
+                            new_rec = mainstream_recommender
+                        # Retrieving Previous Interactions
+                        old_interactions = old_rec.get_user_interactions(consumer.consumer_id) if transfer_interactions else []
+                        # Disconnecting the Consumer from the Old Recommender
+                        old_rec.disconnect_consumer(consumer)
+                        consumer.unsubscribe_from_recommender_system(old_rec.recommender_id)
+                        # Optionally Forgetting the Consumer’s Interaction History
+                        if forget_interactions:
+                            old_rec.remove_user_interactions(consumer.consumer_id)
+                            consumer.remove_user(retain_profile=False)
+                        # Optionally Transferring Interaction Data to the New Recommender
+                        if transfer_interactions:
+                            for interaction in old_interactions:
+                                new_rec.add_interaction(interaction.user_id, interaction.item_id, interaction.rating)
+                        # Connecting the Consumer to the New Recommender
+                        new_rec.connect_consumer(consumer)
+                        consumer.subscribe_to_recommender_system(new_rec.recommender_id)
 
+        ### LOGGING ###
         print("Connected to mainstream recommender:", len(mainstream_recommender.connected_consumers))
         print("Connected to Niche recommender:", len(niche_recommender.connected_consumers))
 
+        # Charge subscription fees to providers
         for recommender in recommenders.values():
             recommender.charge_subscription_fees()
-
+            
+        # Get profit for each provider
         for provider in providers:
             for recommender_id, recommender in recommenders.items():
                 if recommender_id in provider.connected_recommenders.keys():
@@ -167,7 +177,7 @@ def threshold_switching(
                         consumer_satisfaction_score,
                         rec_state,
                     ])
-
+        # Update the subscription for each provider
         for provider in providers:
             unsubscribed_list = provider.update_recommender_subscription()
             for recommender_id, recommender in recommenders.items():

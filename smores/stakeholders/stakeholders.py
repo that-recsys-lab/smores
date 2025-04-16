@@ -4,6 +4,7 @@ import math
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from smores.stakeholders.choice import category_similarity_logit
+from smores.stakeholders.interaction import Interaction
 
 
 class Item:
@@ -255,7 +256,7 @@ class Consumer:
         self.choice_model = choice_model
         self.genre_recommendation_counts = {}
         self.historical_distribution = historical_distribution
-        self.kl_divergence = defaultdict(float)
+        self.available_recommenders = []
 
     def subscribe_to_recommender_system(self, recommender_system_id, state=1):
         """
@@ -266,9 +267,6 @@ class Consumer:
         """
         self.connected_recommenders[recommender_system_id] = state
         self.satisfaction_scores[recommender_system_id] = self.satisfaction_scores.get(
-            recommender_system_id, 0
-        )
-        self.kl_divergence[recommender_system_id] = self.kl_divergence.get(
             recommender_system_id, 0
         )
         self.recommender_counts[recommender_system_id] = self.recommender_counts.get(
@@ -486,47 +484,6 @@ class Consumer:
             {}
         )  # Dictionary to store how many times the recommender system has been chosen
         self.ucb_scores = {}  # Store UCB scores for each recommender system
-        self.kl_divergence = defaultdict(float)
-
-    def compute_kl_divergence(self, recommender_system_id):
-        """
-        Compute the KL divergence between the consumer's category preferences and the historical distribution.
-
-        """
-        # Normalize historical_distribution
-        profile_historical = sum(self.historical_distribution.values())
-        historical_distribution_normalized = {
-            genre: count / profile_historical
-            for genre, count in self.historical_distribution.items()
-        }
-
-        # Normalize consumer's genre preferences
-        total_count = sum(
-            self.genre_recommendation_counts[recommender_system_id].values()
-        )
-        genre_preferences_normalized = {
-            genre: count / total_count
-            for genre, count in self.genre_recommendation_counts[recommender_system_id].items()
-        }
-
-        # Compute KL divergence
-        kl_divergence = 0
-        for genre, p in genre_preferences_normalized.items():
-            q = historical_distribution_normalized.get(genre, 0.0)  # Default to 0 if genre is not in historical_distribution
-            if p > 0:
-                if q > 0:
-                    kl_divergence += p * math.log(p / q)
-                else:
-                    # Avoid division by zero; handle cases where q is 0
-                    kl_divergence += p * math.log(p / 1e-10)
-
-        self.kl_divergence[recommender_system_id] = kl_divergence
-
-        return kl_divergence
-
-        # print("genre_recommendation_counts",self.genre_recommendation_counts[recommender_system_id].keys())
-        # print("historical_distribution",self.historical_distribution.keys())
-        # print(self.consumer_id, kl_divergence)
 
 
 class Recommender(ABC):
@@ -575,14 +532,12 @@ class Recommender(ABC):
             self.connect_provider(provider)
             provider.subscribe_to_recommender_system(self.recommender_id)
 
-    def add_interaction(self, consumer_id, item_id, rating):
-        self.interactions.append((consumer_id, item_id, rating))
-
     def get_user_interactions(self, user_id):
         return [(cid, iid, rating) for cid, iid, rating in self.interactions if cid == user_id]
 
     def remove_user_interactions(self, user_id):
-        self.interactions = [(cid, iid, rating) for cid, iid, rating in self.interactions if cid != user_id]
+        self.interactions = [interaction for interaction in self.interactions if interaction.user_id != user_id]
+
         
     @abstractmethod
     def recommend_items(self, consumers, slate_size=1):
@@ -914,11 +869,16 @@ class Recommender(ABC):
     def add_interaction(self, consumer_id, item_id, rating):
         """
         Add a new interaction and retrain the model if enough data is collected.
-
+    
         Args:
-            consumer_id (): The consumer interacted with the item.
-            item_id (): the item the user is interacting with.
-            rating (boolean): 1 if the consumer clicked on the item, 0 otherwise.
-
+            consumer_id: The consumer that interacted with the item.
+            item_id: The item that was interacted with.
+            rating: For example, 1 if the consumer clicked on the item, 0 otherwise.
         """
-        self.interactions.append((consumer_id, item_id, rating))
+        interaction = Interaction(
+            user_id=consumer_id, 
+            item_id=item_id, 
+            recommender_id=self.recommender_id, 
+            rating=rating
+        )
+        self.interactions.append(interaction)
