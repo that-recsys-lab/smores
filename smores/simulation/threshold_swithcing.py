@@ -114,7 +114,6 @@ def threshold_switching(
                         continue
                     recommender_id = key
                     if consumer.satisfaction_scores[recommender_id] < 0.1:
-                        # Max value of alii
                         if (max(consumer.satisfaction_scores, key=consumer.satisfaction_scores.get) == recommender_id and 
                             all(score > 0 for score in consumer.satisfaction_scores.values())):
                             break
@@ -126,20 +125,22 @@ def threshold_switching(
                             new_rec = mainstream_recommender
                         # Retrieving Previous Interactions
                         old_interactions = old_rec.get_user_interactions(consumer.consumer_id) if transfer_interactions else []
-                        # Disconnecting the Consumer from the Old Recommender
+                        # Disconnect from the old recommender
                         old_rec.disconnect_consumer(consumer)
                         consumer.unsubscribe_from_recommender_system(old_rec.recommender_id)
-                        # Optionally Forgetting the Consumer’s Interaction History
+                        # Remove interactions if forgetting
                         if forget_interactions:
                             old_rec.remove_user_interactions(consumer.consumer_id)
-                            consumer.remove_user(retain_profile=False)
-                        # Optionally Transferring Interaction Data to the New Recommender
+                        # Clean up consumer state
+                        consumer.remove_user(retain_profile=not forget_interactions)
+                        # Transfer interactions if enabled
                         if transfer_interactions:
                             for interaction in old_interactions:
                                 new_rec.add_interaction(interaction.user_id, interaction.item_id, interaction.rating)
-                        # Connecting the Consumer to the New Recommender
+                        # Connect to the new recommender
                         new_rec.connect_consumer(consumer)
                         consumer.subscribe_to_recommender_system(new_rec.recommender_id)
+                        break  # Ensure only one switch per cycle
 
         ### LOGGING ###
         print("Connected to mainstream recommender:", len(mainstream_recommender.connected_consumers))

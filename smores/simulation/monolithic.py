@@ -174,7 +174,6 @@ def monolithic(
                         if consumer.connected_recommenders[recommender_id] == 1
                         else ""
                     )
-                    kl_divergence = consumer.compute_kl_divergence(recommender_id)
                     consumer_data.append(
                         [
                             consumer_id,
@@ -182,7 +181,6 @@ def monolithic(
                             cycle,
                             consumer_satisfaction_score,
                             rec_state,
-                            kl_divergence,
                         ]
                     )
 
@@ -206,12 +204,6 @@ def monolithic(
                     cycle,
                 ]
             )
-
-        print("\n")
-        print("Consumer KL Divergence")
-        print("\n")
-        for consumer in consumers[:5]:
-            consumer.compute_kl_divergence(recommender_id)
 
         print("\n====================================================")
         print("===============> Finished Cycle:", cycle, "<================")
@@ -239,7 +231,6 @@ def monolithic(
             "cycle",
             "satisfaction_score",
             "rec_state",
-            "kl_divergence",
         ],
     )
     recommender_df = pd.DataFrame(

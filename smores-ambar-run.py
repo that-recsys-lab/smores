@@ -172,7 +172,7 @@ run_experiment(
         #         "consumers": [], # optional
         #         # "providers": recommender_1_providers # optional
         #     },
-        },
+        #},
     ],
     base_dir="experiments/results",
 )
