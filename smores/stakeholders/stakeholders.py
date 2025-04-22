@@ -533,7 +533,21 @@ class Recommender(ABC):
             provider.subscribe_to_recommender_system(self.recommender_id)
 
     def get_user_interactions(self, user_id):
-        return [(cid, iid, rating) for cid, iid, rating in self.interactions if cid == user_id]
+        """
+        Return a list of Interaction objects for `user_id`, handling
+        both raw (cid,iid,rating) tuples and Interaction instances.
+        """
+        out = []
+        for rec in self.interactions:
+            if isinstance(rec, Interaction):
+                if rec.user_id == user_id:
+                    out.append(rec)
+            else:
+                cid, iid, rating = rec
+                if cid == user_id:
+                    # wrap tuple in an Interaction object
+                    out.append(Interaction(cid, iid, self.recommender_id, rating))
+        return out
 
     def remove_user_interactions(self, user_id):
         self.interactions = [interaction for interaction in self.interactions if interaction.user_id != user_id]
