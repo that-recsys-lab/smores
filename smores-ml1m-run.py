@@ -111,7 +111,7 @@ def run_experiment_for_scenario(scenario, dataset_directory, experiment_name):
 
     # Define experiment types (using threshold_switching as an example)
     experiments = [
-        ("threshold_switching", threshold_switching),
+        #("threshold_switching", threshold_switching),
         #("monolithic", monolithic),
         ("ucb_switching", ucb_switching),
     ]

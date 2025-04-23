@@ -59,12 +59,6 @@ class SurpriseSVD(Recommender):
         print("Training model if ready")
         if len(self.interactions) > 10:  # Arbitrary threshold, adjust as needed
             print("Interactions summary")
-            try:
-                print(pd.DataFrame(
-                    self.interactions, columns=["consumer_id", "item_id", "rating"]
-                )["rating"].describe())
-            except Exception as e:
-                print("Direct DataFrame construction failed:", e)
             
             print("Training model")
             reader = Reader()
@@ -72,13 +66,13 @@ class SurpriseSVD(Recommender):
             for i in self.interactions[:5]:
                 print(i, type(i))
             
-            # 1) Convert each valid Interaction object into a tuple (user_id, item_id, rating)
+            # Convert each valid Interaction object into a tuple (user_id, item_id, rating)
             data_list = [
                 (interaction.user_id, interaction.item_id, interaction.rating)
                 for interaction in self.interactions if hasattr(interaction, "user_id")
             ]
             
-            # 2) Build a DataFrame from the list of tuples
+            # Build a DataFrame from the list of tuples
             df = pd.DataFrame(data_list, columns=["consumer_id", "item_id", "rating"])
             print("Interaction DataFrame shape:", df.shape)
             
