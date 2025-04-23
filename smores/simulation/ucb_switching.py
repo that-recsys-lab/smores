@@ -126,8 +126,9 @@ def ucb_switching(consumers, providers, recommenders, num_days=5, slate_size=3, 
 
                     if forget_interactions:
                         old_rec.remove_user_interactions(consumer.consumer_id)
-                    retain_profile = not forget_interactions
-                    consumer.remove_user(retain_profile=retain_profile)
+                        
+                    if forget_interactions and not transfer_interactions:
+                        consumer.remove_user(retain_profile=False)
 
                     if transfer_interactions:
                         for interaction in old_interactions:

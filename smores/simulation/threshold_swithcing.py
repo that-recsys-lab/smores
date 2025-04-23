@@ -131,9 +131,9 @@ def threshold_switching(
                         # Remove interactions if forgetting
                         if forget_interactions:
                             old_rec.remove_user_interactions(consumer.consumer_id)
-                        # Retain profile if not forgetting interactions (i.e., keep data for continuity)
-                        retain_profile = not forget_interactions
-                        consumer.remove_user(retain_profile=retain_profile)
+                            
+                        if forget_interactions and not transfer_interactions:
+                            consumer.remove_user(retain_profile=False)
                         # Transfer interactions if enabled
                         if transfer_interactions:
                             for interaction in old_interactions:
