@@ -297,7 +297,7 @@ class Consumer:
         self.available_recommenders = [
             recommender_id
             for recommender_id, value in self.connected_recommenders.items()
-            if value == 1
+            # if value == 1
         ]
 
         if preselected_recommender_id:
@@ -406,16 +406,16 @@ class Consumer:
 
         return responses
         
-    def remove_user(self, retain_profile=True):
-        for recommender_id in list(self.connected_recommenders.keys()):
-            self.unsubscribe_from_recommender_system(recommender_id)
-        if not retain_profile:
-            self.net_quality_exposure = {}
-            self.satisfaction_scores = {}
-            self.recommender_counts = {}
-            self.recommender_category_success = {}
-            self.ucb_scores = {}
-            self.genre_recommendation_counts = {}
+    # def remove_user(self, retain_profile=True):
+    #     for recommender_id in list(self.connected_recommenders.keys()):
+    #         self.unsubscribe_from_recommender_system(recommender_id)
+    #     if not retain_profile:
+    #         self.net_quality_exposure = {}
+    #         self.satisfaction_scores = {}
+    #         self.recommender_counts = {}
+    #         self.recommender_category_success = {}
+    #         self.ucb_scores = {}
+    #         self.genre_recommendation_counts = {}
 
     def update_genre_recommendation(self, recommender_system_id, items):
         """
@@ -455,7 +455,10 @@ class Consumer:
                 for key in intersecting_keys
             )
         # normalize sim_score
-        norm_sim_score = sim_score / len(slate_items)
+        if len(slate_items) == 0:
+            norm_sim_score = 0
+        else:
+            norm_sim_score = sim_score / len(slate_items)
 
         self.satisfaction_scores[recommender_system_id] = (
             self.satisfaction_scores.get(recommender_system_id, 0) * self.beta

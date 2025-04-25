@@ -132,7 +132,7 @@ niche_genres_most_popular_item_ids = get_top_items(ratings_df, items_df, n=30, g
 del ratings_df, items_df, consumer_item_rating_genre_df
 
 FORGET   = True    
-TRANSFER = False    
+TRANSFER = False   
 
 # Run experiment
 run_experiment(
