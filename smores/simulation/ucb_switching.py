@@ -22,54 +22,91 @@ def ucb_switching(consumers, providers, recommenders, num_days=5, slate_size=3, 
     consumer_data = []
     recommender_data = []
     consumers_recommender_choice = []
-    
+    recommender_choice_history = (
+        {}
+    )  # to store recommender choice history for each consumer -- temp solution
+
     recommender_values = list(recommenders.values())
     mainstream_recommender = recommender_values[0]
     niche_recommender = recommender_values[1]
-    
+
+    # dictionary of recommender_id and recommender object -- tmp solution
+    recommenders = {
+        mainstream_recommender.recommender_id: mainstream_recommender,
+        niche_recommender.recommender_id: niche_recommender,
+    }
+
     # Subscribe consumers to both recommenders
     for consumer in consumers:
+        # create a new consumer key in the recommender_choice_history dict
+        recommender_choice_history[consumer.consumer_id] = []
+
         mainstream_recommender.connect_consumer(consumer)
         consumer.subscribe_to_recommender_system(mainstream_recommender.recommender_id)
-        
+
         niche_recommender.connect_consumer(consumer)
         consumer.subscribe_to_recommender_system(niche_recommender.recommender_id) 
-        
-        
+
     print("mainstream consumers count:", len(mainstream_recommender.connected_consumers.keys()))
     print("niche consumers count:", len(niche_recommender.connected_consumers.keys()))
-    
+
     # Subscribe providers to both recommenders
     for provider in providers:
-        
+
         mainstream_recommender.connect_provider(provider)
         provider.subscribe_to_recommender_system(mainstream_recommender.recommender_id)
-        
+
         niche_recommender.connect_provider(provider)
         provider.subscribe_to_recommender_system(niche_recommender.recommender_id)
-    
-    
+
     # Run the experiment for the specified number of days
     for cycle in range(1, num_cycles + 1):
         # Organize consumers into lists based on the recommender they chose
         consumers_by_recommender = {recommender_id: [] for recommender_id in recommenders.keys()}
         for consumer in consumers:  # Iterate over the consumers for the current recommender ID
             # if first cycle, choose mainstream recommender
+
+            # Check if the consumer has a recommender choice history
+            if recommender_choice_history[consumer.consumer_id] == []:
+                old_rec = None
+            else:
+                old_rec = recommender_choice_history[consumer.consumer_id][-1]
+
             if cycle <= 5:
                 chosen_recommender_id = consumer.choose_recommender(preselected_recommender_id=mainstream_recommender.recommender_id)
             else:
                 chosen_recommender_id = consumer.choose_recommender()
 
+            # store recommender choice history for each consumer -- temp solution
+            recommender_choice_history[consumer.consumer_id].append(chosen_recommender_id) 
+
             if chosen_recommender_id is None:
+                print("No recommender chosen for consumer:", consumer.consumer_id)
                 continue
+
+            if not old_rec or chosen_recommender_id == old_rec:
+                # if the recommender is the same as the last one, continue to the next consumer
+                pass
+            else:
+                old_interactions = recommenders[old_rec].get_user_interactions(consumer.consumer_id) if transfer_interactions else []
+
+                if forget_interactions:
+                    recommenders[old_rec].remove_user_interactions(consumer.consumer_id)
+
+                if transfer_interactions:
+                    for interaction in old_interactions:
+                        chosen_recommender_id.add_interaction(
+                            interaction.user_id, interaction.item_id, interaction.rating
+                        )
             # Append recommender to consumer to evaluate UCB
             consumers_recommender_choice.append([consumer.consumer_id, chosen_recommender_id]) # used for analysis
             consumers_by_recommender[chosen_recommender_id].append(consumer)
-        [print(key, len(value)) for key, value in consumers_by_recommender.items()]
+
+        # [print(key, len(value)) for key, value in consumers_by_recommender.items()]
 
         for recommender_id in recommenders.keys():
             print(f"Number of consumers choosing {recommender_id}:", len(consumers_by_recommender[recommender_id]))
-            
+
         for day in range(1, num_days + 1):
             print("===============> Day:", day, "<===============") 
             # Make recommendations for each recommender's associated consumers
@@ -87,13 +124,15 @@ def ucb_switching(consumers, providers, recommenders, num_days=5, slate_size=3, 
                 if len(consumer.available_recommenders) == 0:
                     print('Consumer is not connected to any recommenders')
                     continue
-                    
+
                 consumer_id = consumer.consumer_id
                 recommender_id, recommended_items = recommendations[consumer_id]
                 slate_items = recommended_items
+                # Get previous recommender ID
+
                 chosen_recommender_id = recommender_id  # Choose recommender for the current user
                 responses = consumer.simulate_response(slate_items, recommender_system_id=chosen_recommender_id)
-                
+
                 # Collect clicked items
                 for i, response in enumerate(responses):
                     if response.get("click", 0) == 1:
@@ -106,41 +145,11 @@ def ucb_switching(consumers, providers, recommenders, num_days=5, slate_size=3, 
                             slate_items[i].item_id,
                             model.predict(consumer_id, slate_items[i].item_id).est,
                         )
-        if cycle > 5:
-            for consumer in consumers:
-                for key, value in consumer.connected_recommenders.copy().items():
-                    if value == 0:
-                        continue
 
-                    current_rec_id = key
-                    chosen_recommender_id = consumer.choose_recommender()
-                    if chosen_recommender_id == current_rec_id:
-                        continue
-
-                    old_rec = recommenders[current_rec_id]
-                    new_rec = recommenders[chosen_recommender_id]
-                    old_interactions = old_rec.get_user_interactions(consumer.consumer_id) if transfer_interactions else []
-
-                    old_rec.disconnect_consumer(consumer)
-                    consumer.unsubscribe_from_recommender_system(current_rec_id)
-
-                    if forget_interactions:
-                        old_rec.remove_user_interactions(consumer.consumer_id)
-
-                    if transfer_interactions:
-                        for interaction in old_interactions:
-                            new_rec.add_interaction(interaction.user_id, interaction.item_id, interaction.rating)
-
-                    new_rec.connect_consumer(consumer)
-                    consumer.subscribe_to_recommender_system(chosen_recommender_id)
-                    break
-
-      
-            
         # Charge subscription fees to providers
         for recommender in recommenders.values():
             recommender.charge_subscription_fees()
-            
+
         # Get profit for each provider
         for provider in providers:
             for recommender_id, recommender in recommenders.items():
@@ -155,32 +164,37 @@ def ucb_switching(consumers, providers, recommenders, num_days=5, slate_size=3, 
                         provider.pay_cycle_shows.get(recommender_id, [0])[cycle-1] if cycle <= len(provider.pay_cycle_shows.get(recommender_id, [0])) else 0,
                         len([rec for rec in provider.connected_recommenders.keys() if provider.connected_recommenders[rec] == 1]),
                     ])
-                    
+
         for consumer in consumers:
             for recommender_id, recommender in recommenders.items():
                 if recommender_id in consumer.connected_recommenders.keys():
                     consumer_id = consumer.consumer_id
                     consumer_satisfaction_score = consumer.get_satisfaction_score(recommender_system_id=recommender_id)
-                    rec_state = 'connected' if consumer.connected_recommenders[recommender_id] == 1 else ''
+                    rec_state = (
+                        "connected"
+                        if recommender_id
+                        == recommender_choice_history[consumer.consumer_id][-1]
+                        else ""
+                    )
                     consumer_data.append([consumer_id, recommender_id, cycle, consumer_satisfaction_score, rec_state])
-        
+
         # Update the subscription for each provider
         for provider in providers:
             unsubscribed_list = provider.update_recommender_subscription()
             for recommender_id, recommender in recommenders.items():
                 if recommender_id in unsubscribed_list:
                     recommender.disconnect_provider(provider.provider_id)
-                    
+
         for recommender_id, recommender in recommenders.items():
             num_connected_providers = len(recommender.connected_providers)
             num_connected_consumers = len(recommender.connected_consumers)
             total_profit = recommender.profit[-1]
             recommender_data.append([recommender_id, num_connected_providers, num_connected_consumers, total_profit, cycle])
-        
+
         print("\n====================================================")    
         print("===============> Finished Cycle:", cycle, "<================")
         print("====================================================\n")   
-            
+
     # Convert lists to DataFrames
     provider_df = pd.DataFrame(
         provider_data,

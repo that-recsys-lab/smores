@@ -297,7 +297,7 @@ class Consumer:
         self.available_recommenders = [
             recommender_id
             for recommender_id, value in self.connected_recommenders.items()
-            # if value == 1
+            if value == 1
         ]
 
         if preselected_recommender_id:
@@ -308,6 +308,7 @@ class Consumer:
             print("no available recommenders")
             return None
 
+        # Check if only one recommender is available (threshold specific)
         if len(self.available_recommenders) == 1:
             recommender_id = self.available_recommenders[0]
             self.recommender_counts[recommender_id] += 1

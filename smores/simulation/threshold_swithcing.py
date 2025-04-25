@@ -114,8 +114,7 @@ def threshold_switching(
                         continue
                     recommender_id = key
                     if consumer.satisfaction_scores[recommender_id] < 0.1:
-                        if (max(consumer.satisfaction_scores, key=consumer.satisfaction_scores.get) == recommender_id and 
-                            all(score > 0 for score in consumer.satisfaction_scores.values())):
+                        if (max(consumer.satisfaction_scores, key=consumer.satisfaction_scores.get) == recommender_id):
                             break
                         elif consumer.consumer_id in mainstream_recommender.connected_consumers.keys():
                             old_rec = mainstream_recommender

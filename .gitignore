@@ -21,6 +21,8 @@ docs/*
 /.virtual_documents
 structure.md
 notebooks/*
+consumer_switching.csv
+test_transactions.ipynb
 
 # files
 paper-viz-3.0.ipynb

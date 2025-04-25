@@ -131,8 +131,12 @@ niche_genres_most_popular_item_ids = get_top_items(ratings_df, items_df, n=30, g
 # Clear up memory
 del ratings_df, items_df, consumer_item_rating_genre_df
 
-FORGET   = True    
-TRANSFER = False   
+scenarios = {
+    "coldstart": {"FORGET": True, "TRANSFER": False},
+    "user_ownership": {"FORGET":True , "TRANSFER": True},
+    "universal_profile": {"FORGET": False, "TRANSFER": True},
+    "algorithm_specific": {"FORGET": False, "TRANSFER": False},
+}
 
 # Run experiment
 run_experiment(
@@ -177,7 +181,7 @@ run_experiment(
             },
         },
     ],
-    forget_interactions=FORGET,
-    transfer_interactions=TRANSFER,
+    forget_interactions= scenarios["coldstart"]["FORGET"],
+    transfer_interactions=scenarios["coldstart"]["TRANSFER"],
     base_dir="experiments/results",
 )
