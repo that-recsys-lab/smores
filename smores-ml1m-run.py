@@ -181,7 +181,7 @@ run_experiment(
             },
         },
     ],
-    forget_interactions= scenarios["coldstart"]["FORGET"],
-    transfer_interactions=scenarios["coldstart"]["TRANSFER"],
+    forget_interactions= scenarios["user_ownership"]["FORGET"],
+    transfer_interactions=scenarios["user_ownership"]["TRANSFER"],
     base_dir="experiments/results",
 )
