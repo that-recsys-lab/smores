@@ -554,7 +554,9 @@ class Recommender(ABC):
         return out
 
     def remove_user_interactions(self, user_id):
-        self.interactions = [interaction for interaction in self.interactions if interaction.user_id != user_id]
+            self.interactions = [interaction for interaction in self.interactions if interaction.user_id != user_id]
+            if user_id in self.consumer_docs_ids_clicked:
+                self.consumer_docs_ids_clicked[user_id] = set()
 
         
     @abstractmethod
