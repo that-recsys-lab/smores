@@ -131,12 +131,16 @@ niche_genres_most_popular_item_ids = get_top_items(ratings_df, items_df, n=30, g
 # Clear up memory
 del ratings_df, items_df, consumer_item_rating_genre_df
 
-FORGET   = False    
-TRANSFER = False    
+# scenarios = {
+#     "coldstart": {"FORGET": True, "TRANSFER": False},
+#     "user_ownership": {"FORGET":True , "TRANSFER": True},
+#     "universal_profile": {"FORGET": False, "TRANSFER": True},
+#     "algorithm_specific": {"FORGET": False, "TRANSFER": False},
+# }   
 
 # Run experiment
 run_experiment(
-    experiment=threshold_switching,
+    experiment=monolithic,
     model=model,
     consumer_choice_model=category_similarity_logit,
     experiment_name=experiment_name,
@@ -161,23 +165,23 @@ run_experiment(
                 # "providers": recommender_1_providers # optional
             },
         },
-        {
-            "type": SurpriseSVD,
-            "name": "niche_recommender",
-            "params": {
-                "fee_per_click": 0.1,
-                "fee_per_show": 0.01,
-                "base_fee": 0.0,
-                "most_popular_item_ids": niche_genres_most_popular_item_ids,
-                "prohibited_genres": set(),
-                "weighted_category": {},
-                "specialized_genres": set(["Soul/funk"]),
-                "consumers": [], # optional
-                # "providers": recommender_1_providers # optional
-            },
-        },
+        # {
+        #     "type": SurpriseSVD,
+        #     "name": "niche_recommender",
+        #     "params": {
+        #         "fee_per_click": 0.1,
+        #         "fee_per_show": 0.01,
+        #         "base_fee": 0.0,
+        #         "most_popular_item_ids": niche_genres_most_popular_item_ids,
+        #         "prohibited_genres": set(),
+        #         "weighted_category": {},
+        #         "specialized_genres": set(["Soul/funk"]),
+        #         "consumers": [], # optional
+        #         # "providers": recommender_1_providers # optional
+        #     },
+        # },
     ],
-    forget_interactions=FORGET,
-    transfer_interactions=TRANSFER,
+    # forget_interactions= scenarios["algorithm_specific"]["FORGET"],
+    # transfer_interactions=scenarios["algorithm_specific"]["TRANSFER"],
     base_dir="experiments/results",
 )
