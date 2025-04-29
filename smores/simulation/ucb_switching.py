@@ -98,6 +98,7 @@ def ucb_switching(consumers, providers, recommenders, num_days=5, slate_size=3, 
                         recommenders[chosen_recommender_id].add_interaction(
                                         interaction.user_id, interaction.item_id, interaction.rating
                                     )
+                    
             # Append recommender to consumer to evaluate UCB
             consumers_recommender_choice.append([consumer.consumer_id, chosen_recommender_id]) # used for analysis
             consumers_by_recommender[chosen_recommender_id].append(consumer)

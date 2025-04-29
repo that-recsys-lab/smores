@@ -15,7 +15,6 @@ from smores.stakeholders.stakeholders import Recommender
 from smores.stakeholders.interaction import Interaction
 
 
-
 class SurpriseSVD(Recommender):
     def __init__(
         self,
@@ -57,35 +56,36 @@ class SurpriseSVD(Recommender):
     def train_model_if_ready(self):
         """Train the SVD model once there are enough interactions and generate user clusters."""
         print("Training model if ready")
-        if len(self.interactions) > 10:  # Arbitrary threshold, adjust as needed
-            print("Interactions summary")
-            
+        # Count total interactions across all users
+        total_interactions = sum(len(interactions) for interactions in self.interactions.values())
+        print("Total interactions:", total_interactions)
+        if total_interactions > 10:  # Arbitrary threshold, adjust as needed
+
             print("Training model")
-            reader = Reader()
-            print("Sample interactions:")
-            for i in self.interactions[:5]:
-                print(i, type(i))
-            
-            # Convert each valid Interaction object into a tuple (user_id, item_id, rating)
+
+            # Flatten all interaction lists into a single list of (user_id, item_id, rating)
             data_list = [
                 (interaction.user_id, interaction.item_id, interaction.rating)
-                for interaction in self.interactions if hasattr(interaction, "user_id")
+                for interactions_list in self.interactions.values()
+                for interaction in interactions_list
+                if hasattr(interaction, "user_id")
             ]
-            
+
             # Build a DataFrame from the list of tuples
             df = pd.DataFrame(data_list, columns=["consumer_id", "item_id", "rating"])
             print("Interaction DataFrame shape:", df.shape)
-            
+
             num_missing_interactions = len(
                 set(consumer.consumer_id for consumer in self.consumers) - set(df["consumer_id"].unique())
             )
             print(f"Number of consumers missing in interactions dataset: {num_missing_interactions}")
-            
+
             # Build Surprise dataset and train the model
+            reader = Reader()
             data = Dataset.load_from_df(df, reader)
             trainset = data.build_full_trainset()
             self.algo.fit(trainset)
-        
+
             # Create user-item matrix for clustering using a sparse matrix
             consumer_map = {
                 id: idx for idx, id in enumerate(df["consumer_id"].unique())
@@ -104,14 +104,15 @@ class SurpriseSVD(Recommender):
 
             self.has_trained_model = True
             print("Model training completed")
+
             self.compute_and_store_recommendations()
             self.load_recommendations()
         else:
             print("Not enough interactions to train the model yet")
-            
-    def get_user_interactions(self, user_id):
-        return [interaction for interaction in self.interactions if interaction.user_id == user_id]
-                             
+
+    # def get_user_interactions(self, user_id):
+    #     return [interaction for interaction in self.interactions if interaction.user_id == user_id]
+
     def _create_user_clusters(self, user_item_matrix, consumer_map):
         """Cluster users based on their clicked items using KNN."""
         print("Clustering users based on their clicked items")
@@ -150,7 +151,6 @@ class SurpriseSVD(Recommender):
             ].tolist()
 
         print("User clustering completed.")
-
 
     def compute_and_store_recommendations(self, batch_size=100):
         """Precompute recommendations for all users based on their clusters."""
@@ -238,7 +238,6 @@ class SurpriseSVD(Recommender):
         all_item_ids = set(item_map.keys())
         popular_item_ids = set(self.most_popular_item_ids)
         popular_item_ids = popular_item_ids.intersection(all_item_ids)
-        
 
         # for consumer in tqdm(consumers, desc=f"Recommending items from {self.recommender_id}", unit="consumer"):
         for consumer in consumers:
@@ -254,7 +253,7 @@ class SurpriseSVD(Recommender):
                     if len(available_item_ids) > slate_size
                     else list(available_item_ids)
                 )
-                    
+
                 recommended_items = [item_map[item_id] for item_id in sampled_item_ids]
 
             else:
@@ -281,10 +280,10 @@ class SurpriseSVD(Recommender):
                     recommended_items = [
                         item_map[item_id] for item_id in sampled_item_ids
                     ]
-                
+
                 if len(recommended_items) < slate_size:
                     print(f"Consumer: {consumer_id}. Recommender: {self.recommender_id}. items: {len(self.items)}. Recommended items: {len(recommended_items)}. Precomputed items: {len(precomputed)}. Available items: {len(available_item_ids)}. sampled items: {len(sampled_item_ids)}")
-            
+
             recommendations[consumer_id] = recommended_items
             for document in recommended_items:
                 self.record_show(document.provider_id)

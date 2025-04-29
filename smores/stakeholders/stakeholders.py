@@ -23,11 +23,11 @@ class Item:
         # Assign weights to the genres based on their position
         if self.genres:
             total_genres = len(self.genres)
-            decreasing_weights = [
-                (total_genres - i) for i in range(total_genres)
-            ]
+            decreasing_weights = [(total_genres - i) for i in range(total_genres)]
             total_weight = sum(decreasing_weights)
-            normalized_weights = [weight / total_weight for weight in decreasing_weights]
+            normalized_weights = [
+                weight / total_weight for weight in decreasing_weights
+            ]
 
             for cat, weight in zip(self.genres, normalized_weights):
                 if cat in self.dataset_genres:
@@ -221,7 +221,7 @@ class Consumer:
         prohibited_genres=set(),
         favorite_genres=set(),
         choice_model=category_similarity_logit,
-        historical_distribution={}
+        historical_distribution={},
     ):
         """
         Initialize a Consumer object with user-specific parameters.
@@ -248,9 +248,7 @@ class Consumer:
         self.prohibited_genres = (
             prohibited_genres  # Set to store genres penalized by the consumer
         )
-        self.favorite_genres = (
-            favorite_genres  # Set to store genres the consumer likes
-        )
+        self.favorite_genres = favorite_genres  # Set to store genres the consumer likes
         self.alpha = 3  # exploration decay / exploitation weight
         self.beta = 2  # recency bias
         self.choice_model = choice_model
@@ -273,8 +271,8 @@ class Consumer:
             recommender_system_id, 0
         )  # get the value that is in self.recommender_counts[recommender_system_id] otherwise set as zero
         self.recommender_category_success[recommender_system_id] = 0
-        self.genre_recommendation_counts[recommender_system_id] = self.genre_recommendation_counts.get(
-            recommender_system_id, {}
+        self.genre_recommendation_counts[recommender_system_id] = (
+            self.genre_recommendation_counts.get(recommender_system_id, {})
         )
 
     def unsubscribe_from_recommender_system(self, recommender_system_id):
@@ -331,7 +329,9 @@ class Consumer:
                     "inf"
                 )  # Prioritize unselected recommenders
             else:
-                exploitation_term = self.satisfaction_scores[recommender_id] + self.alpha
+                exploitation_term = (
+                    self.satisfaction_scores[recommender_id] + self.alpha
+                )
                 # Adjusted UCB; added decay
                 exploration_term = np.sqrt(
                     np.log(sum(self.recommender_counts.values()))
@@ -406,7 +406,7 @@ class Consumer:
         self.update_state(slate_items, responses, recommender_system_id)
 
         return responses
-        
+
     # def remove_user(self, retain_profile=True):
     #     for recommender_id in list(self.connected_recommenders.keys()):
     #         self.unsubscribe_from_recommender_system(recommender_id)
@@ -519,7 +519,7 @@ class Recommender(ABC):
         self.weighted = False
         self.weighted_category = {}
         self.items_weights = []
-        self.interactions = []
+        self.interactions = defaultdict(list)
         self.initialize_recommender()
         self.most_popular_item_ids = most_popular_item_ids
 
@@ -538,27 +538,19 @@ class Recommender(ABC):
 
     def get_user_interactions(self, user_id):
         """
-        Return a list of Interaction objects for `user_id`, handling
-        both raw (cid,iid,rating) tuples and Interaction instances.
+        Return a list of Interaction objects for the given user_id.
         """
-        out = []
-        for rec in self.interactions:
-            if isinstance(rec, Interaction):
-                if rec.user_id == user_id:
-                    out.append(rec)
-            else:
-                cid, iid, rating = rec
-                if cid == user_id:
-                    # wrap tuple in an Interaction object
-                    out.append(Interaction(cid, iid, self.recommender_id, rating))
-        return out
+        return self.interactions.get(user_id, [])
 
     def remove_user_interactions(self, user_id):
-            self.interactions = [interaction for interaction in self.interactions if interaction.user_id != user_id]
-            if user_id in self.consumer_docs_ids_clicked:
-                self.consumer_docs_ids_clicked[user_id] = set()
+        """
+        Remove all interactions for the given user_id.
+        """
+        if user_id in self.interactions:
+            del self.interactions[user_id]
+        if user_id in self.consumer_docs_ids_clicked:
+            self.consumer_docs_ids_clicked[user_id] = set()
 
-        
     @abstractmethod
     def recommend_items(self, consumers, slate_size=1):
         """
@@ -700,7 +692,7 @@ class Recommender(ABC):
             self.clicks[clicked_provider_id] += 1
             if clicked_document not in self.provider_docs_clicked[clicked_provider_id]:
                 self.provider_docs_clicked[clicked_provider_id].append(clicked_document)
-            
+
             # Add the clicked item to both tracking dictionaries
             self.consumer_docs_clicked[consumer_id].add(clicked_document)
             self.consumer_docs_ids_clicked[consumer_id].add(clicked_document_id)
@@ -889,16 +881,16 @@ class Recommender(ABC):
     def add_interaction(self, consumer_id, item_id, rating):
         """
         Add a new interaction and retrain the model if enough data is collected.
-    
+
         Args:
             consumer_id: The consumer that interacted with the item.
             item_id: The item that was interacted with.
             rating: For example, 1 if the consumer clicked on the item, 0 otherwise.
         """
         interaction = Interaction(
-            user_id=consumer_id, 
-            item_id=item_id, 
-            recommender_id=self.recommender_id, 
-            rating=rating
+            user_id=consumer_id,
+            item_id=item_id,
+            recommender_id=self.recommender_id,
+            rating=rating,
         )
-        self.interactions.append(interaction)
+        self.interactions[consumer_id].append(interaction)

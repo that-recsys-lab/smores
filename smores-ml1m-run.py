@@ -176,12 +176,12 @@ run_experiment(
                 "prohibited_genres": set(),
                 "weighted_category": {},
                 "specialized_genres": set(["Horror"]),
-                "consumers": [], # optional
+                "consumers": [],  # optional
                 # "providers": recommender_1_providers # optional
             },
         },
     ],
-    forget_interactions= scenarios["user_ownership"]["FORGET"],
+    forget_interactions=scenarios["user_ownership"]["FORGET"],
     transfer_interactions=scenarios["user_ownership"]["TRANSFER"],
     base_dir="experiments/results",
 )
