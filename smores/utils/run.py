@@ -181,14 +181,14 @@ def run_experiment(
     )
 
     # Save results
-    provider_df.to_csv(os.path.join(run_dir, "provider_data.csv"), index=False)
-    consumer_df.to_csv(os.path.join(run_dir, "consumer_data.csv"), index=False)
-    recommender_df.to_csv(os.path.join(run_dir, "recommender_data.csv"), index=False)
-    consumer_recommender_df.to_csv(
-        os.path.join(run_dir, "consumer_recommender_data.csv"), index=False
+    provider_df.to_parquet(os.path.join(run_dir, "provider_data.parquet"), index=False)
+    consumer_df.to_parquet(os.path.join(run_dir, "consumer_data.parquet"), index=False)
+    recommender_df.to_parquet(os.path.join(run_dir, "recommender_data.parquet"), index=False)
+    consumer_recommender_df.to_parquet(
+        os.path.join(run_dir, "consumer_recommender_data.parquet"), index=False
     )
-    category_freq_df.to_csv(
-        os.path.join(run_dir, "category_frequencies.csv"), index=False
+    category_freq_df.to_parquet(
+        os.path.join(run_dir, "category_frequencies.parquet"), index=False
     )
 
     print(f"Results saved in: {run_dir}")
