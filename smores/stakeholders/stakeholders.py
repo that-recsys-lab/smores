@@ -3,7 +3,7 @@ import random
 import math
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from smores.stakeholders.choice import category_similarity_logit
+from smores.stakeholders.category_similarity_logit_model import CategorySimilarityLogitModel
 
 
 class Item:
@@ -219,7 +219,7 @@ class Consumer:
         category_preferences,
         prohibited_genres=set(),
         favorite_genres=set(),
-        choice_model=category_similarity_logit,
+        choice_model=None,
         historical_distribution={}
     ):
         """
@@ -252,7 +252,8 @@ class Consumer:
         )
         self.alpha = 3  # exploration decay / exploitation weight
         self.beta = 2  # recency bias
-        self.choice_model = choice_model
+        
+        self.choice_model = choice_model if choice_model is not None else CategorySimilarityLogitModel()
         self.genre_recommendation_counts = {}
         self.historical_distribution = historical_distribution
         self.kl_divergence = defaultdict(float)
@@ -377,7 +378,7 @@ class Consumer:
         click_prob = np.random.random()
         if click_prob <= 1:  # 100% chance of clicking
             # Choice model to select an item from the slate
-            selected_index = self.choice_model(
+            selected_index = self.choice_model.select_item(
                 items=slate_items,
                 threshold=0.3,
                 category_preferences=self.category_preferences,
