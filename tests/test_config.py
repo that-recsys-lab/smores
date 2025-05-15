@@ -1,3 +1,9 @@
+import unittest
+import yaml
+from smores import SmoresConfig
+
+SAMPLE_CONFIG1 = \
+'''
 # Sample SMORES configuration
 
 simulation:
@@ -8,7 +14,7 @@ simulation:
     seed: 20250513
 
 data:
-  directory: data/raw/ambar
+  directory: ../data/raw/ambar
   consumer_file: users.csv
   item_file: items.csv
   provider_file: artists.csv`
@@ -47,5 +53,15 @@ triggers:
   - name: Cycle5Freeze
     class_name: initial_burnin
     cycle_count: 5
+'''
 
 
+class ConfigTestCase(unittest.TestCase):
+    def test_config_load(self):
+        config_data = yaml.safe_load(SAMPLE_CONFIG1)
+        config = SmoresConfig(**config_data)
+        self.assertIsNotNone(config)
+
+
+if __name__ == '__main__':
+    unittest.main()

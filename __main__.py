@@ -1,7 +1,7 @@
 import argparse
 import os
 import yaml
-#from smores import Smores
+from smores import Smores
 from smores.config import SmoresConfig
 
 def read_args():

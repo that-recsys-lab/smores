@@ -19,7 +19,7 @@ class Smores:
             self.day_count = 0
             self.day_limit = config.simulation.num_days
 
-            # init user collection
+            # init consumer collection
             # init provider collection
             # init item collection
             # init recommender collection
@@ -36,11 +36,12 @@ class Smores:
         # Setup items
         # Setup recommenders
         # Setup triggers
+        return
 
     def run_experiment(self):
-        Smores.setup()
-        Smores.run_cycles()
-        Smores.cleanup()
+        self.setup()
+        self.run_cycles()
+        self.cleanup()
 
     def run_cycles(self):
         while self.state.cycle_count < self.state.cycle_limit:
@@ -52,6 +53,7 @@ class Smores:
             self.run_day()
             self.state.day_count += 1
         self.cycle_actions()
+        self.state.day_count = 0
 
     def run_day(self):
         # Run user actions

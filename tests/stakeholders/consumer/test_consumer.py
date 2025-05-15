@@ -1,5 +1,13 @@
-# Sample SMORES configuration
+import unittest
+import yaml
+from smores import SmoresConfig
 
+from icecream import ic
+
+from smores.stakeholders.consumer import Consumer, ConsumerUtilityModelFactory
+
+SAMPLE_CONFIG1 = \
+'''
 simulation:
     experiment_name: test_experiment
     num_days: 10
@@ -8,7 +16,7 @@ simulation:
     seed: 20250513
 
 data:
-  directory: data/raw/ambar
+  directory: ../../../data/raw/ambar
   consumer_file: users.csv
   item_file: items.csv
   provider_file: artists.csv`
@@ -47,5 +55,17 @@ triggers:
   - name: Cycle5Freeze
     class_name: initial_burnin
     cycle_count: 5
+'''
 
 
+class ConsumerTestCase(unittest.TestCase):
+    def test_utility_model_creation(self):
+        config_raw = yaml.safe_load(SAMPLE_CONFIG1)
+        config = SmoresConfig(**config_raw)
+        consumer = Consumer()
+        consumer.setup(config)
+        self.assertIsNotNone(consumer.utility_model)
+
+
+if __name__ == '__main__':
+    unittest.main()
