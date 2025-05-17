@@ -3,8 +3,7 @@ import random
 import math
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from smores.stakeholders.category_similarity_logit_model import CategorySimilarityLogitModel
-
+from smores.stakeholders.consumer.category_similarity_logit_model import CategorySimilarityLogitModel
 
 
 

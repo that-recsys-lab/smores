@@ -1,2 +1,4 @@
 from .consumer import Consumer
 from .consumer_utility_model import ConsumerUtilityModelFactory
+from .item_choice_model import ItemChoiceModelFactory
+from .category_similarity_logit_model import CategorySimilarityLogitModel
