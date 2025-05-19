@@ -1,5 +1,13 @@
-# Sample SMORES configuration
+import unittest
+import yaml
+from smores import SmoresConfig
 
+from icecream import ic
+
+from smores.stakeholders.provider import Provider
+
+SAMPLE_CONFIG1 = \
+'''
 simulation:
     experiment_name: test_experiment
     num_days: 10
@@ -8,7 +16,7 @@ simulation:
     seed: 20250513
 
 data:
-  directory: data/raw/ambar
+  directory: ../../../data/raw/ambar
   consumer_file: users.csv
   item_file: items.csv
   provider_file: artists.csv`
@@ -23,11 +31,11 @@ consumer:
 
   item_selection_model:
     class_name: category_similarity_logit
-    threshold: 0.3
+    threshold: 0.2
 
   recommender_choice_model:
     class_name: threshold
-    threshold:  0.1
+    value: 0.1
 
 provider:
   utility_model:
@@ -49,5 +57,18 @@ triggers:
   - name: Cycle5Freeze
     class_name: initial_burnin
     cycle_count: 5
+'''
 
 
+class ProviderTestCase(unittest.TestCase):
+    def test_utility_model_creation(self):
+        config_raw = yaml.safe_load(SAMPLE_CONFIG1)
+        config = SmoresConfig(**config_raw)
+        ic(config)
+        provider = Provider()
+        provider.setup(config)
+        self.assertIsNotNone(provider.utility_model)
+
+
+if __name__ == '__main__':
+    unittest.main()
