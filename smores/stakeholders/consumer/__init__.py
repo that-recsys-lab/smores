@@ -1,2 +1,2 @@
 from .consumer import Consumer
-from .consumer_utility_model import ConsumerUtilityModelFactory
+from .consumer_utility_model import ConsumerUtilityModel, ConsumerUtilityModelFactory

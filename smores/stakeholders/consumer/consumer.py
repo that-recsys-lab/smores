@@ -1,16 +1,25 @@
 from icecream import ic
-from .consumer_utility_model import ConsumerUtilityModelFactory
+from smores.stakeholders.consumer import ConsumerUtilityModel
+from smores.stakeholders.consumer import ConsumerUtilityModelFactory
+from smores.stakeholders.consumer import ConsumerHistory
 
 class Consumer:
+
     def __init__(self):
         self.id = None
         self.preference_vector = None
         self.recommender = None
-        self.utility_model = None
+        self.utility_model: = None
         self.selection_model = None
         self.choice_model = None
+        self.history = None
+
+    def __str__(self):
+        return f'<Consumer {self.id}>'
 
     def setup(self, config):
+        self.history = ConsumerHistory()
+
         utility_model_config = config.consumer.utility_model
         ic(utility_model_config)
         self.utility_model = ConsumerUtilityModelFactory.get_class(utility_model_config.class_name)

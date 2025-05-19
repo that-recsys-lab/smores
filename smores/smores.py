@@ -25,6 +25,11 @@ class Smores:
             # init recommender collection
             # init trigger collection
 
+        # Helper function
+        # t = days in current cycle + number of cycles * days in cycle
+        def current_time(self):
+            return self.day_count + self.day_limit * self.cycle_count
+
     state: SmoresState = None
 
     def __init__(self, config):

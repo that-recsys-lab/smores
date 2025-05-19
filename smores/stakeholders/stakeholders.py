@@ -176,7 +176,7 @@ class Provider:
         """
         return f"Provider {self.provider_id}: items={self.items}, genres={self.genres}"
 
-
+'''
 class Consumer:
     def __init__(
         self,
@@ -483,7 +483,7 @@ class Consumer:
         # print("genre_recommendation_counts",self.genre_recommendation_counts[recommender_system_id].keys())
         # print("historical_distribution",self.historical_distribution.keys())
         # print(self.consumer_id, kl_divergence)
-
+'''
 
 class Recommender(ABC):
 
