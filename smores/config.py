@@ -27,8 +27,8 @@ class PythonClassConfig(BaseModel):
 class ConsumerConfig(BaseModel):
     recommender_assignment: PythonClassConfig
     utility_model: PythonClassConfig
-    selection_model: PythonClassConfig
-    choice_model: PythonClassConfig
+    item_selection_model: PythonClassConfig
+    recommender_choice_model: PythonClassConfig
 
 
 class ProviderConfig(BaseModel):

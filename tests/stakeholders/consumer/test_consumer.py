@@ -4,7 +4,7 @@ from smores import SmoresConfig
 
 from icecream import ic
 
-from smores.stakeholders.consumer import Consumer, ConsumerUtilityModelFactory
+from smores.stakeholders.consumer import Consumer
 
 SAMPLE_CONFIG1 = \
 '''
@@ -29,10 +29,11 @@ consumer:
   utility_model:
     class_name: list_average
 
-  selection_model:
-    class_name: list_stochastic
+  item_selection_model:
+    class_name: category_similarity_logit
+    threshold: 0.2
 
-  choice_model:
+  recommender_choice_model:
     class_name: threshold
     value: 0.1
 

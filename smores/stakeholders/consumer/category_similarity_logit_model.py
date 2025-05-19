@@ -1,7 +1,7 @@
 import numpy as np
-from smores.stakeholders.consumer.item_choice_model import ItemChoiceModel, ItemChoiceModelFactory
+from smores.stakeholders.consumer.item_selection_model import ItemSelectionModel, ItemSelectionModelFactory
 
-class CategorySimilarityLogitModel(ItemChoiceModel):
+class CategorySimilarityLogitModel(ItemSelectionModel):
     """
     Item choice model that uses a multinomial logit approach based on category similarity.
     """
@@ -66,4 +66,4 @@ class CategorySimilarityLogitModel(ItemChoiceModel):
 
 
 # Register the model with the factory
-ItemChoiceModelFactory.register('category_similarity_logit', CategorySimilarityLogitModel)
+ItemSelectionModelFactory.register('category_similarity_logit', CategorySimilarityLogitModel)

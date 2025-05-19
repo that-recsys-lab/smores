@@ -2,8 +2,8 @@ from icecream import ic
 
 from smores.stakeholders.consumer import ConsumerUtilityModel
 from smores.stakeholders.consumer import ConsumerUtilityModelFactory
-from smores.stakeholders.consumer import ConsumerHistory
-from .item_choice_model import ItemChoiceModelFactory
+from smores.utils import UtilityHistory
+from .item_selection_model import ItemSelectionModelFactory
 
 
 class Consumer:
@@ -12,27 +12,27 @@ class Consumer:
         self.id = None
         self.preference_vector = None
         self.recommender = None
-        self.utility_model: = None
-        self.selection_model = None
-        self.choice_model = None
+        self.utility_model = None
+        self.item_selection_model = None
+        self.recommender_choice_model = None
         self.history = None
 
     def __str__(self):
         return f'<Consumer {self.id}>'
 
     def setup(self, config):
-        self.history = ConsumerHistory()
+        self.history = UtilityHistory()
 
         utility_model_config = config.consumer.utility_model
         ic(utility_model_config)
         self.utility_model = ConsumerUtilityModelFactory.get_class(utility_model_config.class_name)
         self.utility_model.setup(utility_model_config)
 
-        # Set up choice model
-        choice_model_config = config.consumer.choice_model
-        ic(choice_model_config)
-        self.choice_model = ItemChoiceModelFactory.get_class(choice_model_config.class_name)
-        self.choice_model.setup(choice_model_config)
+        # Set up selection model
+        selection_model_config = config.consumer.item_selection_model
+        ic(selection_model_config)
+        self.item_selection_model = ItemSelectionModelFactory.get_class(selection_model_config.class_name)
+        self.item_selection_model.setup(selection_model_config)
 
 
         # selection_model_config = config.consumer.selection_model

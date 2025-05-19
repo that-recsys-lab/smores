@@ -21,12 +21,13 @@ consumer:
   utility_model:
     class_name: list_average
 
-  selection_model:
-    class_name: list_stochastic
-
-  choice_model:
+  item_selection_model:
     class_name: category_similarity_logit
     threshold: 0.3
+
+  recommender_choice_model:
+    class_name: threshold
+    threshold:  0.1
 
 provider:
   utility_model:
