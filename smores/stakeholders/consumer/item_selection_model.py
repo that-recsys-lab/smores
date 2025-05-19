@@ -107,8 +107,9 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
 
 class ItemSelectionModelFactory:
     """
-    The ItemSelectionModelFactory associates names with class objects to create item selection models
-    based on configuration information.
+    The ItemSelectionModelFactory associates names with class objects to return item selection models
+    based on configuration information. No objects are actually created because selection models do not
+    have any internal state.
     """
     
     _class_name_map = {}

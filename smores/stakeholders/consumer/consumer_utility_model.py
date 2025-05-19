@@ -39,7 +39,7 @@ class ConsumerFixedUtilityModel (ConsumerUtilityModel):
 
     @classmethod
     def setup(cls, config):
-        cls.utility = config.consumer.utility_model.value
+        cls.utility = config.utility_model.value
 
     @classmethod
     def compute_item_utility(cls, consumer, item):
@@ -79,7 +79,7 @@ class ConsumerUtilityModelFactory():
     The ConsumerUtilityModelFactory associates names with class objects so these can be passed to
     objects based on configuration information. Note that a utility model is just a collection of
     functions so there is never a need to create an associated object.
-    A metric must registered in the factory before it can be
+    A utility model must registered in the factory before it can be
     created. Note these are all class methods, so an instance of this object never needs to be created.
     """
 

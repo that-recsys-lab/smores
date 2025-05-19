@@ -212,3 +212,4 @@ cython_debug/
 .idea/**/uiDesigner.xml
 .idea/**/dbnavigator.xml
 .DS_Store
+.idea/csv-plugin.xml
