@@ -12,7 +12,7 @@ class SimulationConfig(BaseModel):
 
 
 class DataConfig(BaseModel):
-    directory: DirectoryPath
+    directory: str
     consumer_file: str
     item_file: str
     provider_file: str

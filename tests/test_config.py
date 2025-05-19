@@ -27,10 +27,10 @@ consumer:
   utility_model:
     class_name: list_average
 
-  selection_model:
+  item_selection_model:
     class_name: list_stochastic
 
-  choice_model:
+  recommender_choice_model:
     class_name: threshold
     value: 0.1
 
