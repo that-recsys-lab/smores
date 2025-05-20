@@ -1,8 +1,7 @@
 import random
 from icecream import ic
 
-import smores
-from smores import SmoresConfig
+from smores.utils import SmoresConfig
 
 class Smores:
 

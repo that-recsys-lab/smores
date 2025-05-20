@@ -1,0 +1,12 @@
+{
+    "python.analysis.include": [
+        "smores"
+    ],
+    "python.testing.unittestEnabled": true,
+    "python.analysis.extraPaths": [
+        "smores"
+    ],
+    "terminal.integrated.env.osx": {
+        "PYTHONPATH": "smores"
+    }
+}

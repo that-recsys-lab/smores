@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from numpy.linalg import norm
 from numpy import dot, average
 
-from smores.recommender import Item, ItemList
+from smores.item import Item, ItemList
 # from smores.stakeholders.consumer import Consumer
 
 class ConsumerUtilityModel (ABC):

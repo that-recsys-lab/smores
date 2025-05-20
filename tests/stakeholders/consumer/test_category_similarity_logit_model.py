@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 from unittest.mock import MagicMock
 
-from smores.stakeholders.consumer.category_similarity_logit_model import CategorySimilarityLogitModel
+from smores.stakeholders.consumer import CategorySimilarityLogitModel
 
 
 class CategorySimilarityLogitModelBehaviorTestCase(unittest.TestCase):

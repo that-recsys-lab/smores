@@ -11,7 +11,7 @@ data:
   directory: data/raw/ambar
   consumer_file: users.csv
   item_file: items.csv
-  provider_file: artists.csv`
+  provider_file: artists.csv
 
 consumer:
   recommender_assignment:
@@ -40,10 +40,16 @@ platform:
 
 recommenders:
   - name: Generic
-    class_name: svd_generic
+    class_name: item_knn_cold
+    min_neighbors: 1
+    max_neighbors: 20
+    min_similarity: 0.001
 
   - name: Niche
-    class_name: niche
+    class_name: item_knn_cold
+    min_neighbors: 1
+    max_neighbors: 20
+    min_similarity: 0.001
 
 triggers:
   - name: Cycle5Freeze
