@@ -213,3 +213,4 @@ cython_debug/
 .idea/**/dbnavigator.xml
 .DS_Store
 .idea/csv-plugin.xml
+/.vscode

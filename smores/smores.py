@@ -18,6 +18,8 @@ class Smores:
             self.day_count = 0
             self.day_limit = config.simulation.num_days
 
+            self.slate_size  = config.simulation.slate_size
+
             # init consumer collection
             # init provider collection
             # init item collection

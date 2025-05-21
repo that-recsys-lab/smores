@@ -29,9 +29,18 @@ class InteractionHistory:
             self.interaction_table = new_table
     
 
-    def to_dataset(self) -> Dataset:
-        builder = DatasetBuilder(self.interaction_table)
+    def to_dataset(self, old_dataset: (Dataset|None) = None) -> Dataset:
+        if old_dataset is None:
+            builder = DatasetBuilder(None)
+        else:
+            builder = DatasetBuilder(old_dataset)
+
+        builder.add_interactions('rating', self.interaction_table, 
+                                 entities=['user_id', 'item_id', 'rating', 'time'],
+                                 missing='insert', allow_repeats=False, default=True)
         return builder.build()
+
+
     
     
 

@@ -42,11 +42,6 @@ class Consumer:
         self.item_selection_model = ItemSelectionModelFactory.get_class(selection_model_config.class_name)
         self.item_selection_model.setup(selection_model_config)
 
-
-        # selection_model_config = config.consumer.selection_model
-        # self.selection_model = ConsumerSelectionModelFactory.create(selection_model_config.class_name)
-        # self.selection_model.setup(selection_model_config)
-
         # choice_model_config = config.consumer.choice_model
         # self.choice_model = ConsumerChoiceModelFactory.create(choice_model_config.class_name)
         # self.choice_model.setup(choice_model_config)

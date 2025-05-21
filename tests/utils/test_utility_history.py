@@ -1,6 +1,8 @@
 import unittest
 from smores.utils import UtilityHistory, UtilityHistoryEntry
 
+# Courtesy ChatGPT
+
 class TestUtilityHistory(unittest.TestCase):
     def setUp(self):
         self.history = UtilityHistory()
