@@ -105,9 +105,9 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
         return selected_index
 
 
-class ItemSelectionModelFactory:
+class ItemSelectionModelLookup:
     """
-    The ItemSelectionModelFactory associates names with class objects to return item selection models
+    The ItemSelectionModelLookup associates names with class objects to return item selection models
     based on configuration information. No objects are actually created because selection models do not
     have any internal state.
     """
@@ -156,7 +156,7 @@ class ItemSelectionModelFactory:
 
 # Register classes
 # Register the model with the factory
-ItemSelectionModelFactory.register('category_similarity_logit', CategorySimilarityLogitModel)
+ItemSelectionModelLookup.register('category_similarity_logit', CategorySimilarityLogitModel)
 
 
 

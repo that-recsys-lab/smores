@@ -1,15 +1,19 @@
 import pyarrow as pa
+from icecream import ic
+
 from lenskit.data import DatasetBuilder, Dataset
 
 class InteractionHistory:
+    INTERACTION_COLUMNS = ['user_id', 'item_id', 'rating', 'time']
+
     def __init__(self):
         self.interaction_table: pa.Table = None
 
     # Single interaction is not efficient
     def add_interaction(self, user_id, item_id, interaction, time):
-        inter_array = pa.Array(user_id, item_id, interaction, time)
-        batch = pa.RecordBatch.from_arrays([inter_array])
-        table1 = pa.Table.from_batches(batch)
+        column_lists = [[user_id], [item_id], [interaction], [time]]
+        batch = self.column_lists_to_batch(column_lists)
+        table1 = pa.Table.from_batches([batch])
         if self.interaction_table is None:
             self.interaction_table = table1
         else:
@@ -18,10 +22,9 @@ class InteractionHistory:
 
     
     def add_interactions(self, interaction_list):
-        arrays = [pa.Array(user_id, item_id, interaction, time) 
-                  for user_id, item_id, interaction, time in interaction_list]
-        batch = pa.RecordBatch.from_arrays(arrays)
-        batch_table = pa.Table.from_batches(batch)
+        column_lists = zip(*interaction_list)
+        batch = self.column_lists_to_batch(column_lists)
+        batch_table = pa.Table.from_batches([batch])
         if self.interaction_table is None:
             self.interaction_table = batch_table
         else:
@@ -35,10 +38,19 @@ class InteractionHistory:
         else:
             builder = DatasetBuilder(old_dataset)
 
-        builder.add_interactions('rating', self.interaction_table, 
-                                 entities=['user_id', 'item_id', 'rating', 'time'],
+        builder.add_interactions('interaction', self.interaction_table, 
+                                 entities=['user', 'item'],
                                  missing='insert', allow_repeats=False, default=True)
         return builder.build()
+    
+    def lists_to_arrays(self, lists):
+        return [pa.array(lst) for lst in lists]
+    
+    def column_lists_to_batch(self, column_lists):
+        column_arrays = self.lists_to_arrays(column_lists)
+        batch = pa.record_batch(column_arrays, names=InteractionHistory.INTERACTION_COLUMNS)
+        return batch
+
 
 
     

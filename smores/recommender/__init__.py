@@ -1,1 +1,1 @@
-from .recommender import Recommender, RecommenderFactory, RecommenderMap
+from .recommender import Recommender, RecommenderFactory, RecommenderMap, PopularRecommender

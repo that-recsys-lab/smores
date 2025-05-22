@@ -31,14 +31,15 @@ class FixedRecommenderChoiceModel(RecommenderChoiceModel):
     def choose_recommender(self):
         return self.recommender_name
     
+    def update_recommender_utility(self, rec_name, time: int, utility: float):
+        pass
+    
 
 class RecommenderChoiceModelFactory():
     """
     The RecommenderChoiceModelFactory associates names with objects so these can be passed to
-    objects based on configuration information. Note that a utility model is just a collection of
-    functions so there is never a need to create an associated object.
-    A utility model must registered in the factory before it can be
-    created.
+    objects based on configuration information. Choice models maintain a representation of the
+    user's utility for each recommender and therefore must instances. 
     """
 
     _class_name_map = {}
@@ -55,11 +56,11 @@ class RecommenderChoiceModelFactory():
             cls.register(model_name, model_class)
 
     @classmethod
-    def get_class(cls, model_name):
+    def create(cls, model_name):
         model_class = cls._class_name_map.get(model_name)
         if model_class is None:
             raise UnregisteredRecommenderChoiceModelError(model_name)
-        return model_class
+        return model_class()
 
 # Registering
 RecommenderChoiceModelFactory.register('fixed', FixedRecommenderChoiceModel)

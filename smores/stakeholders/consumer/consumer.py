@@ -1,9 +1,7 @@
 from icecream import ic
 
-from smores.stakeholders.consumer import ConsumerUtilityModelFactory
+from smores.stakeholders.consumer import ConsumerUtilityModelLookup, ItemSelectionModelLookup, RecommenderChoiceModelFactory
 from smores.utils import UtilityHistory
-from .item_selection_model import ItemSelectionModelFactory
-
 
 class Consumer:
 
@@ -33,18 +31,18 @@ class Consumer:
 
         utility_model_config = config.consumer.utility_model
         ic(utility_model_config)
-        self.utility_model = ConsumerUtilityModelFactory.get_class(utility_model_config.class_name)
+        self.utility_model = ConsumerUtilityModelLookup.get_class(utility_model_config.class_name)
         self.utility_model.setup(utility_model_config)
 
         # Set up selection model
         selection_model_config = config.consumer.item_selection_model
         ic(selection_model_config)
-        self.item_selection_model = ItemSelectionModelFactory.get_class(selection_model_config.class_name)
+        self.item_selection_model = ItemSelectionModelLookup.get_class(selection_model_config.class_name)
         self.item_selection_model.setup(selection_model_config)
 
-        # choice_model_config = config.consumer.choice_model
-        # self.choice_model = ConsumerChoiceModelFactory.create(choice_model_config.class_name)
-        # self.choice_model.setup(choice_model_config)
+        choice_model_config = config.consumer.recommender_choice_model
+        self.recommender_choice_model = RecommenderChoiceModelFactory.create(choice_model_config.class_name)
+        self.recommender_choice_model.setup(choice_model_config)
 
 
 class ConsumerCollection():
