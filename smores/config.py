@@ -1,6 +1,6 @@
 from pydantic import BaseModel, create_model, Field, PositiveInt, DirectoryPath, \
     FilePath, ConfigDict
-from typing import Optional
+from typing import Optional, List
 from icecream import ic
 
 class SimulationConfig(BaseModel):
@@ -25,14 +25,20 @@ class PythonClassConfig(BaseModel):
 
 
 class ConsumerConfig(BaseModel):
+    profile_name: Optional[str] = None
+    ratio: Optional[float] = 1.0 
     recommender_assignment: PythonClassConfig
     utility_model: PythonClassConfig
     item_selection_model: PythonClassConfig
     recommender_choice_model: PythonClassConfig
+    model_config = ConfigDict(extra='allow')
 
 
 class ProviderConfig(BaseModel):
+    profile_name: Optional[str] = None
+    ratio: Optional[float] = 1.0 
     utility_model: PythonClassConfig
+    model_config = ConfigDict(extra='allow')
 
 
 class PlatformConfig(BaseModel):
@@ -42,8 +48,8 @@ class PlatformConfig(BaseModel):
 class SmoresConfig(BaseModel):
     simulation: SimulationConfig
     data: DataConfig
-    consumer: ConsumerConfig
-    provider: ProviderConfig
+    consumers: List[ConsumerConfig] 
+    providers: List[ProviderConfig]
     platform: PlatformConfig
     recommenders: list[PythonClassConfig]
     triggers: list[PythonClassConfig]

@@ -36,11 +36,11 @@ class Smores:
         Smores.state = Smores.SmoresState(config)
 
     def setup(self):
-        # Setup users
-        # Setup providers
-        # Setup items
-        # Setup recommenders
-        # Setup triggers
+        self.setup_consumers()        
+        self.setup_providers()       
+        self.setup_items()       
+        self.setup_recommenders()
+        self.setup_triggers()
         return
 
     def run_experiment(self):

@@ -241,7 +241,6 @@ def provider_sampler(
 
     return sampled_providers
 
-
 def consumer_sampler(
     category_preferences_df,
     num_consumers=None,

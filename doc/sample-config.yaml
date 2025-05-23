@@ -13,26 +13,47 @@ data:
   item_file: items.csv
   provider_file: artists.csv`
 
-consumer:
-  recommender_assignment:
-    class_name: fixed
-    name: Generic
+consumers:
+  - profile_name: mainstream
+    ratio: 0.7
+    recommender_assignment:
+      class_name: fixed
+      name: Generic
+    utility_model:
+      class_name: list_average
+    item_selection_model:
+      class_name: category_similarity_logit
+      threshold: 0.3
+    recommender_choice_model:
+      class_name: threshold
+      threshold: 0.1
 
-  utility_model:
-    class_name: list_average
+  - profile_name: niche
+    ratio: 0.3
+    recommender_assignment:
+      class_name: fixed
+      name: Niche
+    utility_model:
+      class_name: list_average
+    item_selection_model:
+      class_name: category_similarity_logit
+      threshold: 0.2
+    recommender_choice_model:
+      class_name: threshold
+      threshold: 0.05
 
-  item_selection_model:
-    class_name: category_similarity_logit
-    threshold: 0.3
+providers:
+  - profile_name: mainstream_provider
+    ratio: 0.9
+    utility_model:
+      class_name: click_fixed
+      value: 1
 
-  recommender_choice_model:
-    class_name: threshold
-    threshold:  0.1
-
-provider:
-  utility_model:
-    class_name: click_fixed
-    value: 1
+  - profile_name: niche_provider
+    ratio: 0.1
+    utility_model:
+      class_name: click_fixed
+      value: 1.5
 
 platform:
   utility_model:
