@@ -1,6 +1,6 @@
 import unittest
 import yaml
-from smores import SmoresConfig
+from smores.utils import SmoresConfig
 
 from icecream import ic
 
@@ -34,8 +34,8 @@ consumer:
     threshold: 0.2
 
   recommender_choice_model:
-    class_name: threshold
-    value: 0.1
+    class_name: fixed
+    recommender_name: Generic
 
 provider:
   utility_model:
@@ -60,12 +60,15 @@ triggers:
 
 
 class ConsumerTestCase(unittest.TestCase):
-    def test_utility_model_creation(self):
+    def test_component_creation(self):
         config_raw = yaml.safe_load(SAMPLE_CONFIG1)
         config = SmoresConfig(**config_raw)
         consumer = Consumer()
         consumer.setup(config)
         self.assertIsNotNone(consumer.utility_model)
+        self.assertIsNotNone(consumer.item_selection_model)
+        self.assertIsNotNone(consumer.recommender_choice_model)
+
 
 
 if __name__ == '__main__':

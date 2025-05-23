@@ -1,4 +1,5 @@
 # Sample SMORES configuration
+# TODO: Where to specific data sharing behavior
 
 simulation:
     experiment_name: test_experiment
@@ -11,23 +12,27 @@ data:
   directory: data/raw/ambar
   consumer_file: users.csv
   item_file: items.csv
-  provider_file: artists.csv`
+  provider_file: artists.csv
 
-consumer:
-  recommender_assignment:
+  initial_recommender_assignment:
     class_name: fixed
     name: Generic
 
-  utility_model:
+consumers:
+  - consumer_type: Generic
+    utility_model:
     class_name: list_average
 
-  item_selection_model:
-    class_name: category_similarity_logit
-    threshold: 0.3
+    item_selection_model:
+      class_name: category_similarity_logit
+      threshold: 0.3
 
-  recommender_choice_model:
-    class_name: threshold
-    threshold:  0.1
+    recommender_choice_model:
+      class_name: fixed
+      recommender_name:  Generic
+
+  - consumer_type: Niche
+
 
 provider:
   utility_model:
@@ -40,10 +45,21 @@ platform:
 
 recommenders:
   - name: Generic
-    class_name: svd_generic
+    class_name: item_knn_cold
+    min_neighbors: 1
+    max_neighbors: 20
+    min_similarity: 0.001
+    cold_start_fallback:
+      class_name: sample_popular_file
+      item_file: popular_generic.csv
+    cold_user_fallback:
+      class_name: most_popular
 
   - name: Niche
-    class_name: niche
+    class_name: item_knn_cold
+    min_neighbors: 1
+    max_neighbors: 20
+    min_similarity: 0.001
 
 triggers:
   - name: Cycle5Freeze

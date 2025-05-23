@@ -1,7 +1,5 @@
-from pydantic import BaseModel, create_model, Field, PositiveInt, DirectoryPath, \
-    FilePath, ConfigDict
+from pydantic import BaseModel, PositiveInt, ConfigDict
 from typing import Optional
-from icecream import ic
 
 class SimulationConfig(BaseModel):
     experiment_name: str
@@ -12,7 +10,7 @@ class SimulationConfig(BaseModel):
 
 
 class DataConfig(BaseModel):
-    directory: DirectoryPath
+    directory: str
     consumer_file: str
     item_file: str
     provider_file: str

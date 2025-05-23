@@ -1,8 +1,7 @@
 import random
 from icecream import ic
 
-import smores
-from smores import SmoresConfig
+from smores.utils import SmoresConfig
 
 class Smores:
 
@@ -18,6 +17,8 @@ class Smores:
 
             self.day_count = 0
             self.day_limit = config.simulation.num_days
+
+            self.slate_size  = config.simulation.slate_size
 
             # init consumer collection
             # init provider collection

@@ -2,8 +2,9 @@ from abc import ABC, abstractmethod
 from numpy.linalg import norm
 from numpy import dot, average
 
-from smores.recommender import Item, ItemList
-# from smores.stakeholders.consumer import Consumer
+from smores.item import Item, ItemList
+# would like to import but circular issue needs to be resolved
+#from smores.stakeholders.consumer import Consumer
 
 class ConsumerUtilityModel (ABC):
     '''
@@ -25,7 +26,7 @@ class ConsumerUtilityModel (ABC):
         pass
 
     @classmethod
-    def compute_item_utilities (cls, consume, item_list: ItemList) -> list[float]:
+    def compute_item_utilities (cls, consumer, item_list: ItemList) -> list[float]:
         utils = [cls.compute_item_utility(consumer, item) for item in item_list]
         return utils
 
@@ -74,7 +75,7 @@ class ConsumerPrefCosineAvgUtilityModel (ConsumerPrefCosineUtilityModel):
             return average(cls.compute_item_utilities(cls, consumer, item_list))
 
 
-class ConsumerUtilityModelFactory():
+class ConsumerUtilityModelLookup():
     """
     The ConsumerUtilityModelFactory associates names with class objects so these can be passed to
     objects based on configuration information. Note that a utility model is just a collection of
@@ -104,8 +105,8 @@ class ConsumerUtilityModelFactory():
         return model_class
 
 # Registering
-ConsumerUtilityModelFactory.register('fixed', ConsumerFixedUtilityModel)
-ConsumerUtilityModelFactory.register('list_average', ConsumerPrefCosineAvgUtilityModel)
+ConsumerUtilityModelLookup.register('fixed', ConsumerFixedUtilityModel)
+ConsumerUtilityModelLookup.register('list_average', ConsumerPrefCosineAvgUtilityModel)
 
 
 

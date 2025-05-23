@@ -1,6 +1,6 @@
 import unittest
 import yaml
-from smores import SmoresConfig
+from smores.utils import SmoresConfig
 
 from icecream import ic
 
