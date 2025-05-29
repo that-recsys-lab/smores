@@ -14,7 +14,7 @@ from lenskit.knn import ItemKNNConfig, ItemKNNScorer
 from lenskit.data import ID, ItemList
 from lenskit import recommend
 
-from smores import Smores
+import smores
 from smores.utils import InteractionHistory, PythonClassConfig
 
 
@@ -22,32 +22,31 @@ class Recommender(ABC):
     def __init__(self):
         self.dataset: Dataset = None
         # Use this if there isn't enough data overall
-        self.cold_start_fallback: Recommender = None
+        self.cold_start_fallback: str = None
         # Use this if there isn't enough data for a particular user
-        self.cold_user_fallback: Recommender = None
+        self.cold_user_fallback: str = None
 
     @abstractmethod
     def setup(self, config):
-        # Only top-level recommenders can have fallbacks
         if type(config) is PythonClassConfig:
-            if 'cold_start_fallback' in config.model_fields_set:
-                rec_name: str = config.cold_start_fallback.class_name
-                self.cold_start_fallback = RecommenderFactory.create(rec_name)
-                self.cold_start_fallback.setup(config.cold_start_fallback)
-            if 'cold_user_fallback' in config.model_fields_set:
-                rec_name: str = config.cold_user_fallback['class_name']
-                self.cold_user_fallback = RecommenderFactory.create(rec_name)
-                self.cold_user_fallback.setup(config.cold_user_fallback)
-        
+            params = config.params
+            if params is not None:
+                if 'cold_start_fallback' in params:
+                    self.cold_start_fallback = params['cold_start_fallback']
+                if 'cold_user_fallback' in params: 
+                    self.cold_user_fallback = params['cold_user_fallback']
+    
+    @classmethod
+    def name2recommender(cls, name: str):
+        return smores.Smores.state.recommenders_available.get_recommender(name)
 
     @abstractmethod
     def train(self):
         if self.cold_start_fallback is not None:
-            self.cold_start_fallback.train()
+            Recommender.name2recommender(self.cold_start_fallback).train()
         if self.cold_user_fallback is not None:
-            self.cold_user_fallback.train()
+            Recommender.name2recommender(self.cold_user_fallback).train()
         
-
     @abstractmethod
     def isDatasetViable(self):
         pass
@@ -64,8 +63,6 @@ class Recommender(ABC):
         hist = InteractionHistory()
         hist.add_interactions(interaction_list)
         self.dataset = hist.to_dataset(self.dataset)
-
-
 
 
 class LKRecommender(Recommender):
@@ -88,7 +85,7 @@ class LKRecommender(Recommender):
     
     def build_pipeline(self):
         scorer = self.get_scorer()
-        slate_size = Smores.state.slate_size
+        slate_size = smores.Smores.state.slate_size
 
         pipe = PipelineBuilder()
         # define an input parameter for the user ID (the 'query')
@@ -108,11 +105,13 @@ class LKRecommender(Recommender):
 
     def get_recommendations(self, user_id: ID):
         if not self.isDatasetViable():
-            return self.cold_start_fallback.get_recommendations(user_id)
+            cs_name = self.cold_start_fallback
+            return Recommender.name2recommender(cs_name).get_recommendations(user_id)
         elif not self.isProfileViable(user_id):
-            return self.cold_user_fallback.get_recommendations(user_id)
+            cs_name = self.cold_user_fallback
+            return Recommender.name2recommender(cs_name).get_recommendations(user_id)
         else:
-            return recommend(self.pipeline, user_id, n=Smores.state.slate_size)
+            return recommend(self.pipeline, user_id, n=smores.Smores.state.slate_size)
 
 
 class PopularRecommender(LKRecommender):
@@ -121,16 +120,17 @@ class PopularRecommender(LKRecommender):
         self.min_user_count: int = maxsize
         self.min_interaction_count: int = maxsize
 
+    # assumes parameter dictionary configuration. Can only be used as a fallback. 
     def setup(self, config):
-        self.min_user_count = int(config['min_user_count'])
-        self.min_interaction_count = int(config['min_interaction_count'])
+        self.min_user_count = int(config.params['min_user_count'])
+        self.min_interaction_count = int(config.params['min_interaction_count'])
         self.lk_config = PopConfig(score='count')
         self.scorer = PopScorer(self.lk_config)
         super().setup(config)
 
     def build_pipeline(self):
         scorer = self.get_scorer()
-        slate_size = Smores.state.slate_size
+        slate_size = smores.Smores.state.slate_size
         return topn_pipeline(scorer, n=slate_size)
 
     def isDatasetViable(self):
@@ -154,12 +154,13 @@ class ItemKnnRecommender(LKRecommender):
 
     def setup(self, config):
         # get data from config
-        max_nbrs = int(config.max_neighbors)
-        min_nbrs = int(config.min_neighbors)
-        min_sim = float(config.min_similarity)
-        self.min_user_count = int(config.min_user_count)
-        self.min_interaction_count = int(config.min_interaction_count)
-        self.min_profile_size = int(config.min_profile_size)
+        params = config.params
+        max_nbrs = int(params['max_neighbors'])
+        min_nbrs = int(params['min_neighbors'])
+        min_sim = float(params['min_similarity'])
+        self.min_user_count = int(params['min_user_count'])
+        self.min_interaction_count = int(params['min_interaction_count'])
+        self.min_profile_size = int(params['min_profile_size'])
         # create ItemKNNConfig object
         self.lk_config = ItemKNNConfig(max_nbrs=max_nbrs, min_nbrs=min_nbrs, 
                                        min_sim=min_sim, feedback='implicit')
@@ -187,16 +188,7 @@ class ItemKnnRecommender(LKRecommender):
             else:
                 return True
 
-class RecommenderMap:
-    _rec_map = {}
 
-    @classmethod
-    def get_recommender(cls, name: str):
-        return cls._rec_map[name]
-    
-    @classmethod
-    def set_recommender(cls, name: str, rec: Recommender):
-        cls._rec_map[name] = rec
 
 
 class RecommenderFactory():

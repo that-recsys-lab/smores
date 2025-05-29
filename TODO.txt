@@ -1,0 +1,3 @@
+Notes about TODO items:
+
+- convert Item and ItemList to use Lenskit types

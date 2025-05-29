@@ -3,8 +3,8 @@ import yaml
 import csv
 
 from smores.utils import SmoresConfig
-from smores.recommender import RecommenderFactory, Recommender, PopularRecommender
-from smores import Smores
+from smores.recommender import RecommenderFactory, Recommender, PopularRecommender, RecommenderMap
+import smores
 
 from icecream import ic
 
@@ -26,7 +26,7 @@ data:
 consumer:
   recommender_assignment:
     class_name: fixed
-    name: Generic
+    name: "Generic"
 
   utility_model:
     class_name: list_average
@@ -37,7 +37,7 @@ consumer:
 
   recommender_choice_model:
     class_name: fixed
-    recommender_name: Generic
+    recommender_name: "Generic"
 
 provider:
   utility_model:
@@ -47,27 +47,38 @@ platform:
   utility_model:
     class_name: null_model
 
-recommenders:
-  - name: Generic
-    class_name: item_knn
-    max_neighbors: 20
-    min_neighbors: 2
-    min_similarity: 0.0001
-    min_user_count: 20
-    min_interaction_count: 500
-    min_profile_size: 5
-    cold_user_fallback:
-        class_name: popular
+recommender:
+  initial: ["Generic"]
+  definitions:
+    - name: "Generic"
+      class_name: item_knn
+      params:
+        max_neighbors: 20
+        min_neighbors: 2
+        min_similarity: 0.0001
         min_user_count: 20
         min_interaction_count: 500
+        min_profile_size: 5
+        cold_user_fallback: "Popular Fallback"
 
-  - name: Niche
-    class_name: niche
+    - name: "Popular Fallback"
+      class_name: popular
+      params:
+          min_user_count: 20
+          min_interaction_count: 500
+
+    - name: "Popular Niche"
+      class_name: popular
+      params:
+          min_user_count: 20
+          min_interaction_count: 500
 
 triggers:
   - name: Cycle5Freeze
     class_name: initial_burnin
-    cycle_count: 5
+    params:
+      cycle_count: 5
+      recommenders: ["Generic", "Popular Niche"]
 '''
 
 SAMPLE_INTERACTIONS = '''user_id,item_id,rating,time
@@ -92,7 +103,7 @@ class RecommenderTestCase(unittest.TestCase):
     def setUp(self):
       config_raw = yaml.safe_load(SAMPLE_CONFIG1)
       self.config = SmoresConfig(**config_raw)
-      Smores.state = Smores.SmoresState(self.config)
+      smores.Smores.state = smores.Smores.SmoresState(self.config)
 
       reader = csv.reader(SAMPLE_INTERACTIONS.splitlines(), delimiter=',')
       # skip header row
@@ -104,14 +115,14 @@ class RecommenderTestCase(unittest.TestCase):
       
 
     def test_component_creation(self):
-      rec_config = self.config.recommenders[0]
+      rec_config = self.config.recommender.definitions[0]
       rec: Recommender = RecommenderFactory.create(rec_config.class_name)
       self.assertIsNotNone(rec)
       rec.setup(rec_config)
       self.assertIsNotNone(rec.cold_user_fallback)
 
     def test_dataset_update(self):
-      rec_config = self.config.recommenders[0]
+      rec_config = self.config.recommender.definitions[0]
       rec: Recommender = RecommenderFactory.create(rec_config.class_name)
       self.assertIsNotNone(rec)
       rec.setup(rec_config)
@@ -129,14 +140,23 @@ class RecommenderTestCase(unittest.TestCase):
       self.assertEqual(rec.dataset.item_count, 8)
       self.assertEqual(rec.dataset.user_row(100).ids().size, 2)
 
-    def fallback_creation(self):
-      rec_config = self.config.recommenders[0]
+    def test_fallback_creation(self):
+      rec_config = self.config.recommender.definitions[0]
       rec: Recommender = RecommenderFactory.create(rec_config.class_name)
       self.assertIsNotNone(rec)
       rec.setup(rec_config)
       self.assertIsNotNone(rec.cold_user_fallback)
-      self.assertIsInstance(rec.cold_user_fallback, PopularRecommender)
-        
+      self.assertEqual(rec.cold_user_fallback, "Popular Fallback")
+
+    def test_recommender_map(self):
+      recs_config = self.config.recommender.definitions
+      rmap = RecommenderMap()
+      rmap.setup(recs_config)
+      self.assertIsNotNone(rmap.get_recommender('Generic'))
+      self.assertIsInstance(rmap.get_recommender('Popular Fallback'), PopularRecommender)
+
+
+
 
 if __name__ == '__main__':
     unittest.main()

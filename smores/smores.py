@@ -2,6 +2,7 @@ import random
 from icecream import ic
 
 from smores.utils import SmoresConfig
+from smores.recommender import RecommenderMap
 
 class Smores:
 
@@ -23,7 +24,11 @@ class Smores:
             # init consumer collection
             # init provider collection
             # init item collection
-            # init recommender collection
+            # init recommender collections
+            self.recommenders_available = RecommenderMap()
+            self.recommenders_active = RecommenderMap()
+            self.initial_recommenders = config.recommender.initial
+
             # init trigger collection
 
         # Helper function
@@ -41,6 +46,7 @@ class Smores:
         # Setup providers
         # Setup items
         # Setup recommenders
+        self.state.recommenders_available.setup(self.state.config.recommender.definitions)
         # Setup triggers
         return
 

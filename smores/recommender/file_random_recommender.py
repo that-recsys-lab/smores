@@ -1,9 +1,12 @@
-from smores.recommender.recommender import LKRecommender, RecommenderFactory
+from smores.recommender.recommender import Recommender, RecommenderFactory
+from lenskit.training import Trainable
+from lenskit.pipeline import Component
+from lenskit.data import ItemList
 import random
 import pandas as pd
 from pathlib import Path
 import os
-from smores import Smores
+import smores
 
 class FileRandomScorer:
     """A simple scorer that assigns random scores to items loaded from a CSV file"""
@@ -32,14 +35,15 @@ class FileRandomScorer:
         """Required method for LensKit components"""
         self.load_items()
         return self
-    
-    def score(self, user, items):
+
+    def __call__(self, _, items: ItemList) -> ItemList:
         """Assign random scores to items"""
         scoreable_items = [i for i in items if str(i) in self.items]
         return {i: random.random() for i in scoreable_items}
 
 
-class FileRandomRecommender(LKRecommender):
+
+class FileRandomRecommender(Recommender):
     """Recommender that randomly samples items from a CSV file"""
     
     def __init__(self):
@@ -50,7 +54,7 @@ class FileRandomRecommender(LKRecommender):
     
     def setup(self, config):
         """Set up the recommender with data directory and item file"""
-        global_config = Smores.get_config()
+        global_config = smores.Smores.state.config
         
         self.data_directory = getattr(config, 'data_directory', global_config.data.directory)
         self.item_file = getattr(config, 'item_file', global_config.data.item_file)

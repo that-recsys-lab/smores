@@ -16,12 +16,12 @@ data:
 
   initial_recommender_assignment:
     class_name: fixed
-    name: Generic
+    recommender_name: Generic
 
 consumers:
   - consumer_type: Generic
     utility_model:
-    class_name: list_average
+      class_name: list_average
 
     item_selection_model:
       class_name: category_similarity_logit
@@ -43,27 +43,52 @@ platform:
   utility_model:
     class_name: null_model
 
-recommenders:
-  - name: Generic
-    class_name: item_knn_cold
-    min_neighbors: 1
-    max_neighbors: 20
-    min_similarity: 0.001
-    cold_start_fallback:
-      class_name: sample_popular_file
-      item_file: popular_generic.csv
-    cold_user_fallback:
-      class_name: most_popular
+recommender:
+  initial: ["Generic"]
+  definitions:
+    - name: "Generic"
+      class_name: item_knn
+      params:
+        max_neighbors: 20
+        min_neighbors: 2
+        min_similarity: 0.0001
+        min_user_count: 20
+        min_interaction_count: 500
+        min_profile_size: 5
+        cold_user_fallback: "Popular Generic"
+        cold_start_fallback: "Item Random Generic"
 
-  - name: Niche
-    class_name: item_knn_cold
-    min_neighbors: 1
-    max_neighbors: 20
-    min_similarity: 0.001
+    - name: "Popular Generic"
+      class_name: popular
+      params:
+          min_user_count: 20
+          min_interaction_count: 500
+
+    - name: "Item Random Generic"
+      class_name: file_random
+      file_name: generic_top_items.csv
+
+    - name: "Niche"
+      class_name: item_knn_cold
+      min_neighbors: 1
+      max_neighbors: 20
+      min_similarity: 0.001
+      cold_user_fallback: "Popular Niche"
+      cold_start_fallback: "Item Random Horror"
+      
+    - name: "Popular Niche"
+      class_name: popular
+      params:
+          min_user_count: 20
+          min_interaction_count: 500
+
+    - name: "Item Random Horror"
+      class_name: file_random
+      file_name: horror_top_items.csv
 
 triggers:
   - name: Cycle5Freeze
     class_name: initial_burnin
+    repeat: False
     cycle_count: 5
-
-
+    activate: ["Niche"] 
