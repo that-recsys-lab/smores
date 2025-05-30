@@ -47,6 +47,9 @@ class Smores:
         # Setup items
         # Setup recommenders
         self.state.recommenders_available.setup(self.state.config.recommender.definitions)
+        for rec_name in self.state.initial_recommenders:
+            rec = self.state.recommenders_available.get_recommender(rec_name)
+            self.state.recommenders_active.set_recommender(rec_name, rec)
         # Setup triggers
         return
 

@@ -36,7 +36,7 @@ class ItemSelectionModel(ABC):
         Returns:
             int: Index of the selected item in the input list, or None if no selection is possible.
         """
-        pass
+        raise NotImplementedError()
 
 
 

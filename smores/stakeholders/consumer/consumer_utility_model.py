@@ -23,7 +23,7 @@ class ConsumerUtilityModel (ABC):
     @classmethod
     @abstractmethod
     def compute_item_utility (cls, consumer, item: Item) -> float:
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def compute_item_utilities (cls, consumer, item_list: ItemList) -> list[float]:
@@ -33,7 +33,7 @@ class ConsumerUtilityModel (ABC):
     @classmethod
     @abstractmethod
     def compute_list_utility (cls, consumer, item_list: ItemList) -> float:
-        pass
+        raise NotImplementedError()
 
 class ConsumerFixedUtilityModel (ConsumerUtilityModel):
     utility: float  = 0.0
@@ -59,11 +59,6 @@ class ConsumerPrefCosineUtilityModel (ConsumerUtilityModel):
             return 0.0
         cos_value = dot(pref_vector, item_vector) / denom
         return cos_value
-
-    @classmethod
-    @abstractmethod
-    def compute_list_utility(cls, consumer, item_list: ItemList) -> float:
-        pass
 
 class ConsumerPrefCosineAvgUtilityModel (ConsumerPrefCosineUtilityModel):
 

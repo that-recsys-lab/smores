@@ -89,6 +89,7 @@ recommender:
 triggers:
   - name: Cycle5Freeze
     class_name: initial_burnin
-    repeat: False
-    cycle_count: 5
-    activate: ["Niche"] 
+    params:
+      repeat: False
+      cycle_count: 5
+      activate: ["Niche"] 

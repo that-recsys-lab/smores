@@ -17,11 +17,11 @@ class RecommenderChoiceModel (ABC):
 
     @abstractmethod
     def update_recommender_utility(self, rec_name, time: int, utility: float):
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def choose_recommender(self) -> str:
-        pass
+        raise NotImplementedError()
 
 class FixedRecommenderChoiceModel(RecommenderChoiceModel):
 

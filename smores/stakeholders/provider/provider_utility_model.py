@@ -33,7 +33,7 @@ class ProviderUtilityModel (ABC):
         Returns:
             the calculated utility
         """
-        pass
+        raise NotImplementedError()
 
     @classmethod
     @abstractmethod
@@ -48,7 +48,7 @@ class ProviderUtilityModel (ABC):
         Returns:
             the calculated utility
         """
-        pass
+        raise NotImplementedError()
 
 class ProviderClickFixedUtilityModel (ProviderUtilityModel):
     """

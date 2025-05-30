@@ -49,15 +49,15 @@ class Recommender(ABC):
         
     @abstractmethod
     def isDatasetViable(self):
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def isProfileViable(self, user_id):
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def get_recommendations(self, user_id) -> ItemList:
-        pass
+        raise NotImplementedError()
 
     def update_dataset(self, interaction_list: list):
         hist = InteractionHistory()

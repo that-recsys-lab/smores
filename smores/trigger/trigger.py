@@ -1,8 +1,9 @@
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod 
 from numpy.linalg import norm
 from numpy import dot, average
 
 from smores import Smores
+from smores.recommender import Recommender
 # would like to import but circular issue needs to be resolved
 #from smores.stakeholders.consumer import Consumer
 
@@ -29,9 +30,6 @@ class Trigger (ABC):
         # Could potentially log here
         pass
 
-    @abstractmethod
-    def when_added (self):
-        pass
 
 class TriggerEvent:
     def __init__(self, trigger_type):
@@ -41,9 +39,8 @@ class TriggerEvent:
 class TimeTrigger(Trigger):
     def setup (self, config):
         self.name = config['name']
-        self.repeating = config['repeating'].asType(bool)
-        self.cycle_count = config['cycle_count'].asType(int)
-        self.start_recommender = config['start_recommender']
+        self.repeating = config.params['repeating'].asType(bool)
+        self.cycle_count = config.params['cycle_count'].asType(int)
 
     def accept_event (self, event: TimeTriggerEvent):
         if not self.repeating and self.cycle_count == event.time:
@@ -53,19 +50,18 @@ class TimeTrigger(Trigger):
         return False
 
 class InitialBurnInTrigger(TimeTrigger):
+    def setup(self, config):
+        super().setup(config)
+        self.recommenders_to_activate = config.params['activate']
+
+
     def handle_event (self, event):
         super().handle_event(event)
-        # activate all available recommenders
-        for name, rec in Smores.state.recommenders_available.items():
+        # activate listed recommenders
+        for name in self.recommenders_to_activate:
+            rec = Recommender.name2recommender(name)
             Smores.state.recommenders_active.set_recommender(name, rec)
         
-
-    def when_added (self):
-        # remove all active recommenders
-        Smores.state.recommenders_active.clear()
-        # add the start recommender
-        start_rec = Smores.state.recommenders_available.get_recommender(self.start_recommender)
-        Smores.state.recommenders_active.set_recommender(self.start_recommender, start_rec)
         
 
 class TimeTriggerEvent(TriggerEvent):
