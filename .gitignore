@@ -214,3 +214,4 @@ cython_debug/
 .DS_Store
 .idea/csv-plugin.xml
 /.vscode
+/.vscode
