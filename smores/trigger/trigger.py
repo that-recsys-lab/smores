@@ -3,19 +3,24 @@ from numpy.linalg import norm
 from numpy import dot, average
 from distutils.util import strtobool
 
-from smores import Smores
+import smores
 from smores.recommender import Recommender
 # would like to import but circular issue needs to be resolved
 #from smores.stakeholders.consumer import Consumer
 
 class TriggerEvent:
-    def __init__(self, trigger_type):
-        self.trigger_type = trigger_type
+    def __init__(self, event_type):
+        self.event_type = event_type
 
-class TimeTriggerEvent(TriggerEvent):
-    def __init__(self, time):
-        super().__init__('time')
-        self.time = time
+class CycleEvent(TriggerEvent):
+    def __init__(self, cycle_count):
+        super().__init__('cycle')
+        self.cycle_count = cycle_count
+
+class DayEvent(TriggerEvent):
+    def __init__(self, day_count):
+        super().__init__('day')
+        self.day_count = day_count
 
 class Trigger (ABC):
     '''
@@ -23,6 +28,9 @@ class Trigger (ABC):
 
     Take some action depending on the state of the simulation.
     '''
+    def __init__(self, trigger_type: str):
+        self.trigger_type = trigger_type
+
     @abstractmethod
     def setup(self, config):
         pass
@@ -42,20 +50,23 @@ class Trigger (ABC):
 
 
 
-class TimeTrigger(Trigger):
+class CycleTrigger(Trigger):
+    def __init__(self):
+        super().__init__('cycle')
+
     def setup(self, config):
         self.name = config.name
         self.repeating = strtobool(config.params['repeating'])
         self.cycle_count = int(config.params['cycle_count'])
 
-    def accept_event(self, event: TimeTriggerEvent):
-        if not self.repeating and self.cycle_count == event.time:
+    def accept_event(self, event: CycleEvent):
+        if not self.repeating and self.cycle_count == event.cycle_count:
             return True
-        if self.repeating and self.cycle_count % event.time == 0:
+        if self.repeating and self.cycle_count % event.cycle_count == 0:
             return True
         return False
 
-class InitialBurnInTrigger(TimeTrigger):
+class InitialBurnInTrigger(CycleTrigger):
     def setup(self, config):
         config.params['repeating'] = "False"
         super().setup(config)
@@ -66,8 +77,7 @@ class InitialBurnInTrigger(TimeTrigger):
         # activate listed recommenders
         for name in self.recommenders_to_activate:
             rec = Recommender.name2recommender(name)
-            Smores.state.recommenders_active.set_recommender(name, rec)
-        
+            smores.Smores.state.recommenders_active.set_recommender(name, rec)
 
 
 class TriggerFactory():

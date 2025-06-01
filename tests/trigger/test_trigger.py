@@ -3,10 +3,11 @@ import yaml
 import csv
 
 from smores.utils import SmoresConfig
-from smores.trigger import TriggerFactory, InitialBurnInTrigger, TimeTriggerEvent
+from smores.trigger import TriggerEvent, TriggerFactory, InitialBurnInTrigger, CycleEvent, CycleTrigger, TriggerCollection
 from smores import Smores
 
 from icecream import ic
+
 
 SAMPLE_CONFIG1 = \
 '''
@@ -79,8 +80,27 @@ triggers:
     params:
       cycle_count: 5
       recommenders: ["Generic", "Popular Niche"]
+  - name: ForgetUnconnected
+    class_name: cold_start_memory
+
 '''
 
+# A dummy implementation so that we have more than one.
+# Might turn into a real thing depending on how we implement portfolio portability
+class ForgetUnconnected(CycleTrigger):
+    def __init__(self):
+        super().__init__()
+
+    def setup(self, config):
+        config.params['repeating'] = "True"
+        config.params['cycle_count'] = 1
+        super().setup(config)
+
+    def handle_event(self, event: TriggerEvent):
+        # Tell recommender to delete users?
+        pass
+    
+TriggerFactory.register('cold_start_memory', ForgetUnconnected)
 
 class TestTrigger(unittest.TestCase):
     def setUp(self):
@@ -98,14 +118,19 @@ class TestTrigger(unittest.TestCase):
 
         self.assertEqual(trigger.cycle_count, 5)
 
-        tev1 = TimeTriggerEvent(0)
+        tev1 = CycleEvent(0)
         self.assertFalse(trigger.accept_event(tev1))
 
-        tev2 = TimeTriggerEvent(10)
+        tev2 = CycleEvent(10)
         self.assertFalse(trigger.accept_event(tev2))
 
-                         
+    def test_trigger_collection(self):
+        trigger_coll = TriggerCollection()
+        trigger_coll.setup(self.config.triggers)
+        ic(trigger_coll.collection)
+        self.assertEqual(len(trigger_coll.collection['cycle']), 2)
 
+                        
 
 if __name__ == '__main__':
     unittest.main()
