@@ -1,6 +1,8 @@
 import random
 from icecream import ic
 
+from smores.recommender import RecommenderMap
+from smores.trigger import TriggerCollection
 from smores.utils import SmoresConfig
 
 class Smores:
@@ -23,8 +25,13 @@ class Smores:
             # init consumer collection
             # init provider collection
             # init item collection
-            # init recommender collection
-            # init trigger collection
+            # init recommender collections
+            self.recommenders_available = RecommenderMap()
+            self.recommenders_active = RecommenderMap()
+            self.initial_recommenders = config.recommender.initial
+
+            # init trigger collections
+            self.time_triggers = TriggerCollection()
 
         # Helper function
         # t = days in current cycle + number of cycles * days in cycle
@@ -42,6 +49,7 @@ class Smores:
         # Setup items
         # Setup recommenders
         # Setup triggers
+        self.time_triggers.setup(config)
         return
 
     def run_experiment(self):

@@ -26,7 +26,7 @@ class RecommenderChoiceModel (ABC):
 class FixedRecommenderChoiceModel(RecommenderChoiceModel):
 
     def setup(self, config):
-        self.recommender_name = config.recommender_name
+        self.recommender_name = config.params['recommender_name']
 
     def choose_recommender(self):
         return self.recommender_name

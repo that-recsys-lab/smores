@@ -64,6 +64,7 @@ recommenders:
 triggers:
   - name: Cycle5Freeze
     class_name: initial_burnin
-    cycle_count: 5
+    params:
+      cycle_count: 5
 
 

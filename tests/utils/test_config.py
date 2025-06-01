@@ -4,8 +4,6 @@ from smores.utils import SmoresConfig
 
 SAMPLE_CONFIG1 = \
 '''
-# Sample SMORES configuration
-
 simulation:
     experiment_name: test_experiment
     num_days: 10
@@ -14,25 +12,28 @@ simulation:
     seed: 20250513
 
 data:
-  directory: ../data/raw/ambar
+  directory: ../../../data/raw/ambar
   consumer_file: users.csv
   item_file: items.csv
   provider_file: artists.csv`
 
 consumer:
   recommender_assignment:
-    class_name: fixed
-    name: Generic
+      class_name: fixed
+      name: Generic
 
   utility_model:
-    class_name: list_average
+      class_name: list_average
 
   item_selection_model:
-    class_name: list_stochastic
+      class_name: category_similarity_logit
+      params:
+        threshold: 0.2
 
   recommender_choice_model:
-    class_name: threshold
-    value: 0.1
+      class_name: fixed
+      params:
+        recommender_name: Generic
 
 provider:
   utility_model:
@@ -43,16 +44,20 @@ platform:
     class_name: null_model
 
 recommenders:
-  - name: Generic
-    class_name: svd_generic
-
-  - name: Niche
-    class_name: niche
+  initial: ["Generic"]
+  definitions:
+    - name: Generic
+      class_name: item_knn_cold
+      min_neighbors: 1
+      max_neighbors: 20
+      min_similarity: 0.001
 
 triggers:
   - name: Cycle5Freeze
     class_name: initial_burnin
-    cycle_count: 5
+    params:
+      cycle_count: 5
+      recommenders: ["Generic", "Popular Niche"]
 '''
 
 

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, PositiveInt, ConfigDict
-from typing import Optional
+from typing import Optional, Any
 
 class SimulationConfig(BaseModel):
     experiment_name: str
@@ -19,7 +19,7 @@ class DataConfig(BaseModel):
 class PythonClassConfig(BaseModel):
     name: Optional[str] = None
     class_name: str
-    model_config = ConfigDict(extra='allow')
+    params: dict[str, Any] = {}
 
 
 class ConsumerConfig(BaseModel):
@@ -36,6 +36,9 @@ class ProviderConfig(BaseModel):
 class PlatformConfig(BaseModel):
     utility_model: PythonClassConfig
 
+class RecommenderConfig(BaseModel):
+    initial: list[str]
+    definitions: list[PythonClassConfig]
 
 class SmoresConfig(BaseModel):
     simulation: SimulationConfig
@@ -43,32 +46,6 @@ class SmoresConfig(BaseModel):
     consumer: ConsumerConfig
     provider: ProviderConfig
     platform: PlatformConfig
-    recommenders: list[PythonClassConfig]
+    recommenders: RecommenderConfig
     triggers: list[PythonClassConfig]
 
-'''
-class ConfigUtils():
-    @staticmethod
-    def config_walk(config: dict, keys, on_missing='error'):
-        ic(config, keys, on_missing)
-        if len(keys) == 0:
-            ic('Returning', config)
-            return config
-        else:
-            next_key = keys[0]
-            if next_key in config:
-                next_config = config[next_key]
-                result = ConfigUtils.config_walk(next_config, keys[1:], on_missing=on_missing)
-                return result
-            else:
-                if on_missing == 'none':
-                    return None
-                else:
-                    raise ConfigMissingKeyError(config, next_key)
-
-
-class ConfigMissingKeyError(Exception):
-    def __init__(self, config, key):
-        self.message = f'Config collection {config} does not contain key {key}.'
-        super().__init__(self.message)
-'''
