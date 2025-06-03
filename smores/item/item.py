@@ -1,3 +1,59 @@
+from collections import defaultdict
+from pathlib import Path
+from csv import DictReader
+from json import loads
+from pydantic import BaseModel, PositiveInt
+from icecream import ic
+
+class Item(BaseModel):
+    item_id: PositiveInt
+    provider_id: PositiveInt
+    features: list[float]
+
+class ItemCollection():
+    def __init__(self):
+        self.items: list[Item] = []
+
+    def add_item(self, item: Item):
+        self.items.append(item)
+
+    def add_items(self, items: list):
+        self.items = self.items + items
+
+    def size(self):
+        return len(self.items)
+
+    def __iter__(self):
+        return self.items.__iter__()
+    
+class ItemMap():
+    def __init__(self):
+        self.item_map: dict[int, Item] = defaultdict(None)
+
+    def add_item(self, item: Item):
+        self.item_map[item.item_id] = item
+
+    def get_item(self, item_id: int):
+        return self.item_map[item_id]
+    
+    def all_items(self):
+        return self.item_map.keys()
+    
+    def load_items(self, item_data_path: Path):
+        with open(item_data_path, 'r') as item_file:
+            reader = DictReader(item_file)
+            for row in reader:
+                feature_list_str = row['features']
+                feature_list = loads(feature_list_str)
+                row['features'] = feature_list
+                item: Item = Item.model_validate(row)
+                self.add_item(item)
+
+
+
+
+
+'''
 class Item:
     def __init__(self, item_id, quality, genres, provider_id, dataset_genres):
         self.item_id = item_id
@@ -32,20 +88,7 @@ class Item:
             f"genres: {self.genres}, Provider ID: {self.provider_id}, "
             f"Normalized genres Vector: {self.normalized_genres_vector}"
         )
+'''
 
-class ItemList():
-    def __init__(self):
-        self.items: list[Item] = []
 
-    def add_item(self, item: Item):
-        self.items.append(item)
-
-    def add_items(self, items: list):
-        self.items = self.items + items
-
-    def size(self):
-        return len(self.items)
-
-    def __iter__(self):
-        return self.items.__iter__()
 

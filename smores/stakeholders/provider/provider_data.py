@@ -24,11 +24,7 @@ class ProviderData:
         (which is admittedly a strange convention)
         """
         line = []
-        # wishing for a do-while loop here
-        while True:
-            line = next(self.reader)
-            if len(line) > 0:
-                break
+        self.skip_blank()
         provider_id_str, provider_type, recommenders = line
         provider_type = provider_type.strip()
         recommenders = recommenders.strip()
@@ -43,6 +39,13 @@ class ProviderData:
             raise BadRecommenderListError(recommenders)
 
         return provider_id, provider_type, rec_list
+    
+    def skip_blank(self):
+        # wishing for a do-while loop here
+        while True:
+            line = next(self.reader)
+            if len(line) > 0:
+                break
 
 
 class BadRecommenderListError(Exception):

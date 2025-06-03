@@ -1,4 +1,6 @@
 from icecream import ic
+from pathlib import Path
+from csv import DictReader
 
 from smores.stakeholders.consumer import ConsumerUtilityModelLookup, ItemSelectionModelLookup, RecommenderChoiceModelFactory
 from smores.utils import UtilityHistory
@@ -54,6 +56,16 @@ class ConsumerCollection():
 
     def __iter__(self):
         return self.collection.__iter__()
+    
+    def load_consumers(self, consumer_data_path: Path)
+        with open(consumer_data_path, 'r') as consumer_file:
+            reader = DictReader(item_file)
+            for row in reader:
+                feature_list_str = row['features']
+                feature_list = loads(feature_list_str)
+                row['features'] = feature_list
+                item: Item = Item.model_validate(row)
+                self.add_item(item)
 
 
 class ConsumerFactory():

@@ -46,6 +46,6 @@ class SmoresConfig(BaseModel):
     consumer: ConsumerConfig
     provider: ProviderConfig
     platform: PlatformConfig
-    recommenders: RecommenderConfig
+    recommender: RecommenderConfig
     triggers: list[PythonClassConfig]
 

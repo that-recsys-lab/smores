@@ -122,8 +122,9 @@ class PopularRecommender(LKRecommender):
         self.min_interaction_count: int = maxsize
 
     def setup(self, config):
-        self.min_user_count = int(config['min_user_count'])
-        self.min_interaction_count = int(config['min_interaction_count'])
+        params = config.params
+        self.min_user_count = int(params['min_user_count'])
+        self.min_interaction_count = int(params['min_interaction_count'])
         self.lk_config = PopConfig(score='count')
         self.scorer = PopScorer(self.lk_config)
         super().setup(config)

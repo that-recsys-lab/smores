@@ -14,6 +14,9 @@ class TriggerCollection():
     def add_trigger(self, trigger: Trigger):
         self.collection[trigger.trigger_type].append(trigger)
 
+    def get_triggers(self, trigger_type: str):
+        return self.collection[trigger_type]
+
     def get_iterator(self, trigger_type: str):
         return self.collection[trigger_type].__iter__()
     

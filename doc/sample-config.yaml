@@ -21,15 +21,17 @@ data:
 consumers:
   - consumer_type: Generic
     utility_model:
-    class_name: list_average
+      class_name: list_average
 
     item_selection_model:
       class_name: category_similarity_logit
-      threshold: 0.3
+      params:
+        threshold: 0.3
 
     recommender_choice_model:
       class_name: fixed
-      recommender_name:  Generic
+      params:
+        recommender_name:  Generic
 
   - consumer_type: Niche
 

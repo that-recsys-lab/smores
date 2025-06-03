@@ -44,12 +44,15 @@ class Smores:
         Smores.state = Smores.SmoresState(config)
 
     def setup(self):
+        state = Smores.state
+        config = state.config
         # Setup users
         # Setup providers
         # Setup items
         # Setup recommenders
+        Smores.state.recommenders_available.setup(config.recommender.definitions)
         # Setup triggers
-        self.time_triggers.setup(config)
+        state.time_triggers.setup(config.triggers)
         return
 
     def run_experiment(self):
