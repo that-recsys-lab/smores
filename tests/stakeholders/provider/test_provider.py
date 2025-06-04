@@ -1,72 +1,20 @@
 import unittest
 import yaml
-from smores.utils import SmoresConfig
-
+from pathlib import Path
 from icecream import ic
 
+from smores.utils import SmoresConfig
 from smores.stakeholders.provider import Provider
-
-SAMPLE_CONFIG1 = \
-'''
-simulation:
-    experiment_name: test_experiment
-    num_days: 10
-    num_cycles: 10
-    slate_size: 5
-    seed: 20250513
-
-data:
-  directory: ../../../data/raw/ambar
-  consumer_file: users.csv
-  item_file: items.csv
-  provider_file: artists.csv`
-
-consumer:
-  recommender_assignment:
-    class_name: fixed
-    name: Generic
-
-  utility_model:
-    class_name: list_average
-
-  item_selection_model:
-    class_name: category_similarity_logit
-    threshold: 0.2
-
-  recommender_choice_model:
-    class_name: threshold
-    value: 0.1
-
-provider:
-  utility_model:
-    class_name: click_fixed
-    value: 1
-
-platform:
-  utility_model:
-    class_name: null_model
-
-recommenders:
-  - name: Generic
-    class_name: svd_generic
-
-  - name: Niche
-    class_name: niche
-
-triggers:
-  - name: Cycle5Freeze
-    class_name: initial_burnin
-    cycle_count: 5
-'''
 
 
 class ProviderTestCase(unittest.TestCase):
     def test_utility_model_creation(self):
-        config_raw = yaml.safe_load(SAMPLE_CONFIG1)
-        config = SmoresConfig(**config_raw)
-        ic(config)
+        test_data_path = Path('tests/test_data')
+        test_config_path = test_data_path / 'test_config.yaml'
+        self.config = SmoresConfig.model_validate(yaml.safe_load(test_config_path.read_text()))
+
         provider = Provider()
-        provider.setup(config)
+        provider.setup(self.config)
         self.assertIsNotNone(provider.utility_model)
 
 

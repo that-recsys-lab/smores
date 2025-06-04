@@ -3,7 +3,8 @@ from numpy.linalg import norm
 from numpy import dot, average
 from icecream import ic
 
-from smores.item import Item, ItemList
+from lenskit.data.items import ItemList
+from lenskit.data import ID
 
 
 class ProviderUtilityModel (ABC):
@@ -22,7 +23,7 @@ class ProviderUtilityModel (ABC):
 
     @classmethod
     @abstractmethod
-    def compute_item_utility (cls, consumer, item: Item) -> float:
+    def compute_item_utility (cls, consumer, item: ID) -> float:
         """
         This function is called when the consumer has clicked on an item belonging to the provider.
 
@@ -58,7 +59,7 @@ class ProviderClickFixedUtilityModel (ProviderUtilityModel):
 
     @classmethod
     def setup(cls, config):
-        cls.utility = config.value
+        cls.utility = config.params['value']
 
     @classmethod
     def compute_item_utility(cls, consumer, item):

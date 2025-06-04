@@ -23,8 +23,7 @@ class ProviderData:
         recommender names if provided (no error checking), or a list containing '*' for all
         (which is admittedly a strange convention)
         """
-        line = []
-        self.skip_blank()
+        line = self.skip_blank()
         provider_id_str, provider_type, recommenders = line
         provider_type = provider_type.strip()
         recommenders = recommenders.strip()
@@ -46,6 +45,7 @@ class ProviderData:
             line = next(self.reader)
             if len(line) > 0:
                 break
+        return line
 
 
 class BadRecommenderListError(Exception):
