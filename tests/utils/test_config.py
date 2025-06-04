@@ -26,14 +26,11 @@ consumer:
       class_name: list_average
 
   item_selection_model:
-      class_name: category_similarity_logit
-      params:
-        threshold: 0.2
+    class_name: list_stochastic
 
   recommender_choice_model:
-      class_name: fixed
-      params:
-        recommender_name: Generic
+    class_name: threshold
+    value: 0.1
 
 provider:
   utility_model:

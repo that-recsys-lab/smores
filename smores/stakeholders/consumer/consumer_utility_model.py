@@ -7,6 +7,7 @@ from smores.item import Item, ItemCollection
 # would like to import but circular issue needs to be resolved
 #from .consumer import Consumer
 
+
 class ConsumerUtilityModel (ABC):
     '''
     ConsumerUtilityModel
