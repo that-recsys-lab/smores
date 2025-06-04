@@ -19,30 +19,53 @@ simulation:
     seed: 20250513
 
 data:
-  directory: ../../../data/raw/ambar
+  directory: data/raw/ambar
   consumer_file: users.csv
   item_file: items.csv
-  provider_file: artists.csv`
+  provider_file: artists.csv
+
+  initial_recommender_assignment:
+    class_name: fixed
+    name: Generic
 
 consumer:
-  recommender_assignment:
-    class_name: fixed
-    name: "Generic"
+  models:
+      utility:
+        - name: "Fixed utility 0.5"
+          class_name: fixed_utility
+          params:
+            value: 0.5
+        - name: "Fixed utility 0.3"
+          class_name: fixed_utility
+          params:
+            value: 0.3
+      item_selection:
+        - name: "Category Similarity"
+          class_name: category_similarity_logit
+          params:
+            threshold: 0.3        
+  types:
+    - name: "Generic"
+      utility_model: "Fixed utility 0.5"
+      item_selection_model: "Category Similarity"
+      recommender_choice_model:
+        class_name: fixed
+        params:
+          recommender_name: Generic
 
-  utility_model:
-    class_name: list_average
+    - name: "Niche"
+      utility_model: "Fixed utility 0.3"
+      item_selection_model: "Category Similarity"
+      recommender_choice_model:
+        class_name: fixed
+        params:
+          recommender_name: Generic
 
-  item_selection_model:
-    class_name: category_similarity_logit
-    threshold: 0.2
-
-  recommender_choice_model:
-    class_name: fixed
-    recommender_name: "Generic"
 
 provider:
   utility_model:
     class_name: click_fixed
+    value: 1
 
 platform:
   utility_model:
@@ -80,7 +103,6 @@ triggers:
     params:
       cycle_count: 5
       recommenders: ["Generic", "Popular Niche"]
-
 '''
 
 class SmoresTestCase(unittest.TestCase):

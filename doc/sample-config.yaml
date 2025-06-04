@@ -92,5 +92,6 @@ triggers:
     class_name: initial_burnin
     params:
       cycle_count: 5
+      recommenders: ["Generic", "Popular Niche"]
 
 

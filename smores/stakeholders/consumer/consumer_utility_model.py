@@ -44,6 +44,9 @@ class ConsumerFixedUtilityModel (ConsumerUtilityModel):
         return self.utility
 
 class ConsumerPrefCosineUtilityModel (ConsumerUtilityModel):
+    def setup(self, config):
+        # No configuration information for this model
+        pass
 
     def compute_item_utility(self, consumer, item: Item) -> float:
         pref_vector = consumer.preference_vector

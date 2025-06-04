@@ -6,6 +6,8 @@ from smores.stakeholders.consumer import CategorySimilarityLogitModel
 
 
 class CategorySimilarityLogitModelBehaviorTestCase(unittest.TestCase):
+    def setUp(self):
+        self.model = model = CategorySimilarityLogitModel()
     
     def test_prohibited_genres(self):
         np.random.seed(20250517)
@@ -26,7 +28,7 @@ class CategorySimilarityLogitModelBehaviorTestCase(unittest.TestCase):
         
         prohibited_genres = {"prohibited_genre"}
         
-        selected_index = CategorySimilarityLogitModel.select_item(
+        selected_index = self.model.select_item(
             test_items,
             threshold=0.2,
             category_preferences=category_preferences,
@@ -37,6 +39,7 @@ class CategorySimilarityLogitModelBehaviorTestCase(unittest.TestCase):
     
     def test_preference_based_selection(self):
         np.random.seed(20250517)
+
         test_items = []
         for i in range(3):
             item = MagicMock()
@@ -55,7 +58,7 @@ class CategorySimilarityLogitModelBehaviorTestCase(unittest.TestCase):
             "genre2": 0.5
         }
         
-        high_pref_selection = CategorySimilarityLogitModel.select_item(
+        high_pref_selection = self.model.select_item(
             test_items,
             threshold=0.2,
             category_preferences=high_preference,
@@ -66,7 +69,7 @@ class CategorySimilarityLogitModelBehaviorTestCase(unittest.TestCase):
         
         selections = []
         for _ in range(50):
-            idx = CategorySimilarityLogitModel.select_item(
+            idx = self.model.select_item(
                 test_items,
                 threshold=0.2,
                 category_preferences=equal_preference,
@@ -96,7 +99,7 @@ class CategorySimilarityLogitModelBehaviorTestCase(unittest.TestCase):
             "genre2": 0.1
         }
         
-        high_threshold_result = CategorySimilarityLogitModel.select_item(
+        high_threshold_result = self.model.select_item(
             test_items,
             threshold=5.0,
             category_preferences=low_preferences,
