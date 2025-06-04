@@ -8,30 +8,33 @@ class SimulationConfig(BaseModel):
     slate_size: PositiveInt
     seed: PositiveInt
 
-
 class DataConfig(BaseModel):
     directory: str
     consumer_file: str
     item_file: str
     provider_file: str
 
-
 class PythonClassConfig(BaseModel):
     name: Optional[str] = None
     class_name: str
     params: dict[str, Any] = {}
 
+class ConsumerModelsConfig(BaseModel):
+    utility: list[PythonClassConfig]
+    item_selection: list[PythonClassConfig]
 
-class ConsumerConfig(BaseModel):
-    recommender_assignment: PythonClassConfig
-    utility_model: PythonClassConfig
-    item_selection_model: PythonClassConfig
+class ConsumerTypeConfig(BaseModel):
+    name: str
+    utility_model: str
+    item_selection_model: str
     recommender_choice_model: PythonClassConfig
 
+class ConsumerConfig(BaseModel):
+    models: ConsumerModelsConfig
+    types: list[ConsumerTypeConfig]
 
 class ProviderConfig(BaseModel):
     utility_model: PythonClassConfig
-
 
 class PlatformConfig(BaseModel):
     utility_model: PythonClassConfig

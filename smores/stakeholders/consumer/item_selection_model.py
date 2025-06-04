@@ -10,7 +10,6 @@ class ItemSelectionModel(ABC):
     based on consumer preferences and other factors.
     """
     
-    @classmethod
     @abstractmethod
     def setup(cls, config):
         """
@@ -21,7 +20,6 @@ class ItemSelectionModel(ABC):
         """
         pass
     
-    @classmethod
     @abstractmethod
     def select_item(cls, items, threshold, category_preferences, prohibited_genres):
         """
@@ -45,11 +43,10 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
     """
     Item choice model that uses a multinomial logit approach based on category similarity.
     """
+    def __init__(self):
+        self.threshold = 0.3  # Default threshold
 
-    threshold = 0.3  # Default threshold
-
-    @classmethod
-    def setup(cls, config):
+    def setup(self, config):
         """
         Set up the model with configuration parameters.
 
@@ -57,10 +54,9 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
             config: Configuration object with parameters for the model.
         """
         if hasattr(config, 'threshold'):
-            cls.threshold = config.threshold
+            self.threshold = config.threshold
 
-    @classmethod
-    def select_item(cls, items, threshold=None, category_preferences=None, prohibited_genres=None):
+    def select_item(self, items, threshold=None, category_preferences=None, prohibited_genres=None):
         """
         Select an item from a slate based on category similarity.
 
@@ -75,7 +71,7 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
             int: Index of the selected item in the input list, or None if no selection is possible.
         """
         if threshold is None:
-            threshold = cls.threshold
+            threshold = self.threshold
 
         # Placeholder for item scores
         scores = np.zeros(len(items))
@@ -105,11 +101,10 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
         return selected_index
 
 
-class ItemSelectionModelLookup:
+class ItemSelectionModelFactory:
     """
     The ItemSelectionModelLookup associates names with class objects to return item selection models
-    based on configuration information. No objects are actually created because selection models do not
-    have any internal state.
+    based on configuration information. 
     """
     
     _class_name_map = {}
@@ -139,7 +134,7 @@ class ItemSelectionModelLookup:
             cls.register(model_name, model_class)
     
     @classmethod
-    def get_class(cls, model_name):
+    def create(cls, model_name):
         """
         Get a model class by name.
         
@@ -147,16 +142,16 @@ class ItemSelectionModelLookup:
             model_name (str): Name of the model to get.
             
         Returns:
-            class: Class object for the model.
+            object: Instance of the model.
         """
         model_class = cls._class_name_map.get(model_name)
         if model_class is None:
             raise UnregisteredItemSelectionModelError(model_name)
-        return model_class
+        return model_class()
 
 # Register classes
 # Register the model with the factory
-ItemSelectionModelLookup.register('category_similarity_logit', CategorySimilarityLogitModel)
+ItemSelectionModelFactory.register('category_similarity_logit', CategorySimilarityLogitModel)
 
 
 

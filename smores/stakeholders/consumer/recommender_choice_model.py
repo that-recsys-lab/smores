@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from numpy.linalg import norm
 from numpy import dot, average
+from lenskit.data.items import ItemList
 
-from smores.item import Item, ItemList
+from smores.item import Item
 
 class RecommenderChoiceModel (ABC):
     '''

@@ -18,22 +18,38 @@ data:
     class_name: fixed
     name: Generic
 
-consumers:
-  - consumer_type: Generic
-    utility_model:
-      class_name: list_average
+consumer:
+  models:
+      utility:
+        - name: "Fixed utility 0.5"
+          class_name: fixed_utility
+          params:
+            value: 0.5
+        - name: "Fixed utility 0.3"
+          class_name: fixed_utility
+          params:
+            value: 0.3
+      item_selection:
+        - name: "Category Similarity"
+          class_name: category_similarity_logit
+          params:
+            threshold: 0.3        
+  types:
+    - name: "Generic"
+      utility_model: "Fixed utility 0.5"
+      item_selection_model: "Category Similarity"
+      recommender_choice_model:
+        class_name: fixed
+        params:
+          recommender_name: Generic
 
-    item_selection_model:
-      class_name: category_similarity_logit
-      params:
-        threshold: 0.3
-
-    recommender_choice_model:
-      class_name: fixed
-      params:
-        recommender_name:  Generic
-
-  - consumer_type: Niche
+    - name: "Niche"
+      utility_model: "Fixed utility 0.3"
+      item_selection_model: "Category Similarity"
+      recommender_choice_model:
+        class_name: fixed
+        params:
+          recommender_name: Generic
 
 
 provider:
@@ -45,23 +61,31 @@ platform:
   utility_model:
     class_name: null_model
 
-recommenders:
-  - name: Generic
-    class_name: item_knn_cold
-    min_neighbors: 1
-    max_neighbors: 20
-    min_similarity: 0.001
-    cold_start_fallback:
-      class_name: sample_popular_file
-      item_file: popular_generic.csv
-    cold_user_fallback:
-      class_name: most_popular
+recommender:
+  initial: ["Generic"]
+  definitions:
+    - name: "Generic"
+      class_name: item_knn
+      params:
+        max_neighbors: 20
+        min_neighbors: 2
+        min_similarity: 0.0001
+        min_user_count: 20
+        min_interaction_count: 500
+        min_profile_size: 5
+        cold_user_fallback: "Popular Fallback"
 
-  - name: Niche
-    class_name: item_knn_cold
-    min_neighbors: 1
-    max_neighbors: 20
-    min_similarity: 0.001
+    - name: "Popular Fallback"
+      class_name: popular
+      params:
+          min_user_count: 20
+          min_interaction_count: 500
+
+    - name: "Popular Niche"
+      class_name: popular
+      params:
+          min_user_count: 20
+          min_interaction_count: 500
 
 triggers:
   - name: Cycle5Freeze
