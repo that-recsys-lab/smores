@@ -38,5 +38,9 @@ class ItemTestCase(unittest.TestCase):
         self.assertIsInstance(item201, Item)
         self.assertEqual(item201.provider_id, 300)
 
+    def tearDown(self):
+        # Delete the temporary directory and all its contents
+        self.temp_dir.cleanup()
+
 if __name__ == '__main__':
     unittest.main()

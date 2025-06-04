@@ -1,19 +1,21 @@
 from icecream import ic
 from pathlib import Path
 from csv import DictReader
+from json import loads
+from pydantic import BaseModel, PositiveInt
 
-from smores.stakeholders.consumer import ConsumerUtilityModelLookup, ItemSelectionModelLookup, RecommenderChoiceModelFactory
-from smores.utils import UtilityHistory
+from .consumer_utility_model import ConsumerUtilityModelFactory
+from .item_selection_model import ItemSelectionModelFactory
+from .recommender_choice_model import RecommenderChoiceModelFactory
+from smores.utils import UtilityHistory, ConsumerTypeConfig
+import smores
+
+class ConsumerInfo (BaseModel):
+    consumer_id: PositiveInt
+    consumer_type: str
+    preferences: list[float]
 
 class Consumer:
-
-    _id: int = -1
-
-    @classmethod
-    def next_id(cls) -> int:
-        cls._id += 1
-        return cls._id
-
     def __init__(self):
         self.id = None
         self.preference_vector = None
@@ -26,23 +28,27 @@ class Consumer:
     def __str__(self):
         return f'<Consumer {self.id}>'
 
-    def setup(self, config):
-        self.id = Consumer.next_id()
+    def setup(self, config_type: ConsumerTypeConfig, config_instance: ConsumerInfo):
+        # Instance-specific
+        self.id = config_instance.consumer_id
+        self.preference_vector = config_instance.preferences
 
+        # Consumer-type specific
         self.history = UtilityHistory()
+        consumer_models = smores.Smores.state.consumer_models
 
-        utility_model_config = config.consumer.utility_model
-        ic(utility_model_config)
-        self.utility_model = ConsumerUtilityModelLookup.get_class(utility_model_config.class_name)
-        self.utility_model.setup(utility_model_config)
+        # Get utility model
+        utility_model_name = config_type.utility_model
+        ic(utility_model_name)
+        self.utility_model = consumer_models.get_utility_model(utility_model_name)
 
-        # Set up selection model
-        selection_model_config = config.consumer.item_selection_model
-        ic(selection_model_config)
-        self.item_selection_model = ItemSelectionModelLookup.get_class(selection_model_config.class_name)
-        self.item_selection_model.setup(selection_model_config)
+        # Get selection model
+        selection_model_name = config_type.item_selection_model
+        ic(selection_model_name)
+        self.item_selection_model = consumer_models.get_item_selection_model(selection_model_name)
 
-        choice_model_config = config.consumer.recommender_choice_model
+        # Setup recommender choice model
+        choice_model_config = config_type.recommender_choice_model
         self.recommender_choice_model = RecommenderChoiceModelFactory.create(choice_model_config.class_name)
         self.recommender_choice_model.setup(choice_model_config)
 
@@ -50,6 +56,11 @@ class Consumer:
 class ConsumerCollection():
     def __init__(self):
         self.collection = []
+        self.types: dict[str, ConsumerTypeConfig] = {}
+
+    def setup(self, config: list[ConsumerTypeConfig]):
+        for type_config in config:
+            self.types[type_config.name] = type_config
 
     def add_consumer(self, cons: Consumer):
         self.collection.append(cons)
@@ -57,15 +68,20 @@ class ConsumerCollection():
     def __iter__(self):
         return self.collection.__iter__()
     
-    def load_consumers(self, consumer_data_path: Path)
+    def load_consumers(self, consumer_data_path: Path):
         with open(consumer_data_path, 'r') as consumer_file:
-            reader = DictReader(item_file)
+            reader = DictReader(consumer_file)
             for row in reader:
-                feature_list_str = row['features']
+                feature_list_str = row['preferences']
                 feature_list = loads(feature_list_str)
-                row['features'] = feature_list
-                item: Item = Item.model_validate(row)
-                self.add_item(item)
+                row['preferences'] = feature_list
+                consumer_config: ConsumerInfo = ConsumerInfo.model_validate(row)
+                consumer_type_config = self.types[consumer_config.consumer_type]
+
+                consumer = Consumer()
+                consumer.setup(consumer_type_config, consumer_config)
+
+                self.add_consumer(consumer)
 
 
 class ConsumerFactory():
@@ -79,7 +95,7 @@ class ConsumerFactory():
 
     @classmethod
     def register(cls, type_name, consumer_class):
-        if not issubclass(consumer_class, Provider):
+        if not issubclass(consumer_class, Consumer):
             raise InvalidConsumerError(type_name)
         cls._class_name_map[type_name] = consumer_class
 

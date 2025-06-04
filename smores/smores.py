@@ -1,6 +1,7 @@
 import random
 from icecream import ic
 
+from smores.stakeholders.consumer import ConsumerModelComponents
 from smores.recommender import RecommenderMap
 from smores.trigger import TriggerCollection
 from smores.utils import SmoresConfig
@@ -23,6 +24,7 @@ class Smores:
             self.slate_size  = config.simulation.slate_size
 
             # init consumer collection
+            self.consumer_models = ConsumerModelComponents()
             # init provider collection
             # init item collection
             # init recommender collections
@@ -46,11 +48,12 @@ class Smores:
     def setup(self):
         state = Smores.state
         config = state.config
-        # Setup users
+        # Setup consumers
+        state.consumer_models.setup(config.consumer.models)
         # Setup providers
         # Setup items
         # Setup recommenders
-        Smores.state.recommenders_available.setup(config.recommender.definitions)
+        state.recommenders_available.setup(config.recommender.definitions)
         # Setup triggers
         state.time_triggers.setup(config.triggers)
         return
