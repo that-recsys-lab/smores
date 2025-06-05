@@ -15,9 +15,7 @@ data:
   provider_file: artists.csv
 
 consumer:
-  initial_recommender_assignment:
-    class_name: fixed
-    name: Generic
+  initial_recommender: "Generic"
   models:
       utility:
         - name: "Fixed utility 0.5"
@@ -52,10 +50,24 @@ consumer:
 
 
 provider:
-  utility_model:
-    class_name: click_fixed
-    params:
-      value: 1
+  initial_recommender: "__all__" 
+  models:
+    utility:
+      - name: "Click Fixed 1.0"
+        class_name: click_fixed
+        params:
+          value: 1.0
+      - name: "Click Fixed 1.5"
+        class_name: click_fixed
+        params:
+          value: 1.5
+
+  types:
+    - name: "Generic"
+      utility_model: "Click Fixed 1.0"
+
+    - name: "Niche"
+      utility_model: "Click Fixed 1.5"
 
 platform:
   utility_model:

@@ -41,6 +41,7 @@ class ConsumerTestCase(unittest.TestCase):
         ccoll = ConsumerCollection()
         ccoll.setup(self.config.consumer.types)
         ccoll.load_consumers(self.consumer_data_path)
+        self.assertEqual(len(list(ccoll)), 3)
 
 
 if __name__ == '__main__':

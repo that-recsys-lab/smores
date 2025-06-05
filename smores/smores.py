@@ -1,7 +1,8 @@
 import random
 from icecream import ic
 
-from smores.stakeholders.consumer import ConsumerModelComponents
+from smores.stakeholders.consumer import ConsumerModelComponents, ConsumerCollection
+from smores.stakeholders.provider import ProviderModelComponents, ProviderCollection
 from smores.recommender import RecommenderMap
 from smores.trigger import TriggerCollection
 from smores.utils import SmoresConfig
@@ -25,7 +26,10 @@ class Smores:
 
             # init consumer collection
             self.consumer_models = ConsumerModelComponents()
+            self.consumers = ConsumerCollection()
             # init provider collection
+            self.provider_models = ProviderModelComponents()
+            self.providers = ProviderCollection()
             # init item collection
             # init recommender collections
             self.recommenders_available = RecommenderMap()
@@ -51,6 +55,7 @@ class Smores:
         # Setup consumers
         state.consumer_models.setup(config.consumer.models)
         # Setup providers
+        state.provider_models.setup(config.provider.models)
         # Setup items
         # Setup recommenders
         state.recommenders_available.setup(config.recommender.definitions)
