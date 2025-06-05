@@ -30,11 +30,21 @@ class ConsumerTypeConfig(BaseModel):
     recommender_choice_model: PythonClassConfig
 
 class ConsumerConfig(BaseModel):
+    initial_recommender: str
     models: ConsumerModelsConfig
     types: list[ConsumerTypeConfig]
 
+class ProviderModelsConfig(BaseModel):
+    utility: list[PythonClassConfig]
+
+class ProviderTypeConfig(BaseModel):
+    name: str
+    utility_model: str
+
 class ProviderConfig(BaseModel):
-    utility_model: PythonClassConfig
+    initial_recommender: str
+    models: ProviderModelsConfig
+    types: list[ProviderTypeConfig]
 
 class PlatformConfig(BaseModel):
     utility_model: PythonClassConfig

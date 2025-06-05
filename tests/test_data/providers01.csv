@@ -1,4 +1,5 @@
-10, niche,all
-11, general,[p1 p2]
-12, general,all
-13, niche,all
+provider_id,provider_type
+10,Niche
+11,Generic
+12,Generic
+13,Niche

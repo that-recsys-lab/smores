@@ -16,14 +16,12 @@ class ProviderUtilityModel (ABC):
 
     All methods are static because there shouldn't be anything provider-specific about these functions.
    """
-    @classmethod
     @abstractmethod
-    def setup(cls, config):
+    def setup(self, config):
         pass
 
-    @classmethod
     @abstractmethod
-    def compute_item_utility (cls, consumer, item: ID) -> float:
+    def compute_item_utility (self, consumer, item: ID) -> float:
         """
         This function is called when the consumer has clicked on an item belonging to the provider.
 
@@ -36,9 +34,8 @@ class ProviderUtilityModel (ABC):
         """
         pass
 
-    @classmethod
     @abstractmethod
-    def compute_list_utility (cls, consumer, item_list: ItemList) -> float:
+    def compute_list_utility (self, consumer, item_list: ItemList) -> float:
         """
         This function is called when the consumer is shown a list.
 
@@ -57,16 +54,13 @@ class ProviderClickFixedUtilityModel (ProviderUtilityModel):
     """
     utility: float  = 0.0
 
-    @classmethod
-    def setup(cls, config):
-        cls.utility = config.params['value']
+    def setup(self, config):
+        self.utility = config['value']
 
-    @classmethod
-    def compute_item_utility(cls, consumer, item):
-        return cls.utility
+    def compute_item_utility(self, consumer, item):
+        return self.utility
 
-    @classmethod
-    def compute_list_utility(cls, consumer, item_list: ItemList) -> float:
+    def compute_list_utility(self, consumer, item_list: ItemList) -> float:
         # Only clicks count under this model
         return 0.0
 
@@ -74,10 +68,7 @@ class ProviderClickFixedUtilityModel (ProviderUtilityModel):
 class ProviderUtilityModelFactory():
     """
     The ProviderUtilityModelFactory associates names with class objects so these can be passed to
-    objects based on configuration information. Note that a utility model is just a collection of
-    functions so there is never a need to create an associated object.
-    A utility model must registered in the factory before it can be
-    created. Note these are all class methods, so an instance of this object never needs to be created.
+    objects based on configuration information. .
     """
 
     _class_name_map = {}
@@ -94,11 +85,11 @@ class ProviderUtilityModelFactory():
             cls.register(model_name, model_class)
 
     @classmethod
-    def get_class(cls, model_name):
+    def create(cls, model_name):
         model_class = cls._class_name_map.get(model_name)
         if model_class is None:
             raise UnregisteredProviderUtilityModelError(model_name)
-        return model_class
+        return model_class()
 
 
 # Registering
