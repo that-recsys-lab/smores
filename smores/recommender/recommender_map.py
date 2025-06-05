@@ -16,6 +16,9 @@ class RecommenderMap:
 
             inst.setup(rec_config)
 
+    def is_recommender(self, name: str):
+        return name in self._rec_map
+
     def get_recommender(self, name: str):
         return self._rec_map[name]
     

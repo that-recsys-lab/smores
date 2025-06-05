@@ -13,14 +13,16 @@ class TriggerEvent:
         self.event_type = event_type
 
 class CycleEvent(TriggerEvent):
-    def __init__(self, cycle_count):
+    def __init__(self, cycle_count, time):
         super().__init__('cycle')
         self.cycle_count = cycle_count
+        self.time = time
 
 class DayEvent(TriggerEvent):
-    def __init__(self, day_count):
+    def __init__(self, day_count, time):
         super().__init__('day')
         self.day_count = day_count
+        self.time = time
 
 class Trigger (ABC):
     '''

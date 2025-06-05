@@ -9,10 +9,10 @@ simulation:
     seed: 20250513
 
 data:
-  directory: data/raw/ambar
-  consumer_file: users.csv
+  directory: tests/test_data/
+  consumer_file: consumers.csv
   item_file: items.csv
-  provider_file: artists.csv
+  provider_file: providers.csv
 
 consumer:
   initial_recommender: "Generic"

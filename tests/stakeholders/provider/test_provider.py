@@ -15,7 +15,7 @@ class ProviderTestCase(unittest.TestCase):
         self.smores = Smores(self.config)
         self.smores.setup()
 
-        self.provider_data_path = test_data_path / 'providers01.csv'
+        self.provider_data_path = test_data_path / 'providers.csv'
 
     def test_component_creation(self):
         pcoll = ProviderCollection()

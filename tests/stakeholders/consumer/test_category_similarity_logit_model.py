@@ -7,7 +7,7 @@ from smores.stakeholders.consumer import CategorySimilarityLogitModel
 
 class CategorySimilarityLogitModelBehaviorTestCase(unittest.TestCase):
     def setUp(self):
-        self.model = model = CategorySimilarityLogitModel()
+        self.model = CategorySimilarityLogitModel()
     
     def test_prohibited_genres(self):
         np.random.seed(20250517)

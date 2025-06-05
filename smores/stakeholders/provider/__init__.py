@@ -3,3 +3,4 @@ from .provider_utility_model import ProviderUtilityModel, ProviderUtilityModelFa
 
 from .provider import Provider, ProviderCollection, ProviderInfo
 from .provider_model_components import ProviderModelComponents
+from .provider_utility_model import ProviderClickFixedUtilityModel

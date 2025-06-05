@@ -55,7 +55,7 @@ class Consumer:
 
 class ConsumerCollection():
     def __init__(self):
-        self.collection = []
+        self.collection: list[Consumer] = []
         self.types: dict[str, ConsumerTypeConfig] = {}
 
     def setup(self, config: list[ConsumerTypeConfig]):
