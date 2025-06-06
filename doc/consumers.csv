@@ -1,0 +1,4 @@
+consumer_id,consumer_type,preferences
+100,Niche,[0.1, 0.63, 0.3, 0.2, 0.0]
+101,Niche,[0.1, 0.63, 0.3, 0.2, 0.0]
+102,Generic,[0.3, 0.01, 0.6, 0.1, 0.8]
