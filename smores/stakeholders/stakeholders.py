@@ -3,43 +3,8 @@ import random
 import math
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from smores.stakeholders.choice import category_similarity_logit
+from smores.stakeholders.consumer.category_similarity_logit_model import CategorySimilarityLogitModel
 
-
-class Item:
-    def __init__(self, item_id, quality, genres, provider_id, dataset_genres):
-        self.item_id = item_id
-        self.quality = quality
-        self.genres = genres
-        self.dataset_genres = dataset_genres
-        self.provider_id = provider_id
-        self.weight = 0.5
-        self.normalized_genres_vector = self.normalize_genres()
-
-    def normalize_genres(self):
-        genres_vector = {}
-
-        # Assign weights to the genres based on their position
-        if self.genres:
-            total_genres = len(self.genres)
-            decreasing_weights = [
-                (total_genres - i) for i in range(total_genres)
-            ]
-            total_weight = sum(decreasing_weights)
-            normalized_weights = [weight / total_weight for weight in decreasing_weights]
-
-            for cat, weight in zip(self.genres, normalized_weights):
-                if cat in self.dataset_genres:
-                    genres_vector[cat] = weight
-
-        return genres_vector
-
-    def __str__(self):
-        return (
-            f"Item ID: {self.item_id}, Quality: {self.quality}, "
-            f"genres: {self.genres}, Provider ID: {self.provider_id}, "
-            f"Normalized genres Vector: {self.normalized_genres_vector}"
-        )
 
 
 class Provider:
@@ -210,7 +175,7 @@ class Provider:
         """
         return f"Provider {self.provider_id}: items={self.items}, genres={self.genres}"
 
-
+'''
 class Consumer:
     def __init__(
         self,
@@ -219,7 +184,7 @@ class Consumer:
         category_preferences,
         prohibited_genres=set(),
         favorite_genres=set(),
-        choice_model=category_similarity_logit,
+        choice_model=None,
         historical_distribution={}
     ):
         """
@@ -252,7 +217,8 @@ class Consumer:
         )
         self.alpha = 3  # exploration decay / exploitation weight
         self.beta = 2  # recency bias
-        self.choice_model = choice_model
+        
+        self.choice_model = choice_model if choice_model is not None else CategorySimilarityLogitModel()
         self.genre_recommendation_counts = {}
         self.historical_distribution = historical_distribution
         self.kl_divergence = defaultdict(float)
@@ -377,7 +343,7 @@ class Consumer:
         click_prob = np.random.random()
         if click_prob <= 1:  # 100% chance of clicking
             # Choice model to select an item from the slate
-            selected_index = self.choice_model(
+            selected_index = self.choice_model.select_item(
                 items=slate_items,
                 threshold=0.3,
                 category_preferences=self.category_preferences,
@@ -516,7 +482,7 @@ class Consumer:
         # print("genre_recommendation_counts",self.genre_recommendation_counts[recommender_system_id].keys())
         # print("historical_distribution",self.historical_distribution.keys())
         # print(self.consumer_id, kl_divergence)
-
+'''
 
 class Recommender(ABC):
 
