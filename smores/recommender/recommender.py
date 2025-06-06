@@ -40,11 +40,9 @@ class Recommender(ABC):
         self.dataset = self.setup_dataset()
 
     def setup_dataset(self):
-        dummy_data = {"user_id": [1], "item_id": [10], "rating": [1.0], "time": [100]}
-        dummy_df = DataFrame(dummy_data)
-        dummy_dataset = from_interactions_df(dummy_df)
-        builder = DatasetBuilder(dummy_dataset)
-        builder.clear_relationships("rating")
+        builder = DatasetBuilder(None)
+        builder.add_entity_class('user')
+        builder.add_relationship_class('interaction', ['user', 'item'], interaction=True)
         return builder.build()
 
     @classmethod
@@ -118,7 +116,9 @@ class LKRecommender(Recommender):
 
     def train(self):
         super().train()
-        self.scorer.train(self.dataset)
+        # Don't train on an empty dataset
+        if self.dataset.interaction_count > 0:
+            self.scorer.train(self.dataset)
     
     def build_pipeline(self):
         scorer = self.get_scorer()
@@ -165,6 +165,11 @@ class PopularRecommender(LKRecommender):
         self.scorer = PopScorer(self.lk_config)
         super().setup(config)
 
+    def train(self):
+        if self.dataset.interaction_count >= self.min_interaction_count and \
+                self.dataset.user_count >= self.min_user_count:
+            super().train()
+
     def build_pipeline(self):
         scorer = self.get_scorer()
         slate_size = smores.Smores.state.slate_size
@@ -205,6 +210,11 @@ class ItemKnnRecommender(LKRecommender):
         self.scorer = ItemKNNScorer(self.lk_config)
         self.pipeline = self.build_pipeline()
         super().setup(config)
+
+    def train(self):
+        if self.dataset.interaction_count >= self.min_interaction_count and \
+                self.dataset.user_count >= self.min_user_count:
+            super().train()
 
     def isDatasetViable(self):
         user_count = self.dataset.user_count
