@@ -24,6 +24,7 @@ class RecommenderMap:
     
     def set_recommender(self, name: str, rec: Recommender):
         self._rec_map[name] = rec
+        rec.name = name
 
     def clear(self):
         self._rec_map.clear()

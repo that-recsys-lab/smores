@@ -1,6 +1,17 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 import numpy as np
+# Cursed circular imports
+from typing import TYPE_CHECKING
 
+
+from lenskit.data.items import ItemList
+
+from smores.utils import itemList2rankedTuples
+if TYPE_CHECKING:
+    from .consumer import Consumer
+
+import smores
 
 class ItemSelectionModel(ABC):
     """
@@ -9,9 +20,10 @@ class ItemSelectionModel(ABC):
     Item selection models are responsible for selecting an item from a slate
     based on consumer preferences and other factors.
     """
+    EMPTY_OUTPUT = (-1, -1.0)
     
     @abstractmethod
-    def setup(cls, config):
+    def setup(self, config):
         """
         Set up the model with configuration parameters.
         
@@ -21,22 +33,22 @@ class ItemSelectionModel(ABC):
         pass
     
     @abstractmethod
-    def select_item(cls, items, threshold, category_preferences, prohibited_genres):
+    def select_item(self, consumer: "Consumer", item_list: ItemList):
         """
         Select an item from a slate based on consumer preferences.
         
         Args:
-            items (list): List of items to evaluate.
-            threshold (float): Threshold value to evaluate scores.
-            category_preferences (dict): User's preferences for genres.
-            prohibited_genres (set): Genres to penalize in the scoring.
+            consumer: The consumer object
+            item_list: List of items to evaluate.
             
         Returns:
-            int: Index of the selected item in the input list, or None if no selection is possible.
+            int: item_id, utility
         """
-        pass
-
-
+        return ItemSelectionModel.EMPTY_OUTPUT
+    
+    @classmethod
+    def is_empty_selection(cls, tuple):
+        return tuple[0] == ItemSelectionModel.EMPTY_OUTPUT[0]
 
 
 class CategorySimilarityLogitModel(ItemSelectionModel):
@@ -45,6 +57,7 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
     """
     def __init__(self):
         self.threshold = 0.3  # Default threshold
+        self.selection_utility = None
 
     def setup(self, config):
         """
@@ -53,53 +66,43 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
         Args:
             config: Configuration object with parameters for the model.
         """
-        if hasattr(config, 'threshold'):
-            self.threshold = config.threshold
+        self.threshold = config.params['threshold']
+        self.selection_utility = config.params['selection_utility']
 
-    def select_item(self, items, threshold=None, category_preferences=None, prohibited_genres=None):
+    def select_item(self, consumer: "Consumer", item_list: ItemList):
         """
         Select an item from a slate based on category similarity.
 
         Args:
-            items (list): List of items to evaluate.
-            threshold (float, optional): Threshold value to evaluate scores.
-                Defaults to the class's threshold value.
-            category_preferences (dict): User's preferences for genres.
-            prohibited_genres (set): Genres to penalize in the scoring.
-
+            consumer: The consumer object
+            item_list: List of items to evaluate.
+            
         Returns:
-            int: Index of the selected item in the input list, or None if no selection is possible.
+            int: item_id, score
         """
-        if threshold is None:
-            threshold = self.threshold
 
-        # Placeholder for item scores
-        scores = np.zeros(len(items))
+        category_similarities = []
 
         # Calculate utility for each item based on category similarity
-        for i, item in enumerate(items):
-            category_similarity = 0.0
-            for category in item.genres:
-                if category in prohibited_genres:
-                    category_similarity -= 1
-                else:
-                    category_similarity += category_preferences.get(category, 0)
-            scores[i] = category_similarity
+        item_tuples = itemList2rankedTuples(item_list)
+        for id, score in item_tuples:
+            item = smores.Smores.state.items.get_item(id)
+            if consumer.preference_vector is not None:
+                similarity = np.dot(item.features, consumer.preference_vector)
+                if similarity < self.threshold:
+                    similarity = 0
+                category_similarities.append(similarity)
 
-        # Calculate probabilities using a multinomial logit choice model
-        if np.all(scores <= threshold):
-            probabilities = np.zeros(len(scores))
-        else:
-            probabilities = np.exp(scores - np.max(scores)) / np.sum(np.exp(scores - np.max(scores)))
+        if np.sum(category_similarities) == 0:
+            return ItemSelectionModel.EMPTY_OUTPUT
 
-        # Handle case where probabilities sum to zero
-        if np.sum(probabilities) == 0:
-            return None
+        probabilities = np.exp(category_similarities - np.max(category_similarities)) / \
+            np.sum(np.exp(category_similarities - np.max(category_similarities)))
 
         # Select an item index based on probabilities
-        selected_index = np.random.choice(len(items), p=probabilities)
-        return selected_index
-
+        selected_tuple = smores.Smores.state.rand.choice(item_tuples, p=probabilities)
+        return (selected_tuple[0], self.selection_utility)
+    
 
 class ItemSelectionModelFactory:
     """

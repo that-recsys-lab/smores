@@ -29,12 +29,17 @@ class ItemCollection():
 class ItemMap():
     def __init__(self):
         self.item_map: dict[int, Item] = defaultdict(None)
+        self.provider_map: dict[int, list[int]] = defaultdict(list)
 
     def add_item(self, item: Item):
         self.item_map[item.item_id] = item
+        self.provider_map[item.provider_id].append(item.item_id)
 
     def get_item(self, item_id: int):
         return self.item_map[item_id]
+    
+    def get_provider_items(self, provider_id: int):
+        return self.provider_map[provider_id]
     
     def all_items(self):
         return self.item_map.keys()

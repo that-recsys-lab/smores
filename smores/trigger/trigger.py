@@ -24,6 +24,13 @@ class DayEvent(TriggerEvent):
         self.day_count = day_count
         self.time = time
 
+class SwitchEvent(TriggerEvent):
+    def __init__(self, consumer, next_rec_name):
+        super().__init__('switch')
+        self.consumer = consumer.id
+        self.from_rec = consumer.recommender.name
+        self.next_rec = next_rec_name
+
 class Trigger (ABC):
     '''
     Trigger
@@ -49,7 +56,6 @@ class Trigger (ABC):
     def handle_event(self, event: TriggerEvent):
         # Could potentially log here
         raise NotImplementedError
-
 
 
 class CycleTrigger(Trigger):
@@ -80,6 +86,28 @@ class InitialBurnInTrigger(CycleTrigger):
         for name in self.recommenders_to_activate:
             rec = Recommender.name2recommender(name)
             smores.Smores.state.recommenders_active.set_recommender(name, rec)
+
+class SwitchTrigger(Trigger):
+    def __init__(self):
+        super().__init__('switch')
+
+    def setup(self, config):
+        self.name = config.name
+
+    def accept_event(self, event: SwitchEvent):
+        return True
+    
+class SwitchSaveInfoTrigger(SwitchTrigger):
+    def __init__(self):
+        super().__init__()
+        self.events: list[TriggerEvent] = []
+
+    def setup(self, config):
+        # no parameters
+        pass
+
+    def handle_event(self, event: TriggerEvent):
+        self.events.append(event)
 
 
 class TriggerFactory():
@@ -125,4 +153,4 @@ class UnregisteredTriggerError(Exception):
 
 
 TriggerFactory.register('initial_burnin', InitialBurnInTrigger)
-
+TriggerFactory.register('save_switch', SwitchSaveInfoTrigger)

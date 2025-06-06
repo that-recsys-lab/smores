@@ -17,7 +17,7 @@ class RecommenderChoiceModel (ABC):
         pass
 
     @abstractmethod
-    def update_recommender_utility(self, rec_name, time: int, utility: float):
+    def update_recommender_utility(self, rec_name, time: int, recs: ItemList):
         pass
 
     @abstractmethod
@@ -32,7 +32,7 @@ class FixedRecommenderChoiceModel(RecommenderChoiceModel):
     def choose_recommender(self):
         return self.recommender_name
     
-    def update_recommender_utility(self, rec_name, time: int, utility: float):
+    def update_recommender_utility(self, rec_name, time: int, recs: ItemList):
         pass
     
 

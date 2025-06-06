@@ -17,7 +17,7 @@ class ConsumerInfo (BaseModel):
 
 class Consumer:
     def __init__(self):
-        self.id = None
+        self.id = -1
         self.preference_vector = None
         self.recommender = None
         self.utility_model = None
@@ -39,12 +39,10 @@ class Consumer:
 
         # Get utility model
         utility_model_name = config_type.utility_model
-        ic(utility_model_name)
         self.utility_model = consumer_models.get_utility_model(utility_model_name)
 
         # Get selection model
         selection_model_name = config_type.item_selection_model
-        ic(selection_model_name)
         self.item_selection_model = consumer_models.get_item_selection_model(selection_model_name)
 
         # Setup recommender choice model
@@ -55,18 +53,21 @@ class Consumer:
 
 class ConsumerCollection():
     def __init__(self):
-        self.collection: list[Consumer] = []
+        self.collection: dict[int, Consumer] = {}
         self.types: dict[str, ConsumerTypeConfig] = {}
 
     def setup(self, config: list[ConsumerTypeConfig]):
         for type_config in config:
             self.types[type_config.name] = type_config
 
-    def add_consumer(self, cons: Consumer):
-        self.collection.append(cons)
+    def add_consumer(self, consumer: Consumer):
+        self.collection[consumer.id] = consumer
+
+    def get_consumer(self, consumer_id):
+        return self.collection[consumer_id]
 
     def __iter__(self):
-        return self.collection.__iter__()
+        return iter(self.collection.values())
     
     def load_consumers(self, consumer_data_path: Path):
         with open(consumer_data_path, 'r') as consumer_file:

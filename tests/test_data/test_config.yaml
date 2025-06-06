@@ -3,8 +3,8 @@
 
 simulation:
     experiment_name: test_experiment
-    num_days: 10
-    num_cycles: 10
+    num_days: 2
+    num_cycles: 2
     slate_size: 5
     seed: 20250513
 
@@ -30,7 +30,8 @@ consumer:
         - name: "Category Similarity"
           class_name: category_similarity_logit
           params:
-            threshold: 0.3        
+            threshold: 0.3     
+            selection_utility: 1.0 
   types:
     - name: "Generic"
       utility_model: "Fixed utility 0.5"
@@ -86,6 +87,7 @@ recommender:
         min_interaction_count: 500
         min_profile_size: 5
         cold_user_fallback: "Popular Fallback"
+        cold_start_fallback: "Dummy Fixed"
 
     - name: "Popular Fallback"
       class_name: popular
@@ -99,11 +101,14 @@ recommender:
           min_user_count: 20
           min_interaction_count: 500
 
+    - name: "Dummy Fixed"
+      class_name: fixed_recommender
+
 triggers:
   - name: Cycle5Freeze
     class_name: initial_burnin
     params:
       cycle_count: 5
       recommenders: ["Generic", "Popular Niche"]
-
-
+  - name: "Save Switch Events"
+    class_name: save_switch

@@ -55,7 +55,6 @@ class TestTrigger(unittest.TestCase):
     def test_trigger_collection(self):
         trigger_coll = TriggerCollection()
         trigger_coll.setup(self.config.triggers)
-        ic(trigger_coll.collection)
         self.assertEqual(len(trigger_coll.collection['cycle']), 2)
 
                         

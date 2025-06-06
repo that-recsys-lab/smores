@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from pyarrow import Table
 from sys import maxsize
 from icecream import ic
+from pandas import DataFrame
 
 from lenskit.data import Dataset, DatasetBuilder
 from lenskit.training import Trainable, TrainingOptions
@@ -11,7 +12,7 @@ from lenskit.basic.candidates import UnratedTrainingItemsCandidateSelector
 from lenskit.basic import UserTrainingHistoryLookup, TopNRanker
 from lenskit.basic.popularity import PopScorer, PopConfig
 from lenskit.knn import ItemKNNConfig, ItemKNNScorer
-from lenskit.data import ID, ItemList
+from lenskit.data import ID, ItemList, from_interactions_df
 from lenskit import recommend
 
 import smores
@@ -22,9 +23,10 @@ class Recommender(ABC):
     def __init__(self):
         self.dataset: Dataset = None
         # Use this if there isn't enough data overall
-        self.cold_start_fallback: Recommender = None
+        self.cold_start_fallback: str = None
         # Use this if there isn't enough data for a particular user
-        self.cold_user_fallback: Recommender = None
+        self.cold_user_fallback: str = None
+        self.name = None
 
     @abstractmethod
     def setup(self, config):
@@ -35,6 +37,15 @@ class Recommender(ABC):
                     self.cold_start_fallback = params['cold_start_fallback']
                 if 'cold_user_fallback' in params: 
                     self.cold_user_fallback = params['cold_user_fallback']
+        self.dataset = self.setup_dataset()
+
+    def setup_dataset(self):
+        dummy_data = {"user_id": [1], "item_id": [10], "rating": [1.0], "time": [100]}
+        dummy_df = DataFrame(dummy_data)
+        dummy_dataset = from_interactions_df(dummy_df)
+        builder = DatasetBuilder(dummy_dataset)
+        builder.clear_relationships("rating")
+        return builder.build()
 
     @classmethod
     def name2recommender(cls, name: str):
@@ -43,9 +54,11 @@ class Recommender(ABC):
     @abstractmethod
     def train(self):
         if self.cold_start_fallback is not None:
-            self.cold_start_fallback.train()
+            cold_start_rec = smores.Smores.state.recommenders_available.get_recommender(self.cold_start_fallback)
+            cold_start_rec.train()
         if self.cold_user_fallback is not None:
-            self.cold_user_fallback.train()
+            cold_user_rec = smores.Smores.state.recommenders_available.get_recommender(self.cold_user_fallback)
+            cold_user_rec.train()
         
 
     @abstractmethod
@@ -65,7 +78,28 @@ class Recommender(ABC):
         hist.add_interactions(interaction_list)
         self.dataset = hist.to_dataset(self.dataset)
 
+class FixedItemRecommender(Recommender):
+    def __init__(self):
+        super().__init__()
 
+    def setup(self, config):
+        pass
+
+    def isDatasetViable(self):
+        return True
+    
+    def isProfileViable(self, user_id):
+        return True
+    
+    def train(self):
+        pass
+    
+    def get_recommendations(self, user_id) -> ItemList:
+        recs = list(smores.Smores.state.items.all_items())[0:smores.Smores.state.slate_size]
+        scores = [5.0] * smores.Smores.state.slate_size
+        ranks = list(range(1, smores.Smores.state.slate_size+1))
+        item_list = ItemList(None, item_ids=recs, scores=scores, rank=ranks)
+        return item_list
 
 
 class LKRecommender(Recommender):
@@ -108,9 +142,11 @@ class LKRecommender(Recommender):
 
     def get_recommendations(self, user_id: ID):
         if not self.isDatasetViable():
-            return self.cold_start_fallback.get_recommendations(user_id)
+            cold_start_rec = smores.Smores.state.recommenders_available.get_recommender(self.cold_start_fallback)
+            return cold_start_rec.get_recommendations(user_id)
         elif not self.isProfileViable(user_id):
-            return self.cold_user_fallback.get_recommendations(user_id)
+            cold_user_rec = smores.Smores.state.recommenders_available.get_recommender(self.cold_user_fallback)
+            return cold_user_rec.get_recommendations(user_id)
         else:
             return recommend(self.pipeline, user_id, n=smores.Smores.state.slate_size)
 
@@ -220,6 +256,7 @@ class RecommenderFactory():
 # Registering
 RecommenderFactory.register('item_knn', ItemKnnRecommender)
 RecommenderFactory.register('popular', PopularRecommender)
+RecommenderFactory.register('fixed_recommender', FixedItemRecommender)
 
 
 # Exceptions

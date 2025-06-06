@@ -15,7 +15,7 @@ class ProviderInfo (BaseModel):
 
 class Provider:
     def __init__(self):
-        self.id = None
+        self.id = -1
         self.history: UtilityHistory = None
         self.utility_model: ProviderUtilityModel = None
         self.recommenders = None
@@ -24,6 +24,7 @@ class Provider:
         return f'<Provider {self.id}>'
 
     def setup(self, config_type: ProviderTypeConfig, config: ProviderInfo):
+        self.id = config.provider_id
         self.history = UtilityHistory()
         provider_models = smores.Smores.state.provider_models
 
@@ -42,18 +43,30 @@ class Provider:
 
 class ProviderCollection():
     def __init__(self):
-        self.collection: list[Provider] = []
+        self.collection: dict[int, Provider] = {}
         self.types: dict[str, ProviderTypeConfig] = {}
 
     def setup(self, config: list[ProviderTypeConfig]):
         for type_config in config:
             self.types[type_config.name] = type_config
 
-    def add_provider(self, prov: Provider):
-        self.collection.append(prov)
+    def add_provider(self, provider: Provider):
+        self.collection[provider.id] = provider
+
+    def get_provider(self, provider_id: int):
+        return self.collection[provider_id]
 
     def __iter__(self):
-        return self.collection.__iter__()
+        return iter(self.collection.values())
+    
+    def update_utility_list(self, consumer, recommender, item_list, time):
+        for provider in iter(self):
+            provider.update_utility_list(consumer, recommender, item_list, time)
+
+    def update_utility_item(self, consumer, recommender, item_id, time):
+        item = smores.Smores.state.items.get_item(item_id)
+        provider = self.get_provider(item.provider_id)
+        provider.update_utility_item(consumer, recommender, item_id, time)
     
     def load_providers(self, provider_data_path: Path):
         with open(provider_data_path, 'r') as consumer_file:
