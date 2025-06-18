@@ -1,7 +1,7 @@
 import pyarrow as pa
 from icecream import ic
 
-from lenskit.data import DatasetBuilder, Dataset
+from lenskit.data import DatasetBuilder, Dataset, ItemList
 
 class InteractionHistory:
     INTERACTION_COLUMNS = ['user_id', 'item_id', 'rating', 'time']
@@ -29,6 +29,15 @@ class InteractionHistory:
             self.interaction_table = batch_table
         else:
             new_table = pa.concat_tables([self.interaction_table, batch_table])
+            self.interaction_table = new_table
+
+    # TODO: What is the table format? Is an item list OK?
+    def add_interactions_itemlist(self, interaction_items: ItemList):
+        interaction_table = interaction_items.to_arrow()
+        if self.interaction_table is None:
+            self.interaction_table = interaction_table
+        else:
+            new_table = pa.concat_tables(self.interaction_table, interaction_table)
             self.interaction_table = new_table
     
 

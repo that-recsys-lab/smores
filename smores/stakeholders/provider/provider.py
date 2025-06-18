@@ -34,11 +34,11 @@ class Provider:
 
     def update_utility_item(self, consumer, recommender, item, time):
         utility_value = self.utility_model.compute_item_utility(consumer, item)
-        self.history.add_entry(time, recommender, utility_value)
+        self.history.add_entry(item, time, recommender, utility_value)
 
     def update_utility_list(self, consumer, recommender, item_list, time):
         utility_value = self.utility_model.compute_list_utility(consumer, item_list)
-        self.history.add_entry(time, recommender, utility_value)
+        self.history.add_list_entry(time, recommender, utility_value)
 
 
 class ProviderCollection():

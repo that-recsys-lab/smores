@@ -63,6 +63,12 @@ class SmoresTestCase(unittest.TestCase):
         self.assertIsInstance(trigger_coll.get_triggers('cycle')[0], InitialBurnInTrigger)
         self.assertEqual(len(trigger_coll.get_triggers('day')), 0)
 
+    def test_run_cycles(self):
+        self.smores.setup()
+        self.smores.train_recommenders()
+        self.smores.run_cycles()   
+        self.assertEqual(self.smores.state.current_time(),4)
+
     def test_run_consumer_day(self):
         self.smores.setup()
         self.smores.train_recommenders()
@@ -80,11 +86,6 @@ class SmoresTestCase(unittest.TestCase):
         self.smores.run_cycle()
         self.assertEqual(self.smores.state.current_time(),2)
 
-    def test_run_cycles(self):
-        self.smores.setup()
-        self.smores.train_recommenders()
-        self.smores.run_cycles()   
-        self.assertEqual(self.smores.state.current_time(),4)
                          
 if __name__ == '__main__':
     unittest.main()

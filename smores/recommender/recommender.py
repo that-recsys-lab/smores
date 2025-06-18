@@ -37,6 +37,7 @@ class Recommender(ABC):
                     self.cold_start_fallback = params['cold_start_fallback']
                 if 'cold_user_fallback' in params: 
                     self.cold_user_fallback = params['cold_user_fallback']
+        self.name = config.name
         self.dataset = self.setup_dataset()
 
     def setup_dataset(self):
@@ -74,7 +75,25 @@ class Recommender(ABC):
     def update_dataset(self, interaction_list: list):
         hist = InteractionHistory()
         hist.add_interactions(interaction_list)
+        ic(interaction_list)
         self.dataset = hist.to_dataset(self.dataset)
+
+    def update_dataset_itemlist(self, interaction_list: ItemList):
+        hist = InteractionHistory()
+        hist.add_interactions_itemlist(interaction_list)
+        self.dataset = hist.to_dataset(self.dataset)
+
+    def get_user(self, user_id) -> ItemList | None:
+        return self.dataset.user_row(user_id)
+    
+    def delete_user(self, user_id):
+        builder = DatasetBuilder(self.dataset)
+        #schema = self.dataset.schema
+        
+        builder.filter_interactions('interaction', remove={'user_id': [user_id]})
+        self.dataset = builder.build()
+        
+    
 
 class FixedItemRecommender(Recommender):
     def __init__(self):

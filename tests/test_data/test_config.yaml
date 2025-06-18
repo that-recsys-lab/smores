@@ -105,10 +105,16 @@ recommender:
       class_name: fixed_recommender
 
 triggers:
-  - name: Cycle5Freeze
+  - name: "Cycle5Freeze"
     class_name: initial_burnin
     params:
       cycle_count: 5
+      repeating: False
       recommenders: ["Generic", "Popular Niche"]
-  - name: "Save Switch Events"
-    class_name: save_switch
+  - name: "Cold Start"
+    class_name: cold_start
+  - name: "User Ownership"
+    class_name: user_ownership
+  - name: "Universal Profile"
+    class_name: universal_profile
+    
