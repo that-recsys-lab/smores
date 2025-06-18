@@ -122,9 +122,6 @@ class UniversalProfileTrigger(InteractionBatchTrigger):
                 raise UnknownRecommenderError(name)
 
 
-            
-
-
 
 class TriggerFactory():
     """

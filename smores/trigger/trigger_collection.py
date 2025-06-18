@@ -20,4 +20,11 @@ class TriggerCollection():
     def get_iterator(self, trigger_type: str):
         return self.collection[trigger_type].__iter__()
     
+    def delete_trigger(self, name, trigger_type):
+        self.collection[trigger_type] = [trigger for trigger in self.collection[trigger_type] if trigger.name != name]
+
+    def clear_trigger_type(self, trigger_type):
+        self.collection[trigger_type] = []
+        
+    
     

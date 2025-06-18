@@ -30,8 +30,7 @@ class SwitchSaveInfoTrigger(SwitchTrigger):
         self.events: list[TriggerEvent] = []
 
     def setup(self, config):
-        # no parameters
-        pass
+        super().setup(config)
 
     def handle_event(self, event: TriggerEvent):
         self.events.append(event)
@@ -44,8 +43,7 @@ class ProfileUserOwnershipTrigger(SwitchTrigger):
         super().__init__()
 
     def setup(self, config):
-        # no parameters
-        pass
+        super().setup(config)
 
     def handle_event(self, event: SwitchEvent):
         from_rec: Recommender = Recommender.name2recommender(event.from_rec)
@@ -65,8 +63,7 @@ class ProfileColdStartTrigger(SwitchTrigger):
         super().__init__()
 
     def setup(self, config):
-        # no parameters
-        pass
+        super().setup(config)
 
     def handle_event(self, event: SwitchEvent):
         from_rec: Recommender = Recommender.name2recommender(event.from_rec)

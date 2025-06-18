@@ -56,7 +56,20 @@ class TestTrigger(unittest.TestCase):
         trigger_coll = TriggerCollection()
         trigger_coll.setup(self.config.triggers)
         self.assertEqual(len(trigger_coll.collection['cycle']), 1)
-                        
+
+    def test_trigger_del(self):
+        trigger_coll = TriggerCollection()
+        trigger_coll.setup(self.config.triggers)
+        self.assertEqual(len(trigger_coll.collection['switch']), 2)
+        trigger_coll.delete_trigger('Cold Start', 'switch')
+        self.assertEqual(len(trigger_coll.collection['switch']), 1)
+
+    def test_trigger_clear(self):
+        trigger_coll = TriggerCollection()
+        trigger_coll.setup(self.config.triggers)
+        self.assertEqual(len(trigger_coll.collection['switch']), 2)
+        trigger_coll.clear_trigger_type('switch')
+        self.assertEqual(len(trigger_coll.collection['switch']), 0)
 
 if __name__ == '__main__':
     unittest.main()

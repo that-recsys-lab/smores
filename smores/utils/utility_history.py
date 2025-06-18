@@ -23,11 +23,11 @@ class UtilityHistory():
         return [entry for entry in self.collection if entry.recommender == recommender]
 
     def add_entry(self, item_id, time, recommender, utility):
-        entry = UtilityHistoryEntry(time, item_id, recommender, utility)
+        entry = UtilityHistoryEntry(item_id, time, recommender, utility)
         self.collection.append(entry)
 
     def add_list_entry(self, time, recommender, utility):
-        entry = UtilityHistoryEntry(time, UtilityHistoryEntry.LIST_ENTRY, recommender, utility)
+        entry = UtilityHistoryEntry(UtilityHistoryEntry.LIST_ENTRY, time, recommender, utility)
         self.collection.append(entry)
 
     def contains_item(self, item_id):
