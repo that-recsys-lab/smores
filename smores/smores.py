@@ -1,14 +1,15 @@
 import numpy as np
 from icecream import ic
 from pathlib import Path
+from collections import defaultdict
 
 from lenskit.data.items import ItemList
 
 from smores.stakeholders.consumer import ConsumerModelComponents, ConsumerCollection, Consumer, ItemSelectionModel
 from smores.stakeholders.provider import ProviderModelComponents, ProviderCollection
 from smores.item import ItemMap
-from smores.recommender import RecommenderMap
-from smores.trigger import TriggerCollection, DayEvent, CycleEvent, SwitchEvent
+from smores.recommender import Recommender, RecommenderMap
+from smores.trigger import TriggerCollection, DayEvent, CycleEvent, SwitchEvent, InteractionBatchEvent
 from smores.utils import SmoresConfig
 
 class Smores:
@@ -127,6 +128,23 @@ class Smores:
             recommender = Smores.state.recommenders_available.get_recommender(rec_name)
             recommender.train()
 
+    # Interaction format: (consumer.id, selected_id, consumer.recommender.name, rating, Smores.state.current_time)
+    def process_interactions(self, interactions: list):
+        interaction_dict = defaultdict(list)
+        for (user_id, item_id, rec_name, rating, time) in interactions:
+            if rating is not None:
+                interaction_dict[rec_name].append((user_id, int(item_id), rating, time))
+        
+        for rec_name in interaction_dict.keys():
+            rec: Recommender = Recommender.name2recommender(rec_name)
+            rec.update_dataset(interaction_dict[rec_name])
+
+        # Run interaction triggers
+        for trigger in Smores.state.triggers.get_iterator('interactions'):
+            event = InteractionBatchEvent(interaction_dict)
+            trigger.apply_trigger(event)
+
+
     def run_day(self):
         # Run consumer actions
         interactions = []
@@ -134,6 +152,8 @@ class Smores:
             interaction = self.run_consumer_day(consumer)
             if interaction is not None:
                 interactions.append(interaction)
+
+        self.process_interactions(interactions)
         
         # Run day triggers
         for trigger in Smores.state.triggers.get_iterator('day'):
@@ -172,9 +192,9 @@ class Smores:
 
         # construct the interaction and return
         if ItemSelectionModel.is_empty_selection(result):
-            interaction = (consumer.id, None, consumer.recommender.name, 0, time)
+            interaction = (consumer.id, None, consumer.recommender.name, None, time)
         else:
-            interaction = (consumer.id, selected_id, consumer.recommender.name, 1, Smores.state.current_time)
+            interaction = (consumer.id, selected_id, consumer.recommender.name, 1, Smores.state.current_time())
         return interaction
 
     def cycle_actions(self):

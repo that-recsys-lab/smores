@@ -37,8 +37,9 @@ class Recommender(ABC):
                     self.cold_start_fallback = params['cold_start_fallback']
                 if 'cold_user_fallback' in params: 
                     self.cold_user_fallback = params['cold_user_fallback']
+        self.name = config.name
         self.dataset = self.setup_dataset()
-
+    
     def setup_dataset(self):
         builder = DatasetBuilder(None)
         builder.add_entity_class('user')
@@ -75,6 +76,35 @@ class Recommender(ABC):
         hist = InteractionHistory()
         hist.add_interactions(interaction_list)
         self.dataset = hist.to_dataset(self.dataset)
+        self.update_fallback(self.cold_start_fallback, interaction_list)
+        self.update_fallback(self.cold_user_fallback, interaction_list)
+
+    def update_fallback(self, fallback_name, interaction_list: list):
+        if fallback_name is not None:
+            cold_rec = smores.Smores.state.recommenders_available.get_recommender(fallback_name)
+            cold_rec.update_dataset(interaction_list)
+
+    def update_fallback_itemlist(self, fallback_name, interaction_list: ItemList):
+        if fallback_name is not None:
+            cold_rec = smores.Smores.state.recommenders_available.get_recommender(fallback_name)
+            cold_rec.update_dataset_itemlist(interaction_list)
+
+    def update_dataset_itemlist(self, interaction_list: ItemList):
+        hist = InteractionHistory()
+        hist.add_interactions_itemlist(interaction_list)
+        self.dataset = hist.to_dataset(self.dataset)
+        self.update_fallback_itemlist(self.cold_start_fallback, interaction_list)
+        self.update_fallback_itemlist(self.cold_user_fallback, interaction_list)
+
+    def get_user(self, user_id) -> ItemList | None:
+        return self.dataset.user_row(user_id)
+    
+    def delete_user(self, user_id):
+        builder = DatasetBuilder(self.dataset)
+        builder.filter_interactions('interaction', remove={'user_id': [user_id]})
+        self.dataset = builder.build()
+        
+    
 
 class FixedItemRecommender(Recommender):
     def __init__(self):

@@ -34,4 +34,9 @@ class RecommenderMap:
 
     def items(self):
         return self._rec_map.items()
-    
+
+
+class UnknownRecommenderError(Exception):
+    def __init__(self, name):
+        self.message = f'Recommender {name} is not part of this collection.'
+        super().__init__(self.message) 

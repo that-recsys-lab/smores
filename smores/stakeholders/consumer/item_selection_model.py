@@ -84,8 +84,14 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
         category_similarities = []
 
         # Calculate utility for each item based on category similarity
+        # item_id, score
         item_tuples = itemList2rankedTuples(item_list)
-        for id, score in item_tuples:
+        # remove items that the user has selected previously
+        # TODO: Maybe this should be a configurable aspect?
+        item_tuples_filtered = [item_tuple for item_tuple in item_tuples \
+                                 if consumer.history.contains_item(item_tuple[0])]
+
+        for id, score in item_tuples_filtered:
             item = smores.Smores.state.items.get_item(id)
             if consumer.preference_vector is not None:
                 similarity = np.dot(item.features, consumer.preference_vector)

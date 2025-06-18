@@ -2,9 +2,10 @@ from abc import ABC, abstractmethod
 from numpy.linalg import norm
 from numpy import dot, average
 from distutils.util import strtobool
+from collections import defaultdict
 
 import smores
-from smores.recommender import Recommender
+from smores.recommender import Recommender, UnknownRecommenderError
 # would like to import but circular issue needs to be resolved
 #from smores.stakeholders.consumer import Consumer
 
@@ -24,12 +25,11 @@ class DayEvent(TriggerEvent):
         self.day_count = day_count
         self.time = time
 
-class SwitchEvent(TriggerEvent):
-    def __init__(self, consumer, next_rec_name):
-        super().__init__('switch')
-        self.consumer = consumer.id
-        self.from_rec = consumer.recommender.name
-        self.next_rec = next_rec_name
+class InteractionBatchEvent(TriggerEvent):
+    def __init__(self, interaction_dict):
+        super().__init__('interaction')
+        self.interaction_dict = interaction_dict
+
 
 class Trigger (ABC):
     '''
@@ -80,34 +80,47 @@ class InitialBurnInTrigger(CycleTrigger):
         super().setup(config)
         self.recommenders_to_activate = config.params['recommenders']
 
-
     def handle_event(self, event):
         # activate listed recommenders
         for name in self.recommenders_to_activate:
             rec = Recommender.name2recommender(name)
-            smores.Smores.state.recommenders_active.set_recommender(name, rec)
+            if rec is not None:
+                smores.Smores.state.recommenders_active.append(name)
+            else:
+                raise UnknownRecommenderError(name)
 
-class SwitchTrigger(Trigger):
+
+class InteractionBatchTrigger(Trigger):
     def __init__(self):
-        super().__init__('switch')
+        super().__init__('interaction')
 
     def setup(self, config):
         self.name = config.name
 
-    def accept_event(self, event: SwitchEvent):
+class UniversalProfileTrigger(InteractionBatchTrigger):
+    def accept_event(self, event: InteractionBatchEvent):
         return True
-    
-class SwitchSaveInfoTrigger(SwitchTrigger):
-    def __init__(self):
-        super().__init__()
-        self.events: list[TriggerEvent] = []
 
-    def setup(self, config):
-        # no parameters
-        pass
+    # Should update all recommenders with the interaction, except the
+    # recommender that the user is connected to. (That one gets updated
+    # by default). Assemble in batches because that's more efficient for
+    # dataset building.
+    def handle_event(self, event: InteractionBatchEvent):
+        other_interaction_dict = defaultdict(list)
 
-    def handle_event(self, event: TriggerEvent):
-        self.events.append(event)
+        for name, recommender in smores.Smores.state.recommenders_available.items():
+            for other_name, other_rec in smores.Smores.state.recommenders_available.items():
+                rec_interactions = event.interaction_dict[name]
+                if other_name != name:
+                    other_interaction_dict[other_name] = other_interaction_dict[other_name] + rec_interactions
+
+        for name, interactions in other_interaction_dict.items():
+            rec = Recommender.name2recommender(name)
+            if rec is not None:
+                rec.update_interactions(interactions)
+            else:
+                raise UnknownRecommenderError(name)
+
 
 
 class TriggerFactory():
@@ -153,4 +166,4 @@ class UnregisteredTriggerError(Exception):
 
 
 TriggerFactory.register('initial_burnin', InitialBurnInTrigger)
-TriggerFactory.register('save_switch', SwitchSaveInfoTrigger)
+TriggerFactory.register('universal_profile', UniversalProfileTrigger)

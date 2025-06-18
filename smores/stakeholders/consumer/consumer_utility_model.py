@@ -66,7 +66,7 @@ class ConsumerPrefCosineUtilityModel (ConsumerUtilityModel):
 class ConsumerPrefCosineAvgUtilityModel (ConsumerPrefCosineUtilityModel):
 
     def compute_list_utility(self, consumer, item_list: ItemList):
-        if item_list.size() == 0:
+        if len(item_list) == 0:
             return 0.0
         else:
             return average(self.compute_item_utilities(consumer, item_list))
