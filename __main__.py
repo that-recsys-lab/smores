@@ -2,7 +2,7 @@ import argparse
 import os
 import yaml
 from smores import Smores
-from smores.config import SmoresConfig
+from smores.utils import SmoresConfig
 
 def read_args():
     parser = argparse.ArgumentParser(
