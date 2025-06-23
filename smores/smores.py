@@ -8,7 +8,7 @@ from smores.stakeholders.consumer import ConsumerModelComponents, ConsumerCollec
 from smores.stakeholders.provider import ProviderModelComponents, ProviderCollection
 from smores.item import ItemMap
 from smores.recommender import RecommenderMap
-from smores.trigger import TriggerCollection, DayEvent, CycleEvent, SwitchEvent
+from smores.trigger import TriggerCollection, DayEvent, CycleEvent, SwitchEvent, ProfilePortabilityEvent
 from smores.utils import SmoresConfig
 
 class Smores:
@@ -192,15 +192,25 @@ class Smores:
             if consumer.recommender is not None:
                 rec_name = consumer.recommender.name
                 next_rec_name = consumer.recommender_choice_model.choose_recommender()
+                
                 if next_rec_name in Smores.state.recommenders_active:
-                    consumer.recommender = Smores.state.recommenders_available.get_recommender(rec_name)
-                                    
+                    # Get the new recommender
+                    new_recommender = Smores.state.recommenders_available.get_recommender(next_rec_name)
+                    
+                    # Update the consumer's recommender
+                    consumer.recommender = new_recommender
+                    
+                    # Trigger switch event
                     for trigger in Smores.state.triggers.get_iterator('switch'):
                         event = SwitchEvent(consumer, next_rec_name)
                         trigger.apply_trigger(event)
+                    
+                    # Trigger profile portability event
+                    for trigger in Smores.state.triggers.get_iterator('profile_portability'):
+                        event = ProfilePortabilityEvent(consumer.id, next_rec_name, Smores.state.current_time())
+                        trigger.apply_trigger(event)
                 else: 
                     raise RecommenderNotActiveException(consumer, next_rec_name)
-
 
     def cleanup(self):
         # Save files, etc.

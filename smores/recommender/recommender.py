@@ -224,6 +224,63 @@ class ItemKnnRecommender(LKRecommender):
                 return False
             else:
                 return True
+class PopularFallbackRecommender(PopularRecommender):
+    """
+    A simplified version of the PopularRecommender specifically designed for cold start scenarios.
+    This recommender has no minimum requirements for users or interactions.
+    """
+    def __init__(self):
+        super().__init__()
+        self.name = "Popular Fallback"
+
+    def setup(self, config):
+        # Override parent setup to avoid parameter requirements
+        super().__init__()  # Call Recommender.__init__, not PopularRecommender.setup
+        
+        # Initialize with lenient defaults
+        self.min_user_count = 0  # Accept any number of users
+        self.min_interaction_count = 0  # Accept any number of interactions
+        
+        # Set up PopConfig and scorer
+        self.lk_config = PopConfig(score='count')
+        self.scorer = PopScorer(self.lk_config)
+        
+        # Call Recommender's setup to initialize dataset
+        Recommender.setup(self, config)
+        
+        # Build the pipeline
+        self.pipeline = self.build_pipeline()
+
+    def isDatasetViable(self):
+        # Always return True - this is a fallback
+        return True
+
+    def isProfileViable(self, user_id):
+        # Always return True - this is a fallback
+        return True
+        
+    def get_recommendations(self, user_id: ID) -> ItemList:
+        try:
+            # Try to use the normal pipeline
+            return recommend(self.pipeline, user_id, n=smores.Smores.state.slate_size)
+        except Exception as e:
+            # If anything fails, fall back to a simple approach
+            ic(f"Fallback recommender encountered error: {str(e)}")
+            
+            # Get all items
+            all_items = list(smores.Smores.state.items.all_items())
+            slate_size = smores.Smores.state.slate_size
+            
+            # If no items, return empty list
+            if not all_items:
+                return ItemList(None, item_ids=[], scores=[], rank=[])
+            
+            # Take first slate_size items
+            recs = all_items[:slate_size] if len(all_items) >= slate_size else all_items
+            scores = [5.0] * len(recs)
+            ranks = list(range(1, len(recs)+1))
+            
+            return ItemList(None, item_ids=recs, scores=scores, rank=ranks)
 
 
 class RecommenderFactory():
@@ -256,7 +313,8 @@ class RecommenderFactory():
 # Registering
 RecommenderFactory.register('item_knn', ItemKnnRecommender)
 RecommenderFactory.register('popular', PopularRecommender)
-RecommenderFactory.register('fixed_recommender', FixedItemRecommender)
+RecommenderFactory.register('popular_fallback', PopularFallbackRecommender)
+RecommenderFactory.register('fixed_recommender', FixedItemRecommender) 
 
 
 # Exceptions

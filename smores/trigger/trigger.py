@@ -136,7 +136,28 @@ class TriggerFactory():
         if provider_class is None:
             raise UnregisteredTriggerError(type_name)
         return provider_class()
+        
+class ProfilePortabilityEvent(TriggerEvent):
+    def __init__(self, consumer_id, new_recommender, time):
+        super().__init__('profile_portability')
+        self.consumer_id = consumer_id
+        self.new_recommender = new_recommender
+        self.time = time
 
+class ProfilePortabilityTrigger(Trigger):
+    def __init__(self):
+        super().__init__('profile_portability')
+        
+    def setup(self, config):
+        self.name = config.name
+        # Optional: extract any parameters from config if needed
+        
+    def accept_event(self, event: TriggerEvent):
+        return isinstance(event, ProfilePortabilityEvent)
+    
+    def handle_event(self, event: ProfilePortabilityEvent):
+        # use for specific cases like the transfer user interactions
+        pass
 
 
 # Exceptions
@@ -154,3 +175,4 @@ class UnregisteredTriggerError(Exception):
 
 TriggerFactory.register('initial_burnin', InitialBurnInTrigger)
 TriggerFactory.register('save_switch', SwitchSaveInfoTrigger)
+TriggerFactory.register('profile_portability', ProfilePortabilityTrigger)

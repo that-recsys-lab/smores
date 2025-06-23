@@ -76,7 +76,7 @@ recommender:
         cold_user_fallback: "Popular Fallback"
 
     - name: "Popular Fallback"
-      class_name: popular
+      class_name: popular_fallback
       params:
           min_user_count: 20
           min_interaction_count: 500
@@ -88,6 +88,9 @@ recommender:
           min_interaction_count: 500
 
 triggers:
+  - name: "ProfilePortability"
+    class_name: "profile_portability"
+    params: {}
   - name: Cycle5Freeze
     class_name: initial_burnin
     params:
