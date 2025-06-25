@@ -18,6 +18,7 @@ class ConsumerModelComponents:
             
         for class_config in config.item_selection:
             ism_object = ItemSelectionModelFactory.create(class_config.class_name)
+            ism_object.setup(class_config.params)
             self.item_selection_models[class_config.name] = ism_object
 
     def get_utility_model(self, name: str):

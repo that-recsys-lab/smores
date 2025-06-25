@@ -160,6 +160,8 @@ class Smores:
             event = DayEvent(self.state.day_count, self.state.current_time())
             trigger.apply_trigger(event)
 
+        self.output_day_log()
+
     def run_consumer_day(self, consumer: Consumer):
         state = Smores.state
         time = state.current_time()
@@ -182,7 +184,9 @@ class Smores:
         # Update item utility for item provider
         if not ItemSelectionModel.is_empty_selection(result):
             (selected_id, score) = result
-            state.providers.update_utility_item(consumer, consumer.recommender, selected_id, time)   
+            state.providers.update_utility_item(consumer, consumer.recommender, selected_id, time)
+
+        # Add consumer utility update
 
         # Update recommender choice model
         if consumer.recommender_choice_model is not None:
