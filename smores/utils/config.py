@@ -14,6 +14,13 @@ class DataConfig(BaseModel):
     item_file: str
     provider_file: str
 
+class LoggerConfig(BaseModel):
+    directory: str
+    consumer_file: str
+    provider_file: str
+    debug_file: str
+    debug_level: str
+
 class PythonClassConfig(BaseModel):
     name: Optional[str] = None
     class_name: str
@@ -56,6 +63,7 @@ class RecommenderConfig(BaseModel):
 class SmoresConfig(BaseModel):
     simulation: SimulationConfig
     data: DataConfig
+    output: LoggerConfig
     consumer: ConsumerConfig
     provider: ProviderConfig
     platform: PlatformConfig
