@@ -6,6 +6,7 @@ from lenskit.data.items import ItemList
 from smores.item import Item, ItemCollection
 # would like to import but circular issue needs to be resolved
 #from .consumer import Consumer
+import smores
 
 class ConsumerUtilityModel (ABC):
     '''
@@ -19,11 +20,11 @@ class ConsumerUtilityModel (ABC):
         pass
 
     @abstractmethod
-    def compute_item_utility (self, consumer, item: Item) -> float:
+    def compute_item_utility (self, consumer, item_id: int) -> float:
         pass
 
     def compute_item_utilities (self, consumer, item_list: ItemList) -> list[float]:
-        utils = [self.compute_item_utility(consumer, item) for item in item_list]
+        utils = [self.compute_item_utility(consumer, item) for item in item_list.ids()]
         return utils
 
     @abstractmethod
@@ -48,9 +49,10 @@ class ConsumerPrefCosineUtilityModel (ConsumerUtilityModel):
         # No configuration information for this model
         pass
 
-    def compute_item_utility(self, consumer, item: Item) -> float:
+    def compute_item_utility(self, consumer, item_id: int) -> float:
         
         pref_vector = consumer.preference_vector
+        item = smores.Smores.state.items.get_item(item_id)
         item_vector = item.features
         norm_pref = norm(pref_vector)
         norm_item = norm(item_vector)
