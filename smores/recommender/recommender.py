@@ -90,11 +90,12 @@ class Recommender(ABC):
             cold_rec.update_dataset_itemlist(interaction_list)
 
     def update_dataset_itemlist(self, interaction_list: ItemList):
-        hist = InteractionHistory()
-        hist.add_interactions_itemlist(interaction_list)
-        self.dataset = hist.to_dataset(self.dataset)
-        self.update_fallback_itemlist(self.cold_start_fallback, interaction_list)
-        self.update_fallback_itemlist(self.cold_user_fallback, interaction_list)
+        if len(interaction_list) > 0:
+            hist = InteractionHistory()
+            hist.add_interactions_itemlist(interaction_list)
+            self.dataset = hist.to_dataset(self.dataset)
+            self.update_fallback_itemlist(self.cold_start_fallback, interaction_list)
+            self.update_fallback_itemlist(self.cold_user_fallback, interaction_list)
 
     def get_user(self, user_id) -> ItemList | None:
         return self.dataset.user_row(user_id)

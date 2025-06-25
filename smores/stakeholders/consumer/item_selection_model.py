@@ -66,8 +66,8 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
         Args:
             config: Configuration object with parameters for the model.
         """
-        self.threshold = config.params['threshold']
-        self.selection_utility = config.params['selection_utility']
+        self.threshold = config['threshold']
+        self.selection_utility = config['selection_utility']
 
     def select_item(self, consumer: "Consumer", item_list: ItemList):
         """
