@@ -45,8 +45,11 @@ if __name__ == "__main__":
     if config == None:
         exit(-1)
 
+    print("Configuration loaded successfully.")
     smores = Smores(config)
 
+    print("Running SMORES...")
     smores.run_experiment()
 
+    print("SMORES experiment completed successfully.")
     exit(0)

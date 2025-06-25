@@ -1,0 +1,123 @@
+# SMORES ml-1m test configuration
+
+simulation:
+    experiment_name: ml_1m_test_experiment
+    num_days: 3
+    num_cycles: 3
+    slate_size: 5
+    seed: 20250513
+
+data:
+  directory: tests/ml_1m_test/data
+  consumer_file: consumers.csv
+  item_file: items.csv
+  provider_file: providers.csv
+
+  initial_recommender_assignment:
+    class_name: fixed
+    name: Generic
+
+consumer:
+  initial_recommender: "Generic"
+  models:
+      utility:
+        - name: "Fixed utility 0.5"
+          class_name: fixed_utility
+          params:
+            value: 0.5
+        - name: "Fixed utility 0.3"
+          class_name: fixed_utility
+          params:
+            value: 0.3
+      item_selection:
+        - name: "Category Similarity"
+          class_name: category_similarity_logit
+          params:
+            threshold: 0.3     
+            selection_utility: 1.0 
+  types:
+    - name: "Generic"
+      utility_model: "Fixed utility 0.5"
+      item_selection_model: "Category Similarity"
+      recommender_choice_model:
+        class_name: fixed
+        params:
+          recommender_name: Generic
+
+    - name: "Niche"
+      utility_model: "Fixed utility 0.3"
+      item_selection_model: "Category Similarity"
+      recommender_choice_model:
+        class_name: fixed
+        params:
+          recommender_name: Generic
+
+
+provider:
+  initial_recommender: "__all__" 
+  models:
+    utility:
+      - name: "Click Fixed 1.0"
+        class_name: click_fixed
+        params:
+          value: 1.0
+      - name: "Click Fixed 1.5"
+        class_name: click_fixed
+        params:
+          value: 1.5
+
+  types:
+    - name: "Generic"
+      utility_model: "Click Fixed 1.0"
+
+    - name: "Niche"
+      utility_model: "Click Fixed 1.5"
+
+platform:
+  utility_model:
+    class_name: null_model
+
+recommender:
+  initial: ["Generic"]
+  definitions:
+    - name: "Generic"
+      class_name: item_knn
+      params:
+        max_neighbors: 20
+        min_neighbors: 2
+        min_similarity: 0.0001
+        min_user_count: 20
+        min_interaction_count: 500
+        min_profile_size: 5
+        cold_user_fallback: "Popular Fallback"
+        cold_start_fallback: "Dummy Fixed"
+
+    - name: "Popular Fallback"
+      class_name: popular
+      params:
+          min_user_count: 20
+          min_interaction_count: 500
+
+    - name: "Popular Niche"
+      class_name: popular
+      params:
+          min_user_count: 20
+          min_interaction_count: 500
+
+    - name: "Dummy Fixed"
+      class_name: fixed_recommender
+
+triggers:
+  - name: "Cycle5Freeze"
+    class_name: initial_burnin
+    params:
+      cycle_count: 5
+      repeating: False
+      recommenders: ["Generic", "Popular Niche"]
+  - name: "Cold Start"
+    class_name: cold_start
+  - name: "User Ownership"
+    class_name: user_ownership
+  - name: "Universal Profile"
+    class_name: universal_profile
+    

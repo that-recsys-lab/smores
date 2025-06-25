@@ -21,6 +21,7 @@ docs/*
 /.virtual_documents
 structure.md
 notebooks/*
+tests/ml_1m_test/data/ml-1m
 
 # files
 paper-viz-3.0.ipynb
@@ -214,3 +215,5 @@ cython_debug/
 .DS_Store
 .idea/csv-plugin.xml
 /.vscode
+
+#
