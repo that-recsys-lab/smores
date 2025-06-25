@@ -20,7 +20,8 @@ class ItemSelectionModel(ABC):
     Item selection models are responsible for selecting an item from a slate
     based on consumer preferences and other factors.
     """
-    EMPTY_OUTPUT = (-1, -1.0)
+    NO_ITEM_SELECTED = -1
+    EMPTY_OUTPUT = (NO_ITEM_SELECTED, -1.0)
     
     @abstractmethod
     def setup(self, config):

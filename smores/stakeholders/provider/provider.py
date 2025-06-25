@@ -3,8 +3,8 @@ from pydantic import BaseModel, PositiveInt
 from csv import DictReader
 from pathlib import Path
 
-from smores.utils import UtilityHistory, ProviderTypeConfig
-from .provider_utility_model import ProviderUtilityModel, ProviderUtilityModelFactory
+from smores.utils import UtilityHistory, ProviderTypeConfig, ProviderUtility
+from .provider_utility_model import ProviderUtilityModel
 import smores
 
 
@@ -35,10 +35,14 @@ class Provider:
     def update_utility_item(self, consumer, recommender, item, time):
         utility_value = self.utility_model.compute_item_utility(consumer, item)
         self.history.add_entry(item, time, recommender, utility_value)
+        if utility_value > 0:
+            smores.Smores.state.logger.log_provider(ProviderUtility(self.id, recommender.name, utility_value))
 
     def update_utility_list(self, consumer, recommender, item_list, time):
         utility_value = self.utility_model.compute_list_utility(consumer, item_list)
         self.history.add_list_entry(time, recommender, utility_value)
+        if utility_value > 0:
+            smores.Smores.state.logger.log_provider(ProviderUtility(self.id, recommender.name, utility_value))
 
 
 class ProviderCollection():
@@ -53,7 +57,7 @@ class ProviderCollection():
     def add_provider(self, provider: Provider):
         self.collection[provider.id] = provider
 
-    def get_provider(self, provider_id: int):
+    def get_provider(self, provider_id: PositiveInt):
         return self.collection[provider_id]
 
     def __iter__(self):

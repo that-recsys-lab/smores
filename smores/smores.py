@@ -10,7 +10,7 @@ from smores.stakeholders.provider import ProviderModelComponents, ProviderCollec
 from smores.item import ItemMap
 from smores.recommender import Recommender, RecommenderMap
 from smores.trigger import TriggerCollection, DayEvent, CycleEvent, SwitchEvent, InteractionBatchEvent
-from smores.utils import SmoresConfig
+from smores.utils import SmoresConfig, SmoresLogger, ConsumerUtility, ProviderUtility
 
 class Smores:
 
@@ -28,11 +28,14 @@ class Smores:
 
             self.slate_size: int  = config.simulation.slate_size
 
-            # paths
+            # input
             self.data_directory: Path = Path(config.data.directory)
             self.consumer_file: Path = self.data_directory / config.data.consumer_file
             self.item_file: Path = self.data_directory / config.data.item_file
             self.provider_file: Path = self.data_directory / config.data.provider_file
+
+            # output
+            self.logger = SmoresLogger(config.output)
 
             # init consumer collection
             self.consumer_models: ConsumerModelComponents = ConsumerModelComponents()
@@ -65,6 +68,9 @@ class Smores:
         state = Smores.state
         config = state.config
 
+        # Setup log
+        state.logger.setup(config.output)
+
         # Setup consumers
         state.consumer_models.setup(config.consumer.models)
         state.consumers.setup(config.consumer.types)
@@ -89,6 +95,7 @@ class Smores:
         self.setup_initial_recommenders()
 
         # Ignoring provider/recommender connections
+        self.state.logger.info('Completed setup')
         return
     
     def setup_initial_recommenders(self):
@@ -111,7 +118,9 @@ class Smores:
 
     def run_cycles(self):
         while self.state.cycle_count < self.state.cycle_limit:
+            self.state.logger.info(f'Started cycle {self.state.cycle_count}')
             self.run_cycle()
+            self.state.logger.info(f'Completed cycle {self.state.cycle_count}')
             self.state.day_count = 0
             self.state.cycle_count += 1
 
@@ -119,7 +128,9 @@ class Smores:
         self.train_recommenders()
 
         while self.state.day_count < self.state.day_limit:
+            self.state.logger.info(f'  Started day {self.state.day_count}')
             self.run_day()
+            self.state.logger.info(f'  Completed day {self.state.day_count}')
             self.state.day_count += 1
         self.cycle_actions()
 
@@ -127,12 +138,13 @@ class Smores:
         for rec_name in Smores.state.recommenders_active:
             recommender = Smores.state.recommenders_available.get_recommender(rec_name)
             recommender.train()
+        self.state.logger.info(f'  Completed recommender training')
 
     # Interaction format: (consumer.id, selected_id, consumer.recommender.name, rating, Smores.state.current_time)
     def process_interactions(self, interactions: list):
         interaction_dict = defaultdict(list)
         for (user_id, item_id, rec_name, rating, time) in interactions:
-            if rating is not None:
+            if rating is not None and item_id != ItemSelectionModel.NO_ITEM_SELECTED:
                 interaction_dict[rec_name].append((user_id, int(item_id), rating, time))
         
         for rec_name in interaction_dict.keys():
@@ -143,7 +155,7 @@ class Smores:
         for trigger in Smores.state.triggers.get_iterator('interactions'):
             event = InteractionBatchEvent(interaction_dict)
             trigger.apply_trigger(event)
-
+        
 
     def run_day(self):
         # Run consumer actions
@@ -159,8 +171,6 @@ class Smores:
         for trigger in Smores.state.triggers.get_iterator('day'):
             event = DayEvent(self.state.day_count, self.state.current_time())
             trigger.apply_trigger(event)
-
-        self.output_day_log()
 
     def run_consumer_day(self, consumer: Consumer):
         state = Smores.state
@@ -186,13 +196,20 @@ class Smores:
             (selected_id, score) = result
             state.providers.update_utility_item(consumer, consumer.recommender, selected_id, time)
 
-        # Add consumer utility update
-
         # Update recommender choice model
         if consumer.recommender_choice_model is not None:
-            consumer.recommender_choice_model.update_recommender_utility(consumer.recommender.name, time, recs)
+            if ItemSelectionModel.is_empty_selection(result):
+                selected_id = result[0]
+            else:
+                selected_id = ItemSelectionModel.NO_ITEM_SELECTED
+            interaction_utility, recommender_utility = \
+                consumer.recommender_choice_model.update_recommender_utility(consumer.recommender.name, time, selected_id, recs)
         else:
             raise RecommenderChoiceUnassignedException(consumer)
+        
+        # log the consumer utility
+        Smores.state.logger.log_consumer(ConsumerUtility(consumer.id, consumer.recommender.name, interaction_utility,
+                                                         recommender_utility))
 
         # construct the interaction and return
         if ItemSelectionModel.is_empty_selection(result):
@@ -227,8 +244,7 @@ class Smores:
 
 
     def cleanup(self):
-        # Save files, etc.
-        pass
+        self.state.logger.cleanup()
 
 # Exceptions
 class InactiveInitialRecommenderException(Exception):

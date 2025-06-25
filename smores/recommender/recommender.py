@@ -112,7 +112,8 @@ class FixedItemRecommender(Recommender):
         super().__init__()
 
     def setup(self, config):
-        pass
+        self.name = config.name
+        self.dataset = self.setup_dataset()
 
     def isDatasetViable(self):
         return True
@@ -124,9 +125,14 @@ class FixedItemRecommender(Recommender):
         pass
     
     def get_recommendations(self, user_id) -> ItemList:
-        recs = list(smores.Smores.state.items.all_items())[0:smores.Smores.state.slate_size]
-        scores = [5.0] * smores.Smores.state.slate_size
-        ranks = list(range(1, smores.Smores.state.slate_size+1))
+        prior_interactions = self.get_user(user_id)
+        if prior_interactions is not None and len(prior_interactions) > 0:
+            rec_pool = [item for item in list(smores.Smores.state.items.all_items()) if item not in prior_interactions.ids()]
+        else:
+            rec_pool = list(smores.Smores.state.items.all_items())
+        recs = rec_pool[0:smores.Smores.state.slate_size]
+        scores = [5.0] * len(recs)
+        ranks = list(range(1, len(recs)+1))
         item_list = ItemList(None, item_ids=recs, scores=scores, rank=ranks)
         return item_list
 
