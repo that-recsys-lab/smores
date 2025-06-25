@@ -6,6 +6,7 @@ from collections import defaultdict
 from lenskit.data.items import ItemList
 
 from smores.stakeholders.consumer import ConsumerModelComponents, ConsumerCollection, Consumer, ItemSelectionModel
+from smores.stakeholders.consumer.consumer_utility_model import ConsumerPrefCosineAvgUtilityModel
 from smores.stakeholders.provider import ProviderModelComponents, ProviderCollection
 from smores.item import ItemMap
 from smores.recommender import Recommender, RecommenderMap
@@ -37,6 +38,9 @@ class Smores:
             # init consumer collection
             self.consumer_models: ConsumerModelComponents = ConsumerModelComponents()
             self.consumers: ConsumerCollection = ConsumerCollection()
+            self.consumer_utility_model: ConsumerPrefCosineAvgUtilityModel = (
+                ConsumerPrefCosineAvgUtilityModel()
+            )
             # init provider collection
             self.provider_models: ProviderModelComponents = ProviderModelComponents()
             self.providers: ProviderCollection = ProviderCollection()
@@ -54,7 +58,6 @@ class Smores:
         # t = days in current cycle + number of cycles * days in cycle
         def current_time(self):
             return self.day_count + self.day_limit * self.cycle_count
-        
 
     state: SmoresState = None
 
@@ -90,7 +93,7 @@ class Smores:
 
         # Ignoring provider/recommender connections
         return
-    
+
     def setup_initial_recommenders(self):
         initial_rec_policy = Smores.state.config.consumer.initial_recommender
         if Smores.state.recommenders_available.is_recommender(initial_rec_policy):
@@ -102,7 +105,6 @@ class Smores:
                 raise InactiveInitialRecommenderException(initial_rec_policy)
         else:
             raise UnknownInitialRecommenderException(initial_rec_policy)
-
 
     def run_experiment(self):
         self.setup()
@@ -134,7 +136,7 @@ class Smores:
         for (user_id, item_id, rec_name, rating, time) in interactions:
             if rating is not None:
                 interaction_dict[rec_name].append((user_id, int(item_id), rating, time))
-        
+
         for rec_name in interaction_dict.keys():
             rec: Recommender = Recommender.name2recommender(rec_name)
             rec.update_dataset(interaction_dict[rec_name])
@@ -143,7 +145,6 @@ class Smores:
         for trigger in Smores.state.triggers.get_iterator('interactions'):
             event = InteractionBatchEvent(interaction_dict)
             trigger.apply_trigger(event)
-
 
     def run_day(self):
         # Run consumer actions
@@ -154,7 +155,7 @@ class Smores:
                 interactions.append(interaction)
 
         self.process_interactions(interactions)
-        
+
         # Run day triggers
         for trigger in Smores.state.triggers.get_iterator('day'):
             event = DayEvent(self.state.day_count, self.state.current_time())
@@ -169,7 +170,7 @@ class Smores:
             recs: ItemList = consumer.recommender.get_recommendations(consumer.id)
         else:
             raise RecommenderUnassignedException(consumer)
-        
+
         # Update list utility for providers
         state.providers.update_utility_list(consumer, consumer.recommender, recs, time)
 
@@ -178,7 +179,10 @@ class Smores:
             result = consumer.item_selection_model.select_item(consumer, recs)
         else:
             raise ItemSelectionUnassignedException(consumer)
-        
+
+        # Update utility for consumer
+        list_utility = state.consumer_utility_model.compute_list_utility(consumer, recs)
+
         # Update item utility for item provider
         if not ItemSelectionModel.is_empty_selection(result):
             (selected_id, score) = result
@@ -214,13 +218,12 @@ class Smores:
                 next_rec_name = consumer.recommender_choice_model.choose_recommender()
                 if next_rec_name in Smores.state.recommenders_active:
                     consumer.recommender = Smores.state.recommenders_available.get_recommender(rec_name)
-                                    
+
                     for trigger in Smores.state.triggers.get_iterator('switch'):
                         event = SwitchEvent(consumer, next_rec_name)
                         trigger.apply_trigger(event)
                 else: 
                     raise RecommenderNotActiveException(consumer, next_rec_name)
-
 
     def cleanup(self):
         # Save files, etc.

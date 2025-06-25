@@ -49,6 +49,7 @@ class ConsumerPrefCosineUtilityModel (ConsumerUtilityModel):
         pass
 
     def compute_item_utility(self, consumer, item: Item) -> float:
+        
         pref_vector = consumer.preference_vector
         item_vector = item.features
         norm_pref = norm(pref_vector)

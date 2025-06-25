@@ -88,9 +88,13 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
         item_tuples = itemList2rankedTuples(item_list)
         # remove items that the user has selected previously
         # TODO: Maybe this should be a configurable aspect?
-        item_tuples_filtered = [item_tuple for item_tuple in item_tuples \
-                                 if consumer.history.contains_item(item_tuple[0])]
 
+        item_tuples_filtered = [item_tuple for item_tuple in item_tuples \
+                                 if not consumer.history.contains_item(item_tuple[0])]
+        
+        if len(item_tuples_filtered) == 0:
+            return ItemSelectionModel.EMPTY_OUTPUT
+        
         for id, score in item_tuples_filtered:
             item = smores.Smores.state.items.get_item(id)
             if consumer.preference_vector is not None:
