@@ -69,7 +69,7 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
 
     def choose_recommender(self):
         max_ucb = 0
-        for recommender in Smores.state.recommenders_available:
+        for recommender in smores.Smores.state.recommenders_available:
             utility = self.recommender_utilities[recommender] 
             time = self.recommender_time[recommender]
             count = self.recommender_count[recommender]
