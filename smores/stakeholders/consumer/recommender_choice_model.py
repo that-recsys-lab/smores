@@ -45,10 +45,10 @@ class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
     def choose_recommender(self):
         current_utility = self.recommender_utilities[self.recommender_name] 
         if current_utility < self.threshold:
-            for recommender in smores.Smores.state.recommenders_available:
-                utility = self.recommender_utilities[recommender] 
+            for recommender_name, _ in smores.Smores.state.recommenders_available.items():
+                utility = self.recommender_utilities[recommender_name] 
                 if utility > current_utility:
-                    self.recommender_name = recommender
+                    self.recommender_name = recommender_name
                     current_utility = utility
         return self.recommender_name
     
@@ -69,13 +69,13 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
 
     def choose_recommender(self):
         max_ucb = 0
-        for recommender in smores.Smores.state.recommenders_available:
-            utility = self.recommender_utilities[recommender] 
-            time = self.recommender_time[recommender]
-            count = self.recommender_count[recommender]
+        for recommender_name, _ in smores.Smores.state.recommenders_available.items():
+            utility = self.recommender_utilities[recommender_name] 
+            time = self.recommender_time[recommender_name]
+            count = self.recommender_count[recommender_name]
             ucb = utility + np.sqrt(2*np.log(time)/count)/(1+time)
             if ucb > max_ucb:
-                self.recommender_name = recommender
+                self.recommender_name = recommender_name
                 max_ucb = ucb
         self.recommender_count[self.recommender_name] += 1
         return self.recommender_name
