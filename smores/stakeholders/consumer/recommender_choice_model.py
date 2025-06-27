@@ -2,7 +2,7 @@ import numpy as np
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
-from smores.smores import Smores
+import smores
 
 class RecommenderChoiceModel (ABC):
     '''
@@ -45,7 +45,7 @@ class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
     def choose_recommender(self):
         current_utility = self.recommender_utilities[self.recommender_name] 
         if current_utility < self.threshold:
-            for recommender in Smores.state.recommenders_available:
+            for recommender in smores.Smores.state.recommenders_available:
                 utility = self.recommender_utilities[recommender] 
                 if utility > current_utility:
                     self.recommender_name = recommender
