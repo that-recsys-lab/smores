@@ -9,13 +9,13 @@ simulation:
     seed: 20250513
 
 data:
-  directory: tests/test_data/
+  directory: ../smores_recsys_2025/data/mini/
   consumer_file: consumers.csv
   item_file: items.csv
   provider_file: providers.csv
 
 output:
-  directory: tests/test_output/
+  directory: ../smores_recsys_2025/output/test_output/
   consumer_file: consumer_utility
   provider_file: provider_utility
   debug_file: debug
