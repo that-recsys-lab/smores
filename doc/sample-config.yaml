@@ -107,6 +107,9 @@ recommender:
           min_user_count: 20
           min_interaction_count: 500
 
+    - name: "Dummy Fixed"
+      class_name: fixed_recommender
+
 triggers:
   - name: Cycle5Freeze
     class_name: initial_burnin
