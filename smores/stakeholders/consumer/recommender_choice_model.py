@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from numpy.linalg import norm
 from numpy import dot, average
 from typing import Tuple
@@ -6,6 +7,7 @@ from typing import Tuple
 from lenskit.data.items import ItemList
 
 from smores.item import Item
+from smores.smores import Smores
 
 class RecommenderChoiceModel (ABC):
     '''
@@ -37,6 +39,30 @@ class FixedRecommenderChoiceModel(RecommenderChoiceModel):
     def update_recommender_utility(self, rec_name, time: int, selected_id: int, recs: ItemList):
         return 0, 0
     
+class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
+
+    def setup(self, config):
+        self.recommender_name = config.params['recommender_name']
+        self.threshold = config.params['threshold']
+        self.beta = config.params['beta']
+        self.recommender_utilities = defaultdict(int)
+
+    def choose_recommender(self):
+        current_utility = self.recommender_utilities[self.recommender_name] 
+        if current_utility < self.threshold:
+            for recommender in Smores.state.recommenders_available:
+                utility = self.recommender_utilities[recommender] 
+                if utility > current_utility:
+                    self.recommender_name = recommender
+                    current_utility = utility
+        return self.recommender_name
+    
+    def update_recommender_utility(self, list_utility: float):
+        prev_utility = self.recommender_utilities[self.recommender_name]
+        new_utility = ((prev_utility * self.beta) + list_utility)/(1 + self.beta)
+        self.recommender_utilities[self.recommender_name] = new_utility
+        return new_utility
+    
 
 class RecommenderChoiceModelFactory():
     """
@@ -67,6 +93,8 @@ class RecommenderChoiceModelFactory():
 
 # Registering
 RecommenderChoiceModelFactory.register('fixed', FixedRecommenderChoiceModel)
+RecommenderChoiceModelFactory.register('threshold', ThresholdRecommenderChoiceModel)
+
 
 
 # Exceptions
