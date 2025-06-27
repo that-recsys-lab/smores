@@ -1,12 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from numpy.linalg import norm
-from numpy import dot, average
-from typing import Tuple
 
-from lenskit.data.items import ItemList
-
-from smores.item import Item
 from smores.smores import Smores
 
 class RecommenderChoiceModel (ABC):
@@ -21,8 +15,8 @@ class RecommenderChoiceModel (ABC):
         pass
 
     @abstractmethod
-    def update_recommender_utility(self, rec_name, time: int, selected_id: int, recs: ItemList) -> Tuple[float, float]:
-        return 0, 0
+    def update_recommender_utility(self, list_utility: float) -> float:
+        return 0
 
     @abstractmethod
     def choose_recommender(self) -> str:
@@ -36,8 +30,8 @@ class FixedRecommenderChoiceModel(RecommenderChoiceModel):
     def choose_recommender(self):
         return self.recommender_name
     
-    def update_recommender_utility(self, rec_name, time: int, selected_id: int, recs: ItemList):
-        return 0, 0
+    def update_recommender_utility(self, list_utility: float):
+        return 0
     
 class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
 
