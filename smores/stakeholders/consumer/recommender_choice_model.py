@@ -1,3 +1,4 @@
+import numpy as np
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
@@ -57,6 +58,34 @@ class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
         self.recommender_utilities[self.recommender_name] = new_utility
         return new_utility
     
+class UCBRecommenderChoiceModel(RecommenderChoiceModel):
+
+    def setup(self, config):
+        self.recommender_name = config.params['recommender_name']
+        self.beta = config.params['beta']
+        self.recommender_utilities = defaultdict(int)
+        self.recommender_count = defaultdict(int)
+        self.recommender_time = defaultdict(int)
+
+    def choose_recommender(self):
+        max_ucb = 0
+        for recommender in Smores.state.recommenders_available:
+            utility = self.recommender_utilities[recommender] 
+            time = self.recommender_time[recommender]
+            count = self.recommender_count[recommender]
+            ucb = utility + np.sqrt(2*np.log(time)/count)/(1+time)
+            if ucb > max_ucb:
+                self.recommender_name = recommender
+                max_ucb = ucb
+        self.recommender_count[self.recommender_name] += 1
+        return self.recommender_name
+    
+    def update_recommender_utility(self, list_utility: float):
+        prev_utility = self.recommender_utilities[self.recommender_name]
+        new_utility = ((prev_utility * self.beta) + list_utility)/(1 + self.beta)
+        self.recommender_utilities[self.recommender_name] = new_utility
+        self.recommender_time[self.recommender_name] += 1
+        return new_utility
 
 class RecommenderChoiceModelFactory():
     """
@@ -88,7 +117,7 @@ class RecommenderChoiceModelFactory():
 # Registering
 RecommenderChoiceModelFactory.register('fixed', FixedRecommenderChoiceModel)
 RecommenderChoiceModelFactory.register('threshold', ThresholdRecommenderChoiceModel)
-
+RecommenderChoiceModelFactory.register('ucb', UCBRecommenderChoiceModel)
 
 
 # Exceptions
