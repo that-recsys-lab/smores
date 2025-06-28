@@ -18,6 +18,7 @@ class ConsumerInfo (BaseModel):
 class Consumer:
     def __init__(self):
         self.id = -1
+        self.type = None
         self.preference_vector = None
         self.recommender = None
         self.utility_model = None
@@ -26,11 +27,12 @@ class Consumer:
         self.history: UtilityHistory = None
 
     def __str__(self):
-        return f'<Consumer {self.id}>'
+        return f'<Consumer {self.id} {self.type}>'
 
     def setup(self, config_type: ConsumerTypeConfig, config_instance: ConsumerInfo):
         # Instance-specific
         self.id = config_instance.consumer_id
+        self.type = config_instance.consumer_type
         self.preference_vector = config_instance.preferences
 
         # Consumer-type specific

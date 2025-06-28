@@ -7,13 +7,13 @@ from collections import namedtuple
 
 from smores.utils import LoggerConfig
 
-ConsumerUtility = namedtuple('ConsumerUtility', ['consumer_id', 'recommender', 'utility', 'aggregate'])
-ProviderUtility = namedtuple('ProviderUtility', ['provider_id', 'recommender', 'utility'])
+ConsumerUtility = namedtuple('ConsumerUtility', ['consumer_id', 'consumer_type', 'recommender', 'utility', 'aggregate', 'time'])
+ProviderUtility = namedtuple('ProviderUtility', ['provider_id', 'provider_type', 'recommender', 'utility', 'time'])
 
 
 class SmoresLogger:
-    CONSUMER_UTILITY_HEADERS = ['user_id', 'recommender', 'utility', 'aggregate']
-    PROVIDER_UTILITY_HEADERS = ['provider_id', 'recommender', 'utility']
+    CONSUMER_UTILITY_HEADERS = ['user_id', 'consumer_type', 'recommender', 'utility', 'aggregate', 'time']
+    PROVIDER_UTILITY_HEADERS = ['provider_id', 'provider_type', 'recommender', 'utility', 'time']
 
     def __init__(self, config: LoggerConfig):
         output_dir = Path(config.directory)
@@ -84,7 +84,9 @@ class SmoresLogger:
         self.provider_writer.writerow(utility_info._asdict())
         self.provider_output_file.flush()
 
+    # TODO: convert to parquet
     def cleanup(self):
         """Close the data file when done."""
         self.consumer_output_file.close()
         self.provider_output_file.close()
+        

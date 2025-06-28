@@ -208,14 +208,14 @@ class Smores:
             raise RecommenderChoiceUnassignedException(consumer)
         
         # log the consumer utility
-        Smores.state.logger.log_consumer(ConsumerUtility(consumer.id, consumer.recommender.name, interaction_utility,
-                                                         recommender_utility))
+        Smores.state.logger.log_consumer(ConsumerUtility(consumer.id, consumer.type, consumer.recommender.name, interaction_utility,
+                                                         recommender_utility, time))
 
         # construct the interaction and return
         if ItemSelectionModel.is_empty_selection(result):
             interaction = (consumer.id, None, consumer.recommender.name, None, time)
         else:
-            interaction = (consumer.id, selected_id, consumer.recommender.name, 1, Smores.state.current_time())
+            interaction = (consumer.id, selected_id, consumer.recommender.name, 1, time)
         return interaction
 
     def cycle_actions(self):
