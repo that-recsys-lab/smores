@@ -202,8 +202,8 @@ class Smores:
                 selected_id = result[0]
             else:
                 selected_id = ItemSelectionModel.NO_ITEM_SELECTED
-            interaction_utility, recommender_utility = \
-                consumer.recommender_choice_model.update_recommender_utility(consumer.recommender.name, time, selected_id, recs)
+            interaction_utility = consumer.utility_model.compute_list_utility(consumer, recs)
+            recommender_utility = consumer.recommender_choice_model.update_recommender_utility(interaction_utility)
         else:
             raise RecommenderChoiceUnassignedException(consumer)
         
