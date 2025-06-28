@@ -101,6 +101,11 @@ recommender:
           min_user_count: 20
           min_interaction_count: 500
 
+    - name: "FileBasedRecs"
+      class_name: file_based
+      params:
+        file_path: "doc/items.csv"
+
     - name: "Popular Niche"
       class_name: popular
       params:
