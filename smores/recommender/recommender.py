@@ -188,41 +188,6 @@ class LKRecommender(Recommender):
             return recommend(self.pipeline, user_id, n=smores.Smores.state.slate_size)
 
 
-class PopularRecommender(LKRecommender):
-    def __init__(self):
-        super().__init__()
-        self.min_user_count: int = maxsize
-        self.min_interaction_count: int = maxsize
-
-    def setup(self, config):
-        params = config.params
-        self.min_user_count = int(params['min_user_count'])
-        self.min_interaction_count = int(params['min_interaction_count'])
-        self.lk_config = PopConfig(score='count')
-        self.scorer = PopScorer(self.lk_config)
-        super().setup(config)
-
-    def train(self):
-        if self.dataset.interaction_count >= self.min_interaction_count and \
-                self.dataset.user_count >= self.min_user_count:
-            super().train()
-
-    def build_pipeline(self):
-        scorer = self.get_scorer()
-        slate_size = smores.Smores.state.slate_size
-        return topn_pipeline(scorer, n=slate_size)
-
-    def isDatasetViable(self):
-        user_count = self.dataset.user_count
-        interaction_count = self.dataset.interaction_count
-        if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
-            return True
-        else:
-            return False
-        
-    def isProfileViable(self, _):
-        return True # Because we ignore the profile, everyone is viable
-        
 
 class ItemKnnRecommender(LKRecommender):
     def __init__(self):
@@ -302,7 +267,6 @@ class RecommenderFactory():
 
 # Registering
 RecommenderFactory.register('item_knn', ItemKnnRecommender)
-RecommenderFactory.register('popular', PopularRecommender)
 RecommenderFactory.register('fixed_recommender', FixedItemRecommender)
 
 
