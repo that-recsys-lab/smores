@@ -1,2 +1,3 @@
 from .recommender import Recommender, RecommenderFactory, PopularRecommender, ItemKnnRecommender
 from .recommender_map import RecommenderMap, UnknownRecommenderError
+from .matrix_factorization_recommender import MatrixFactorizationRecommender

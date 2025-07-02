@@ -83,6 +83,17 @@ platform:
 recommender:
   initial: ["Generic"]
   definitions:
+    - name: "Matrix Factorization"
+      class_name: "matrix_factorization"
+      params:
+        features: 20
+        min_user_count: 20
+        min_interaction_count: 500
+        min_profile_size: 5
+        cold_start_fallback: "Dummy Fixed"
+
+
+        
     - name: "Generic"
       class_name: item_knn
       params:
