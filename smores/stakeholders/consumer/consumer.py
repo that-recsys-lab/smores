@@ -20,7 +20,7 @@ class Consumer:
         self.id = -1
         self.type = None
         self.preference_vector = None
-        self.recommender = None
+        self.recommender: str = None
         self.utility_model = None
         self.item_selection_model = None
         self.recommender_choice_model = None
@@ -51,6 +51,7 @@ class Consumer:
         choice_model_config = config_type.recommender_choice_model
         self.recommender_choice_model = RecommenderChoiceModelFactory.create(choice_model_config.class_name)
         self.recommender_choice_model.setup(choice_model_config)
+        self.recommender_choice_model.set_consumer(self)
 
 
 class ConsumerCollection():

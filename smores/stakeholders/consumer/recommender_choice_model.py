@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 
 import smores
+import smores.stakeholders.consumer as consumer
 
 class RecommenderChoiceModel (ABC):
     '''
@@ -11,6 +12,9 @@ class RecommenderChoiceModel (ABC):
     A recommender choice model uses the historical utility of a consumer for a recommendation algorithm to decide which algorithm
     to use.
     '''
+    def __init__(self):
+        self.consumer = None
+
     @abstractmethod
     def setup(self, config):
         pass
@@ -22,6 +26,9 @@ class RecommenderChoiceModel (ABC):
     @abstractmethod
     def choose_recommender(self) -> str:
         pass
+
+    def set_consumer(self, consumer):
+        self.consumer = consumer
 
 class FixedRecommenderChoiceModel(RecommenderChoiceModel):
 
@@ -35,33 +42,37 @@ class FixedRecommenderChoiceModel(RecommenderChoiceModel):
         return 0
     
 class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
+    def __init__(self):
+        super().__init__()
 
     def setup(self, config):
-        self.recommender_name = config.params['recommender_name']
         self.threshold = config.params['threshold']
         self.beta = config.params['beta']
         self.recommender_utilities = defaultdict(int)
 
     def choose_recommender(self):
-        current_utility = self.recommender_utilities[self.recommender_name] 
+        maybe_new_recommender = self.consumer.recommender.name
+        current_utility = self.recommender_utilities[ maybe_new_recommender]
         if current_utility < self.threshold:
-            for recommender_name, _ in smores.Smores.state.recommenders_available.items():
+            for recommender_name in smores.Smores.state.recommenders_active:
                 utility = self.recommender_utilities[recommender_name] 
                 if utility > current_utility:
-                    self.recommender_name = recommender_name
+                    maybe_new_recommender = recommender_name
                     current_utility = utility
-        return self.recommender_name
+        return maybe_new_recommender
     
     def update_recommender_utility(self, list_utility: float):
-        prev_utility = self.recommender_utilities[self.recommender_name]
+        current_recommender_name = self.consumer.recommender.name
+        prev_utility = self.recommender_utilities[current_recommender_name]
         new_utility = ((prev_utility * self.beta) + list_utility)/(1 + self.beta)
-        self.recommender_utilities[self.recommender_name] = new_utility
+        self.recommender_utilities[current_recommender_name] = new_utility
         return new_utility
     
 class UCBRecommenderChoiceModel(RecommenderChoiceModel):
+    def __init__(self):
+        super().__init__()
 
     def setup(self, config):
-        self.recommender_name = config.params['recommender_name']
         self.beta = config.params['beta']
         self.recommender_utilities = defaultdict(int)
         self.recommender_count = defaultdict(int)
@@ -69,22 +80,26 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
 
     def choose_recommender(self):
         max_ucb = 0
-        for recommender_name, _ in smores.Smores.state.recommenders_available.items():
+        maybe_new_recommender = self.consumer.recommender.name
+        for recommender_name in smores.Smores.state.recommenders_active:
             utility = self.recommender_utilities[recommender_name] 
             time = self.recommender_time[recommender_name]
             count = self.recommender_count[recommender_name]
+            if time == 0:
+                continue
             ucb = utility + np.sqrt(2*np.log(time)/count)/(1+time)
             if ucb > max_ucb:
-                self.recommender_name = recommender_name
+                maybe_new_recommender = recommender_name
                 max_ucb = ucb
-        self.recommender_count[self.recommender_name] += 1
-        return self.recommender_name
+        self.recommender_count[maybe_new_recommender] += 1
+        return maybe_new_recommender
     
     def update_recommender_utility(self, list_utility: float):
-        prev_utility = self.recommender_utilities[self.recommender_name]
+        current_recommender_name = self.consumer.recommender.name
+        prev_utility = self.recommender_utilities[current_recommender_name]
         new_utility = ((prev_utility * self.beta) + list_utility)/(1 + self.beta)
-        self.recommender_utilities[self.recommender_name] = new_utility
-        self.recommender_time[self.recommender_name] += 1
+        self.recommender_utilities[current_recommender_name] = new_utility
+        self.recommender_time[current_recommender_name] += 1
         return new_utility
 
 class RecommenderChoiceModelFactory():

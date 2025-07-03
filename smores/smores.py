@@ -174,6 +174,8 @@ class Smores:
 
     def run_consumer_day(self, consumer: Consumer):
         state = Smores.state
+        # state.logger.debug(f'     Processing user {consumer.id}')
+        # state.logger.debug(f'        Recommender: {consumer.recommender.name}')
         time = state.current_time()
 
         # Get recommendations from associated recommender

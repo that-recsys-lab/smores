@@ -4,6 +4,7 @@ from numpy import dot, average
 from lenskit.data.items import ItemList
 
 from smores.item import Item, ItemCollection
+import smores
 # would like to import but circular issue needs to be resolved
 #from .consumer import Consumer
 
@@ -23,7 +24,10 @@ class ConsumerUtilityModel (ABC):
         pass
 
     def compute_item_utilities (self, consumer, item_list: ItemList) -> list[float]:
-        utils = [self.compute_item_utility(consumer, item) for item in item_list]
+        utils = []
+        for item_id in item_list.ids().tolist():
+            item = smores.Smores.state.items.get_item(int(item_id))
+            utils.append(self.compute_item_utility(consumer, item))
         return utils
 
     @abstractmethod
@@ -50,6 +54,7 @@ class ConsumerPrefCosineUtilityModel (ConsumerUtilityModel):
 
     def compute_item_utility(self, consumer, item: Item) -> float:
         pref_vector = consumer.preference_vector
+
         item_vector = item.features
         norm_pref = norm(pref_vector)
         norm_item = norm(item_vector)
