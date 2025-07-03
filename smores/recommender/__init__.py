@@ -1,2 +1,4 @@
-from .recommender import Recommender, RecommenderFactory, PopularRecommender, ItemKnnRecommender
+from .recommender import Recommender, RecommenderFactory
 from .recommender_map import RecommenderMap, UnknownRecommenderError
+from .file_recommender import FileBasedRecommender
+from .lk_recommenders import PopularRecommender, ItemKnnRecommender, ImplicitMFRecommender
