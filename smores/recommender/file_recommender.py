@@ -1,6 +1,5 @@
 from lenskit.data.items import ItemList
 import csv
-import random
 import smores
 from smores.recommender import Recommender, RecommenderFactory
 
@@ -10,26 +9,27 @@ class FileBasedRecommender(Recommender):
     def __init__(self):
         super().__init__()
         self.items = []
+        self.file_path
     
     def setup(self, config):
         super().setup(config)
         
-        file_path = config.params.get('file_path', '')
-        
-        self.load_items(file_path)
+        self.file_path = smores.Smores.state.data_directory / \
+                config.params['file_path']
+        self.load_items()
     
-    def load_items(self, file_path):
+    def load_items(self):
         """Load item from a CSV file"""
         try:
-            with open(file_path, 'r') as f:
+            with open(self.file_path, 'r') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     if 'item_id' in row:
                         self.items.append(int(row['item_id']))
                         
             smores.Smores.state.logger.info(f"Loaded {len(self.items)} items")
-        except:
-            smores.Smores.state.logger.error(f"Error loading file {file_path}")
+        except IOError as e:
+            smores.Smores.state.logger.error(f"Error loading file {self.file_path}")
     
     def train(self):
         pass
@@ -41,11 +41,17 @@ class FileBasedRecommender(Recommender):
         return True
     
     def get_recommendations(self, user_id) -> ItemList:
+        prior_interactions = self.get_user(user_id)
+        if prior_interactions is not None and len(prior_interactions) > 0:
+            usable_items = [item for item in self.items if item not in prior_interactions]
+        else:
+            usable_items = self.items
+
         slate_size = smores.Smores.state.slate_size
-        if len(self.items) < slate_size:
-            slate_size = len(self.items)
+        if len(usable_items) < slate_size:
+            slate_size = len(usable_items)
         
-        items = random.sample(self.items, slate_size)
+        items = smores.Smores.state.rand.choice(usable_items, slate_size)
         
         scores = [1.0] * slate_size
         ranks = list(range(1, slate_size + 1))
