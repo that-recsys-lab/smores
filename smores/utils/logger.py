@@ -30,12 +30,20 @@ class SmoresLogger:
         else:
             self.debug_logger.setLevel(logging.INFO)
 
+        self.use_timestamp = config.use_timestamp
+
         # consumer utility output
-        consumer_file_name = f'{config.consumer_file}_{timestamp}.csv'
+        if self.use_timestamp:
+            consumer_file_name = f'{config.consumer_file}_{timestamp}.csv'
+        else:
+            consumer_file_name = f'{config.consumer_file}.csv'
         self.consumer_log_path = output_dir / consumer_file_name
 
         # provider utility output
-        provider_file_name = f'{config.provider_file}_{timestamp}.csv'
+        if self.use_timestamp:
+            provider_file_name = f'{config.provider_file}_{timestamp}.csv'
+        else:
+            provider_file_name = f'{config.provider_file}.csv'
         self.provider_log_path = output_dir / provider_file_name
 
     def setup(self, config):
