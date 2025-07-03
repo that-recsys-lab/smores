@@ -38,6 +38,9 @@ class ItemMap():
     def get_item(self, item_id: int):
         return self.item_map[item_id]
     
+    def exists_item(self, item_id):
+        return item_id in self.item_map
+    
     def get_provider_items(self, provider_id: int):
         return self.provider_map[provider_id]
     

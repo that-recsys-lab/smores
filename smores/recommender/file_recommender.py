@@ -8,15 +8,18 @@ class FileBasedRecommender(Recommender):
     
     def __init__(self):
         super().__init__()
-        self.items = []
-        self.file_path
+        self.items: List[int] = []
+        self.file_path = None
     
     def setup(self, config):
         super().setup(config)
         
         self.file_path = smores.Smores.state.data_directory / \
-                config.params['file_path']
+                config.params['file_name']
         self.load_items()
+        old_len = len(self.items)
+        self.items = self.check_items()
+        smores.Smores.state.logger.debug(f"Check items removed {old_len - len(self.items)} items.")
     
     def load_items(self):
         """Load item from a CSV file"""
@@ -30,7 +33,12 @@ class FileBasedRecommender(Recommender):
             smores.Smores.state.logger.info(f"Loaded {len(self.items)} items")
         except IOError as e:
             smores.Smores.state.logger.error(f"Error loading file {self.file_path}")
-    
+
+    def check_items(self):
+        filtered_items = [item_id for item_id in self.items \
+                      if smores.Smores.state.items.exists_item(item_id)]
+        return filtered_items
+
     def train(self):
         pass
     
