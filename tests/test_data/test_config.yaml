@@ -20,6 +20,7 @@ output:
   provider_file: provider_utility
   debug_file: debug
   debug_level: "debug"
+  use_timestamp: False
 
 consumer:
   initial_recommender: "Generic"

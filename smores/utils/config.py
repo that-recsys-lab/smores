@@ -20,6 +20,7 @@ class LoggerConfig(BaseModel):
     provider_file: str
     debug_file: str
     debug_level: str
+    use_timestamp: bool
 
 class PythonClassConfig(BaseModel):
     name: Optional[str] = None
