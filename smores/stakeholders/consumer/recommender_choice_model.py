@@ -4,6 +4,7 @@ from collections import defaultdict
 
 import smores
 import smores.stakeholders.consumer as consumer
+from smores.utils import ChoiceUtility
 
 class RecommenderChoiceModel (ABC):
     '''
@@ -13,7 +14,8 @@ class RecommenderChoiceModel (ABC):
     to use.
     '''
     def __init__(self):
-        self.consumer = None
+        self.consumer: Consumer = None
+        self.next_recommender: str = '__None'
 
     @abstractmethod
     def setup(self, config):
@@ -23,6 +25,7 @@ class RecommenderChoiceModel (ABC):
     def update_recommender_utility(self, list_utility: float) -> float:
         return 0
 
+    # Must call log_utilities. Probably a better way to do this.
     @abstractmethod
     def choose_recommender(self) -> str:
         pass
@@ -30,16 +33,31 @@ class RecommenderChoiceModel (ABC):
     def set_consumer(self, consumer):
         self.consumer = consumer
 
+    @abstractmethod
+    def log_utilities(self):
+        pass
+        
+
 class FixedRecommenderChoiceModel(RecommenderChoiceModel):
 
     def setup(self, config):
         self.recommender_name = config.params['recommender_name']
+        self.next_recommender = self.recommender_name
 
     def choose_recommender(self):
+        self.log_utilities()
         return self.recommender_name
     
     def update_recommender_utility(self, list_utility: float):
         return 0
+
+    def log_utilities(self):
+        logger = smores.Smores.state.logger
+        time = smores.Smores.state.cycle_count
+        recommenders = smores.Smores.state.recommenders_base.get_names()
+        tuple = ChoiceUtility(self.consumer.id, self.consumer.type, self.recommender_name, \
+                              self.recommender_name, [0] * len(recommenders), time)
+        logger.log_recommender_choice(tuple)
     
 class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
     def __init__(self):
@@ -53,13 +71,15 @@ class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
 
     def choose_recommender(self):
         maybe_new_recommender = self.consumer.recommender.name
-        current_utility = self.recommender_utilities[ maybe_new_recommender]
+        current_utility = self.recommender_utilities[maybe_new_recommender]
         if current_utility < self.threshold:
             for recommender_name in smores.Smores.state.recommenders_active:
                 utility = self.recommender_utilities[recommender_name] 
                 if utility > current_utility:
                     maybe_new_recommender = recommender_name
                     current_utility = utility
+        self.next_recommender = maybe_new_recommender
+        self.log_utilities()
         return maybe_new_recommender
     
     def update_recommender_utility(self, list_utility: float):
@@ -68,6 +88,16 @@ class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
         new_utility = ((prev_utility * self.beta) + list_utility)/(1 + self.beta)
         self.recommender_utilities[current_recommender_name] = new_utility
         return new_utility
+    
+    def log_utilities(self):
+        logger = smores.Smores.state.logger
+        time = smores.Smores.state.cycle_count
+        recommenders = smores.Smores.state.recommenders_base.get_names()
+        utilities = [self.recommender_utilities[name] for name in recommenders]
+        current_recommender = self.consumer.recommender.name
+        tuple = ChoiceUtility(self.consumer.id, self.consumer.type, current_recommender, \
+                              self.next_recommender, utilities, time)
+        logger.log_recommender_choice(tuple)
     
 class UCBRecommenderChoiceModel(RecommenderChoiceModel):
     def __init__(self):
@@ -84,15 +114,21 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
         maybe_new_recommender = self.consumer.recommender.name
         for recommender_name in smores.Smores.state.recommenders_active:
             utility = self.recommender_utilities[recommender_name] 
-            time = self.recommender_time[recommender_name]
+            cycle_count = smores.Smores.state.cycle_count
             count = self.recommender_count[recommender_name]
-            if time == 0:
-                continue
-            ucb = utility + np.sqrt(2*np.log(time)/count)/(1+time)
-            if ucb > max_ucb:
+
+            if count > 0:
+                ucb = utility + np.sqrt(2*np.log(cycle_count+1)/count) # /(1+time)
+                if ucb > max_ucb:
+                    maybe_new_recommender = recommender_name
+                    max_ucb = ucb
+            else:
+                # Always sample untried options
                 maybe_new_recommender = recommender_name
-                max_ucb = ucb
+                break
+
         self.recommender_count[maybe_new_recommender] += 1
+        self.log_utilities()
         return maybe_new_recommender
     
     def update_recommender_utility(self, list_utility: float):
@@ -102,6 +138,16 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
         self.recommender_utilities[current_recommender_name] = new_utility
         self.recommender_time[current_recommender_name] += 1
         return new_utility
+    
+    def log_utilities(self):
+        logger = smores.Smores.state.logger
+        cycle = smores.Smores.state.cycle_count
+        recommenders = smores.Smores.state.recommenders_base.get_names()
+        utilities = [self.recommender_utilities[name] for name in recommenders]
+        current_recommender = self.consumer.recommender.name
+        tuple = ChoiceUtility(self.consumer.id, self.consumer.type, current_recommender, \
+                              self.next_recommender, utilities, cycle)
+        logger.log_recommender_choice(tuple)
 
 class RecommenderChoiceModelFactory():
     """

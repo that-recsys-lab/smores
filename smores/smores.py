@@ -69,9 +69,6 @@ class Smores:
         state = Smores.state
         config = state.config
 
-        # Setup log
-        state.logger.setup(config.output)
-
         # Setup consumers
         state.consumer_models.setup(config.consumer.models)
         state.consumers.setup(config.consumer.types)
@@ -95,6 +92,9 @@ class Smores:
 
         # Connect consumers with initial recommenders
         self.setup_initial_recommenders()
+
+        # Setup log. Must be last so that it can use the set up information
+        state.logger.setup(config.output)
 
         # Ignoring provider/recommender connections
         self.state.logger.info('Completed setup')

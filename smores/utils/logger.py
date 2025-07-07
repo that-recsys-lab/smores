@@ -6,14 +6,17 @@ from pathlib import Path
 from collections import namedtuple
 
 from smores.utils import LoggerConfig
+import smores
 
 ConsumerUtility = namedtuple('ConsumerUtility', ['consumer_id', 'consumer_type', 'recommender', 'utility', 'aggregate', 'time'])
 ProviderUtility = namedtuple('ProviderUtility', ['provider_id', 'provider_type', 'recommender', 'utility', 'time'])
+ChoiceUtility = namedtuple('ChoiceUtility', ['consumer_id', 'consumer_type', 'current_recommender', 'next_recommender', 'utilities', 'time'])
 
 
 class SmoresLogger:
     CONSUMER_UTILITY_HEADERS = ['user_id', 'consumer_type', 'recommender', 'utility', 'aggregate', 'time']
     PROVIDER_UTILITY_HEADERS = ['provider_id', 'provider_type', 'recommender', 'utility', 'time']
+    RECOMMENDER_CHOICE_HEADERS = ['consumer_id', 'consumer_type', 'time', 'current_recommender', 'next_recommender']
 
     def __init__(self, config: LoggerConfig):
         output_dir = Path(config.directory)
@@ -46,6 +49,13 @@ class SmoresLogger:
             provider_file_name = f'{config.provider_file}.csv'
         self.provider_log_path = output_dir / provider_file_name
 
+        # recommender choice output
+        if self.use_timestamp:
+            choice_file_name = f'{config.choice_file}_{timestamp}.csv'
+        else:
+            choice_file_name = f'{config.choice_file}.csv'
+        self.choice_log_path = output_dir / choice_file_name
+
     def setup(self, config):
         debug_file_handler = logging.FileHandler(self.debug_log_path)
         debug_console_handler = logging.StreamHandler()
@@ -64,6 +74,12 @@ class SmoresLogger:
         self.provider_output_file = open(self.provider_log_path, 'w', newline='')
         self.provider_writer = csv.DictWriter(self.provider_output_file, fieldnames=ProviderUtility._fields)
         self.provider_writer.writeheader()
+
+        self.choice_output_file = open(self.choice_log_path, 'w', newline='')
+        self.choice_writer = csv.writer(self.choice_output_file)
+        rec_names = smores.Smores.state.recommenders_base.get_names()
+        headers = self.RECOMMENDER_CHOICE_HEADERS + rec_names
+        self.choice_writer.writerow(headers) 
 
     # Debug log
     def debug(self, message):
@@ -92,9 +108,17 @@ class SmoresLogger:
         self.provider_writer.writerow(utility_info._asdict())
         self.provider_output_file.flush()
 
+    def log_recommender_choice(self, choice_info: ChoiceUtility):
+        """Write a row of recommender choice data to the CSV file."""
+        row = [choice_info.consumer_id, choice_info.consumer_type, choice_info.time,
+               choice_info.current_recommender, choice_info.next_recommender] + \
+                choice_info.utilities
+        self.choice_writer.writerow(row)
+        self.choice_output_file.flush()
+
     # TODO: convert to parquet
     def cleanup(self):
         """Close the data file when done."""
         self.consumer_output_file.close()
         self.provider_output_file.close()
-        
+

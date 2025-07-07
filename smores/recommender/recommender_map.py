@@ -32,8 +32,15 @@ class RecommenderMap:
     def del_recommender(self, name: str):
         del self._rec_map[name]
 
+    # Sorts the recommenders by key so that the order is repeatable
+    # Necessary for logging
+    def get_names(self):
+        keys = self._rec_map.keys()
+        sorted_keys = sorted(keys)
+        return sorted_keys
+
     def items(self):
-        return self._rec_map.items()
+        return [self._rec_map[key] for key in self.get_names()]
 
 
 class UnknownRecommenderError(Exception):
