@@ -40,6 +40,7 @@ class RecommenderTestCase(unittest.TestCase):
       # Need to configure this so that lookups inside of the base recommender will succeed.
       fallback_config = self.config.recommender.fallback_recommenders
       self.smores.state.recommenders_fallback.setup(fallback_config)
+      self.assertTrue(self.smores.state.recommenders_fallback.is_recommender('Popular Fallback'))
       self.assertIsNotNone(rec)
       rec.setup(rec_config)
       self.assertIsNotNone(self.interactions)
