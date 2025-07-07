@@ -46,11 +46,11 @@ class ProfileUserOwnershipTrigger(SwitchTrigger):
         super().setup(config)
 
     def handle_event(self, event: SwitchEvent):
-        from_rec: Recommender = Recommender.name2recommender(event.from_rec)
+        from_rec: Recommender = Recommender.name2base_recommender(event.from_rec)
         user_data = from_rec.get_user(event.consumer_id)
 
         if user_data is not None:
-            to_rec: Recommender = Recommender.name2recommender(event.next_rec)
+            to_rec: Recommender = Recommender.name2base_recommender(event.next_rec)
             to_rec.update_dataset_itemlist(user_data)
 
             from_rec.delete_user(event.consumer_id)
@@ -66,7 +66,7 @@ class ProfileColdStartTrigger(SwitchTrigger):
         super().setup(config)
 
     def handle_event(self, event: SwitchEvent):
-        from_rec: Recommender = Recommender.name2recommender(event.from_rec)
+        from_rec: Recommender = Recommender.name2base_recommender(event.from_rec)
         from_rec.delete_user(event.consumer_id)      
 
 # For Universal and Algorithm-specific, nothing specific happens at switching item.   

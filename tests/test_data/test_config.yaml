@@ -84,7 +84,7 @@ platform:
 
 recommender:
   initial: ["Generic"]
-  definitions:
+  base_recommenders:
     - name: "Generic"
       class_name: item_knn
       params:
@@ -97,6 +97,7 @@ recommender:
         cold_user_fallback: "Popular Fallback"
         cold_start_fallback: "Dummy Fixed"
 
+  fallback_recommenders:
     - name: "Popular Fallback"
       class_name: popular
       params:

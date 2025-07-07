@@ -108,8 +108,8 @@ class UniversalProfileTrigger(InteractionBatchTrigger):
     def handle_event(self, event: InteractionBatchEvent):
         other_interaction_dict = defaultdict(list)
 
-        for name, recommender in smores.Smores.state.recommenders_available.items():
-            for other_name, other_rec in smores.Smores.state.recommenders_available.items():
+        for name, recommender in smores.Smores.state.recommenders_base.items():
+            for other_name, other_rec in smores.Smores.state.recommenders_base.items():
                 rec_interactions = event.interaction_dict[name]
                 if other_name != name:
                     other_interaction_dict[other_name] = other_interaction_dict[other_name] + rec_interactions
