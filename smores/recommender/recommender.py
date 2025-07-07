@@ -36,16 +36,16 @@ class Recommender(ABC):
         return builder.build()
 
     @classmethod
-    def name2recommender(cls, name: str):
-        return smores.Smores.state.recommenders_available.get_recommender(name)        
+    def name2base_recommender(cls, name: str):
+        return smores.Smores.state.recommenders_base.get_recommender(name)        
 
     @abstractmethod
     def train(self):
         if self.cold_start_fallback is not None:
-            cold_start_rec = smores.Smores.state.recommenders_available.get_recommender(self.cold_start_fallback)
+            cold_start_rec = smores.Smores.state.recommenders_fallback.get_recommender(self.cold_start_fallback)
             cold_start_rec.train()
         if self.cold_user_fallback is not None:
-            cold_user_rec = smores.Smores.state.recommenders_available.get_recommender(self.cold_user_fallback)
+            cold_user_rec = smores.Smores.state.recommenders_fallback.get_recommender(self.cold_user_fallback)
             cold_user_rec.train()
         
 
@@ -70,12 +70,12 @@ class Recommender(ABC):
 
     def update_fallback(self, fallback_name, interaction_list: list):
         if fallback_name is not None:
-            cold_rec = smores.Smores.state.recommenders_available.get_recommender(fallback_name)
+            cold_rec = smores.Smores.state.recommenders_fallback.get_recommender(fallback_name)
             cold_rec.update_dataset(interaction_list)
 
     def update_fallback_itemlist(self, fallback_name, interaction_list: ItemList):
         if fallback_name is not None:
-            cold_rec = smores.Smores.state.recommenders_available.get_recommender(fallback_name)
+            cold_rec = smores.Smores.state.recommenders_fallback.get_recommender(fallback_name)
             cold_rec.update_dataset_itemlist(interaction_list)
 
     def update_dataset_itemlist(self, interaction_list: ItemList):

@@ -59,7 +59,8 @@ class PlatformConfig(BaseModel):
 
 class RecommenderConfig(BaseModel):
     initial: list[str]
-    definitions: list[PythonClassConfig]
+    base_recommenders: list[PythonClassConfig]
+    fallback_recommenders: list[PythonClassConfig]
 
 class SmoresConfig(BaseModel):
     simulation: SimulationConfig

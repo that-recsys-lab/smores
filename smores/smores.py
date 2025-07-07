@@ -46,7 +46,8 @@ class Smores:
             # init item collection
             self.items: ItemMap = ItemMap()
             # init recommender collections
-            self.recommenders_available = RecommenderMap()
+            self.recommenders_base = RecommenderMap()
+            self.recommenders_fallback = RecommenderMap()
             self.recommenders_active: list[str] = []
             self.initial_recommenders = config.recommender.initial
 
@@ -86,7 +87,8 @@ class Smores:
 
         # Setup recommenders
         state.recommenders_active = config.recommender.initial
-        state.recommenders_available.setup(config.recommender.definitions)
+        state.recommenders_base.setup(config.recommender.base_recommenders)
+        state.recommenders_fallback.setup(config.recommender.fallback_recommenders)
 
         # Setup triggers
         state.triggers.setup(config.triggers)
@@ -100,9 +102,9 @@ class Smores:
     
     def setup_initial_recommenders(self):
         initial_rec_policy = Smores.state.config.consumer.initial_recommender
-        if Smores.state.recommenders_available.is_recommender(initial_rec_policy):
+        if Smores.state.recommenders_base.is_recommender(initial_rec_policy):
             if initial_rec_policy in Smores.state.recommenders_active:
-                initial_recommender = Smores.state.recommenders_available.get_recommender(initial_rec_policy)
+                initial_recommender = Smores.state.recommenders_base.get_recommender(initial_rec_policy)
                 for consumer in Smores.state.consumers:
                     consumer.recommender = initial_recommender
             else:
@@ -136,7 +138,7 @@ class Smores:
 
     def train_recommenders(self):
         for rec_name in Smores.state.recommenders_active:
-            recommender = Smores.state.recommenders_available.get_recommender(rec_name)
+            recommender = Smores.state.recommenders_base.get_recommender(rec_name)
             recommender.train()
         self.state.logger.info(f'  Completed recommender training')
 
@@ -236,7 +238,7 @@ class Smores:
                 rec_name = consumer.recommender.name
                 next_rec_name = consumer.recommender_choice_model.choose_recommender()
                 if next_rec_name in Smores.state.recommenders_active:
-                    consumer.recommender = Smores.state.recommenders_available.get_recommender(rec_name)
+                    consumer.recommender = Smores.state.recommenders_base.get_recommender(rec_name)
                                     
                     for trigger in Smores.state.triggers.get_iterator('switch'):
                         event = SwitchEvent(consumer, next_rec_name)

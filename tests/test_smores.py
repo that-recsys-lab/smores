@@ -22,7 +22,8 @@ class SmoresTestCase(unittest.TestCase):
     def testInit(self):
         self.assertIsNotNone(self.smores.state)
         self.assertIsNotNone(self.smores.state.recommenders_active)
-        self.assertIsNotNone(self.smores.state.recommenders_available)
+        self.assertIsNotNone(self.smores.state.recommenders_base)
+        self.assertIsNotNone(self.smores.state.recommenders_fallback)
         self.assertIsNotNone(self.smores.state.initial_recommenders)
         self.assertIsNotNone(self.smores.state.triggers)
 
@@ -53,9 +54,10 @@ class SmoresTestCase(unittest.TestCase):
         self.assertEqual(len(list(pcoll)), 4)
 
         # RECOMMENDERS
-        rec_map = self.smores.state.recommenders_available
-        self.assertIsInstance(rec_map.get_recommender('Generic'), ItemKnnRecommender)
-        self.assertIsInstance(rec_map.get_recommender('Popular Niche'), PopularRecommender)
+        rec_map_base = self.smores.state.recommenders_base
+        rec_map_fallback = self.smores.state.recommenders_fallback
+        self.assertIsInstance(rec_map_base.get_recommender('Generic'), ItemKnnRecommender)
+        self.assertIsInstance(rec_map_fallback.get_recommender('Popular Niche'), PopularRecommender)
 
         # TRIGGERS
         trigger_coll = self.smores.state.triggers
@@ -95,8 +97,8 @@ class SmoresTestCase(unittest.TestCase):
         # all interactions
         self.smores.state.triggers.clear_trigger_type('switch')
         self.smores.run_cycles()
-        rec1 = self.smores.state.recommenders_available.get_recommender('Popular Niche')
-        rec2 = self.smores.state.recommenders_available.get_recommender('Generic')
+        rec1 = self.smores.state.recommenders_fallback.get_recommender('Popular Niche')
+        rec2 = self.smores.state.recommenders_base.get_recommender('Generic')
         self.assertEqual(rec1.dataset.interaction_count, rec2.dataset.interaction_count)
 
     def test_fallback_update(self):
@@ -105,11 +107,11 @@ class SmoresTestCase(unittest.TestCase):
         self.smores.state.triggers.clear_trigger_type('switch')
         self.smores.state.triggers.clear_trigger_type('interaction')
         self.smores.run_cycles()
-        rec1 = self.smores.state.recommenders_available.get_recommender('Popular Fallback')
-        rec2 = self.smores.state.recommenders_available.get_recommender('Generic')
+        rec1 = self.smores.state.recommenders_fallback.get_recommender('Popular Fallback')
+        rec2 = self.smores.state.recommenders_base.get_recommender('Generic')
         self.assertEqual(rec1.dataset.interaction_count, rec2.dataset.interaction_count)
 
-        rec3 = self.smores.state.recommenders_available.get_recommender('Popular Niche')
+        rec3 = self.smores.state.recommenders_fallback.get_recommender('Popular Niche')
         self.assertEqual(rec1.dataset.interaction_count, 0)
                          
 if __name__ == '__main__':

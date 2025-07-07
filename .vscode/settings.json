@@ -8,5 +8,7 @@
     ],
     "terminal.integrated.env.osx": {
         "PYTHONPATH": "smores"
-    }
+    },
+    "python.testing.cwd": "",
+    "python.testing.autoTestDiscoverOnSavePattern": "tests/**/*.py"
 }

@@ -58,11 +58,11 @@ class LKRecommender(Recommender):
 
     def get_recommendations(self, user_id: ID):
         if not self.isDatasetViable():
-            cold_start_rec = smores.Smores.state.recommenders_available.get_recommender(self.cold_start_fallback)
+            cold_start_rec = smores.Smores.state.recommenders_fallback.get_recommender(self.cold_start_fallback)
             #smores.Smores.state.logger.debug(f'.       Insufficent interaction data. Fallback to {self.cold_start_fallback}')
             return cold_start_rec.get_recommendations(user_id)
         elif not self.isProfileViable(user_id):
-            cold_user_rec = smores.Smores.state.recommenders_available.get_recommender(self.cold_user_fallback)
+            cold_user_rec = smores.Smores.state.recommenders_fallback.get_recommender(self.cold_user_fallback)
             #smores.Smores.state.logger.debug(f'.       Insufficent profile data. Fallback to {self.cold_user_fallback}')
             return cold_user_rec.get_recommendations(user_id)
         else:

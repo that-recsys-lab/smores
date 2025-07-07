@@ -49,6 +49,7 @@ class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
         self.threshold = config.params['threshold']
         self.beta = config.params['beta']
         self.recommender_utilities = defaultdict(int)
+        self.recommender_ucbs = defaultdict(float)
 
     def choose_recommender(self):
         maybe_new_recommender = self.consumer.recommender.name

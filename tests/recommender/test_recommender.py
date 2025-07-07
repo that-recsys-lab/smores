@@ -28,15 +28,19 @@ class RecommenderTestCase(unittest.TestCase):
       
 
     def test_component_creation(self):
-      rec_config = self.config.recommender.definitions[0]
+      rec_config = self.config.recommender.base_recommenders[0]
       rec: Recommender = RecommenderFactory.create(rec_config.class_name)
       self.assertIsNotNone(rec)
       rec.setup(rec_config)
       self.assertIsNotNone(rec.cold_user_fallback)
 
     def test_dataset_update(self):
-      rec_config = self.config.recommender.definitions[0]
+      rec_config = self.config.recommender.base_recommenders[0]
       rec: Recommender = RecommenderFactory.create(rec_config.class_name)
+      # Need to configure this so that lookups inside of the base recommender will succeed.
+      fallback_config = self.config.recommender.fallback_recommenders
+      self.smores.state.recommenders_fallback.setup(fallback_config)
+      self.assertTrue(self.smores.state.recommenders_fallback.is_recommender('Popular Fallback'))
       self.assertIsNotNone(rec)
       rec.setup(rec_config)
       self.assertIsNotNone(self.interactions)

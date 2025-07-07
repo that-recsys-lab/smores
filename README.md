@@ -72,7 +72,7 @@ Recommended structure for a recommender is to have PopularRecommender as the col
 ### Provider Utility Models
 
 - `ProviderClickFixedUtilityModel` (label: click_fixed): Provides a fixed utility when a consumer clicks on a provider's item.
-- Still needed: a model that has utility for exposure
+- Still needed: a model that has utility for exposure. Not essential for the paper, though.
 
 ### Triggers
 
@@ -81,6 +81,7 @@ Recommended structure for a recommender is to have PopularRecommender as the col
 - `ProfileColdStartTrigger` (SwitchTrigger) (label: cold_start): When a user switches away from their current recommender, the profile on that recommender (the "from" recommender) is deleted.
 - `ProfileUserOwnershipTrigger` (SwitchTrigger) (label: user_ownership): When a user switches away from their current recommender, the profile on the "from" recommender is deleted and added to the new recommender, the "to" recommender.
 - `SwitchSaveInfoTrigger` (SwitchTrigger) (label: save_switch): **Only useful for testing.** Creates a list of all the switching events.
+
 
 
 ## License
