@@ -4,13 +4,38 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        
         {
-            "name": "Python Debugger: Current File with Arguments",
+            "name": "Python Debugger: Remote Attach",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}",
+                    "remoteRoot": "."
+                }
+            ]
+        },
+        {
+            "name": "Python Debugger: Main with Arguments",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
+            "program": "__main__.py",
             "console": "integratedTerminal",
-            "args": "tests/test_data/test_config.yaml"
+            "args": "tests/test_data/trigger_config.yaml"
+        },
+        {
+            "name": "Python: Main with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "__main__.py",
+            "console": "integratedTerminal",
+            "args": "tests/test_data/trigger_config.yaml",
+            "noDebug": true
         },
         {
             "name": "Python: Run Current File with Arguments",

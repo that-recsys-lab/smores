@@ -67,7 +67,6 @@ class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
         self.threshold = config.params['threshold']
         self.beta = config.params['beta']
         self.recommender_utilities = defaultdict(int)
-        self.recommender_ucbs = defaultdict(float)
 
     def choose_recommender(self):
         maybe_new_recommender = self.consumer.recommender.name
@@ -105,13 +104,16 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
 
     def setup(self, config):
         self.beta = config.params['beta']
-        self.recommender_utilities = defaultdict(int)
+        self.recommender_utilities = defaultdict(float)
         self.recommender_count = defaultdict(int)
-        self.recommender_time = defaultdict(int)
+        self.recommender_ucbs = defaultdict(float)
 
     def choose_recommender(self):
+        old_recommender = self.consumer.recommender.name
+        self.recommender_count[old_recommender] += 1
+
         max_ucb = 0
-        maybe_new_recommender = self.consumer.recommender.name
+        maybe_new_recommender = old_recommender
         for recommender_name in smores.Smores.state.recommenders_active:
             utility = self.recommender_utilities[recommender_name] 
             cycle_count = smores.Smores.state.cycle_count
@@ -119,24 +121,26 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
 
             if count > 0:
                 ucb = utility + np.sqrt(2*np.log(cycle_count+1)/count) # /(1+time)
+                self.recommender_ucbs[recommender_name] = ucb
                 if ucb > max_ucb:
                     maybe_new_recommender = recommender_name
                     max_ucb = ucb
-            else:
+            elif recommender_name != self.consumer.recommender.name:
                 # Always sample untried options
+                #smores.Smores.state.logger.debug(f"Switching from {maybe_new_recommender} to {recommender_name}")
                 maybe_new_recommender = recommender_name
                 break
 
-        self.recommender_count[maybe_new_recommender] += 1
+        self.next_recommender = maybe_new_recommender
         self.log_utilities()
-        return maybe_new_recommender
+        
+        return self.next_recommender
     
     def update_recommender_utility(self, list_utility: float):
         current_recommender_name = self.consumer.recommender.name
         prev_utility = self.recommender_utilities[current_recommender_name]
         new_utility = ((prev_utility * self.beta) + list_utility)/(1 + self.beta)
         self.recommender_utilities[current_recommender_name] = new_utility
-        self.recommender_time[current_recommender_name] += 1
         return new_utility
     
     def log_utilities(self):

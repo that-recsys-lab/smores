@@ -107,6 +107,7 @@ class Smores:
                 initial_recommender = Smores.state.recommenders_base.get_recommender(initial_rec_policy)
                 for consumer in Smores.state.consumers:
                     consumer.recommender = initial_recommender
+                    consumer.recommender_choice_model
             else:
                 raise InactiveInitialRecommenderException(initial_rec_policy)
         else:
@@ -127,6 +128,7 @@ class Smores:
             self.state.cycle_count += 1
 
     def run_cycle(self):
+        self.state.logger.debug(f'    Active recommenders are: {self.state.recommenders_active}')
         self.train_recommenders()
 
         while self.state.day_count < self.state.day_limit:
@@ -228,7 +230,8 @@ class Smores:
             self.run_consumer_cycle(consumer)
         # Run cycle triggers
         for trigger in Smores.state.triggers.get_iterator('cycle'):
-            event = CycleEvent(self.state.day_count, self.state.current_time())
+            event = CycleEvent(self.state.cycle_count, self.state.current_time())
+            # Smores.state.logger.debug(f'checking trigger {trigger}. cycle count: {event.cycle_count}')
             trigger.apply_trigger(event)
 
     def run_consumer_cycle(self, consumer: Consumer):
@@ -237,15 +240,16 @@ class Smores:
             if consumer.recommender is not None:
                 rec_name = consumer.recommender.name
                 next_rec_name = consumer.recommender_choice_model.choose_recommender()
-                if next_rec_name in Smores.state.recommenders_active:
-                    consumer.recommender = Smores.state.recommenders_base.get_recommender(rec_name)
+                if next_rec_name != rec_name:
+                    if next_rec_name in Smores.state.recommenders_active:
+                        consumer.recommender = Smores.state.recommenders_base.get_recommender(next_rec_name)
                                     
-                    for trigger in Smores.state.triggers.get_iterator('switch'):
-                        event = SwitchEvent(consumer, next_rec_name)
-                        trigger.apply_trigger(event)
-                else: 
-                    raise RecommenderNotActiveException(consumer, next_rec_name)
-
+                        for trigger in Smores.state.triggers.get_iterator('switch'):
+                            event = SwitchEvent(consumer, next_rec_name)
+                            trigger.apply_trigger(event)
+                    else: 
+                        raise RecommenderNotActiveException(consumer, next_rec_name)
+                # Else no change to the recommender
 
     def cleanup(self):
         self.state.logger.cleanup()

@@ -121,4 +121,5 @@ class SmoresLogger:
         """Close the data file when done."""
         self.consumer_output_file.close()
         self.provider_output_file.close()
+        self.choice_output_file.close()
 

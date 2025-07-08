@@ -71,5 +71,5 @@ class SmoresConfig(BaseModel):
     provider: ProviderConfig
     platform: PlatformConfig
     recommender: RecommenderConfig
-    triggers: list[PythonClassConfig]
+    triggers: Optional[list[PythonClassConfig]]
 

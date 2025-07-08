@@ -68,9 +68,10 @@ class CycleTrigger(Trigger):
         self.cycle_count = int(config.params['cycle_count'])
 
     def accept_event(self, event: CycleEvent):
-        if not self.repeating and self.cycle_count == event.cycle_count:
+        adjusted_cycle_count = event.cycle_count + 1
+        if not self.repeating and self.cycle_count == adjusted_cycle_count:
             return True
-        if self.repeating and self.cycle_count % event.cycle_count == 0:
+        if self.repeating and adjusted_cycle_count % self.cycle_count  == 0:
             return True
         return False
 
@@ -81,10 +82,11 @@ class InitialBurnInTrigger(CycleTrigger):
         self.recommenders_to_activate = config.params['recommenders']
 
     def handle_event(self, event):
+        smores.Smores.state.logger.debug('Burn-in trigger activated')
         # activate listed recommenders
         for name in self.recommenders_to_activate:
-            rec = Recommender.name2recommender(name)
-            if rec is not None:
+            rec = Recommender.name2base_recommender(name)
+            if rec is not None and name not in smores.Smores.state.recommenders_active:
                 smores.Smores.state.recommenders_active.append(name)
             else:
                 raise UnknownRecommenderError(name)
@@ -115,7 +117,7 @@ class UniversalProfileTrigger(InteractionBatchTrigger):
                     other_interaction_dict[other_name] = other_interaction_dict[other_name] + rec_interactions
 
         for name, interactions in other_interaction_dict.items():
-            rec = Recommender.name2recommender(name)
+            rec = Recommender.name2base_recommender(name)
             if rec is not None:
                 rec.update_interactions(interactions)
             else:
