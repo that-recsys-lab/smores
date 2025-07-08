@@ -120,6 +120,7 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
             count = self.recommender_count[recommender_name]
 
             if count > 0:
+                # log(time+1) / (count * no days)
                 ucb = utility + np.sqrt(2*np.log(cycle_count+1)/count) # /(1+time)
                 self.recommender_ucbs[recommender_name] = ucb
                 if ucb > max_ucb:
@@ -127,6 +128,7 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
                     max_ucb = ucb
             elif recommender_name != self.consumer.recommender.name:
                 # Always sample untried options
+                # Might be better to do this randomly if more than 2 options
                 #smores.Smores.state.logger.debug(f"Switching from {maybe_new_recommender} to {recommender_name}")
                 maybe_new_recommender = recommender_name
                 break

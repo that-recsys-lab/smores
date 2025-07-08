@@ -254,6 +254,7 @@ class Smores:
     def cleanup(self):
         self.state.logger.cleanup()
 
+
 # Exceptions
 class InactiveInitialRecommenderException(Exception):
     def __init__(self, name):
