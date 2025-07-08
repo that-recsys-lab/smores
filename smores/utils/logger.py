@@ -1,6 +1,8 @@
 import logging
 import os
 import csv
+import pyarrow.csv as pv
+import pyarrow.parquet as pq
 from datetime import datetime
 from pathlib import Path
 from collections import namedtuple
@@ -19,6 +21,9 @@ class SmoresLogger:
     RECOMMENDER_CHOICE_HEADERS = ['consumer_id', 'consumer_type', 'time', 'current_recommender', 'next_recommender']
 
     def __init__(self, config: LoggerConfig):
+        self.use_timestamp = config.use_timestamp
+        self.use_parquet = config.use_parquet
+
         output_dir = Path(config.directory)
         os.makedirs(output_dir, exist_ok=True)
 
@@ -32,8 +37,6 @@ class SmoresLogger:
             self.debug_logger.setLevel(logging.DEBUG)
         else:
             self.debug_logger.setLevel(logging.INFO)
-
-        self.use_timestamp = config.use_timestamp
 
         # consumer utility output
         if self.use_timestamp:
@@ -116,6 +119,14 @@ class SmoresLogger:
         self.choice_writer.writerow(row)
         self.choice_output_file.flush()
 
+    def copy_parquet(self, inpath: Path):
+        outpath = inpath.with_suffix('.parquet')
+        smores.Smores.state.logger.debug(f'Converting {inpath} to parquet.')
+        table = pv.read_csv(inpath)
+        pq.write_table(table, outpath)
+        os.remove(inpath)
+        smores.Smores.state.logger.debug(f'\tConversion complete. {inpath} deleted. {outpath} written')
+
     # TODO: convert to parquet
     def cleanup(self):
         """Close the data file when done."""
@@ -123,3 +134,7 @@ class SmoresLogger:
         self.provider_output_file.close()
         self.choice_output_file.close()
 
+        if self.use_parquet:
+            self.copy_parquet(self.consumer_log_path)
+            self.copy_parquet(self.provider_log_path)
+            self.copy_parquet(self.choice_log_path)
