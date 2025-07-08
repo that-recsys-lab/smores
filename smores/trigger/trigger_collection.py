@@ -6,10 +6,11 @@ class TriggerCollection():
         self.collection = defaultdict(list)
 
     def setup(self, config: list):
-        for trigger_def in config:
-            trigger = TriggerFactory.make_object(trigger_def.class_name)
-            trigger.setup(trigger_def)
-            self.add_trigger(trigger)
+        if config is not None:
+            for trigger_def in config:
+                trigger = TriggerFactory.make_object(trigger_def.class_name)
+                trigger.setup(trigger_def)
+                self.add_trigger(trigger)
 
     def add_trigger(self, trigger: Trigger):
         self.collection[trigger.trigger_type].append(trigger)

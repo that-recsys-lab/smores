@@ -18,6 +18,7 @@ class LoggerConfig(BaseModel):
     directory: str
     consumer_file: str
     provider_file: str
+    choice_file: str
     debug_file: str
     debug_level: str
     use_timestamp: bool
@@ -70,5 +71,5 @@ class SmoresConfig(BaseModel):
     provider: ProviderConfig
     platform: PlatformConfig
     recommender: RecommenderConfig
-    triggers: list[PythonClassConfig]
+    triggers: Optional[list[PythonClassConfig]]
 

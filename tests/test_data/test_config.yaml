@@ -18,6 +18,7 @@ output:
   directory: tests/test_output/
   consumer_file: consumer_utility
   provider_file: provider_utility
+  choice_file: choice_utility
   debug_file: debug
   debug_level: "debug"
   use_timestamp: False

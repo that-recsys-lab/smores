@@ -1,69 +1,82 @@
-# Sample SMORES configuration
-# TODO: Where to specific data sharing behavior
+# SMORES configuration
+# Data: MovieLens
+# Variant: Algorithm-specific user profiles, UCB switching
 
 simulation:
-    experiment_name: test_experiment
-    num_days: 10
-    num_cycles: 10
+    experiment_name: "MovieLens--Algorithm-specific "
+    num_days: 2 
+    num_cycles: 4 
     slate_size: 5
-    seed: 20250513
+    seed: 20250702
 
 data:
-  directory: data/raw/ambar
-  consumer_file: users.csv
+  directory: ../smores_recsys_2025/data/ml-tmdb/simulation
+  consumer_file: consumers.csv
   item_file: items.csv
-  provider_file: artists.csv
+  provider_file: providers.csv
+
+output:
+  directory: tests/test_output/
+  consumer_file: consumer_utility
+  provider_file: provider_utility
+  choice_file: choice_utility
+  debug_file: debug
+  debug_level: "debug"
+  use_timestamp: True
 
 consumer:
-  initial_recommender_assignment:
-    class_name: fixed
-    name: Generic
+  initial_recommender: "Generic"
   models:
       utility:
-        - name: "Fixed utility 0.5"
-          class_name: fixed_utility
-          params:
-            value: 0.5
-        - name: "Fixed utility 0.3"
-          class_name: fixed_utility
-          params:
-            value: 0.3
+        - name: "List Average"
+          class_name: list_average
       item_selection:
         - name: "Category Similarity"
           class_name: category_similarity_logit
           params:
-            threshold: 0.3        
+            threshold: 0.3     
+            selection_utility: 1.0 
+
   types:
     - name: "Generic"
-      utility_model: "Fixed utility 0.5"
+      utility_model: "List Average"
       item_selection_model: "Category Similarity"
       recommender_choice_model:
-        class_name: fixed
+        class_name: ucb
         params:
-          recommender_name: Generic
+          beta: 2
 
     - name: "Niche"
-      utility_model: "Fixed utility 0.3"
+      utility_model: "List Average"
       item_selection_model: "Category Similarity"
       recommender_choice_model:
-        class_name: fixed
+        class_name: ucb
         params:
-          recommender_name: Generic
-
+          beta: 2
 
 provider:
-  utility_model:
-    class_name: click_fixed
-    params:
-      value: 1
+  initial_recommender: "__all__" 
+  models:
+    utility:
+      - name: "Click Fixed 1.0"
+        class_name: click_fixed
+        params:
+          value: 1.0
+
+  types:
+    - name: "Generic"
+      utility_model: "Click Fixed 1.0"
+
+    - name: "Niche"
+      utility_model: "Click Fixed 1.0"
 
 platform:
   utility_model:
     class_name: null_model
 
 recommender:
-  initial: ["Generic"]
-  definitions:
+  initial: ["Generic", "Niche"]
+  base_recommenders:
     - name: "Generic"
       class_name: item_knn
       params:
@@ -73,9 +86,23 @@ recommender:
         min_user_count: 20
         min_interaction_count: 500
         min_profile_size: 5
-        cold_user_fallback: "Popular Fallback"
+        cold_user_fallback: "Popular Generic"
+        cold_start_fallback: "Popular File Generic"
 
-    - name: "Popular Fallback"
+    - name: "Niche"
+      class_name: item_knn
+      params:
+        max_neighbors: 20
+        min_neighbors: 2
+        min_similarity: 0.0001
+        min_user_count: 20
+        min_interaction_count: 500
+        min_profile_size: 5
+        cold_user_fallback: "Popular Niche"
+        cold_start_fallback: "Popular File Niche"
+
+  fallback_recommenders:
+    - name: "Popular Generic"
       class_name: popular
       params:
           min_user_count: 20
@@ -87,16 +114,14 @@ recommender:
           min_user_count: 20
           min_interaction_count: 500
 
+    - name: "Popular File Generic"
+      class_name: file_based
+      params:
+          file_name: popular_generic_movies.csv
+
+    - name: "Popular File Niche"
+      class_name: file_based
+      params:
+          file_name: popular_niche_movies.csv
+
 triggers:
-  - name: Cycle5Freeze
-    class_name: initial_burnin
-    params:
-      cycle_count: 5
-      recommenders: ["Generic", "Popular Niche"]
-  - name: ColdStart
-    class_name: cold_start_memory
-    params:
-      cycle_count: 1
-      repeating: True
-
-
