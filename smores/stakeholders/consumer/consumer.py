@@ -7,7 +7,7 @@ from pydantic import BaseModel, PositiveInt
 from .consumer_utility_model import ConsumerUtilityModelFactory
 from .item_selection_model import ItemSelectionModelFactory
 from .recommender_choice_model import RecommenderChoiceModelFactory
-from smores.utils import UtilityHistory, ConsumerTypeConfig
+from smores.utils import ConsumerTypeConfig
 import smores
 
 class ConsumerInfo (BaseModel):
@@ -22,9 +22,9 @@ class Consumer:
         self.preference_vector = None
         self.recommender: str = None
         self.utility_model = None
+        self.clicked_items = set()
         self.item_selection_model = None
         self.recommender_choice_model = None
-        self.history: UtilityHistory = None
 
     def __str__(self):
         return f'<Consumer {self.id} {self.type}>'
@@ -36,7 +36,6 @@ class Consumer:
         self.preference_vector = config_instance.preferences
 
         # Consumer-type specific
-        self.history = UtilityHistory()
         consumer_models = smores.Smores.state.consumer_models
 
         # Get utility model
