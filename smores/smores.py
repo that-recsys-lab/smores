@@ -148,11 +148,11 @@ class Smores:
     def process_interactions(self, interactions: list):
         interaction_dict = defaultdict(list)
         for (user_id, item_id, rec_name, rating, time) in interactions:
-            if rating is not None and item_id != ItemSelectionModel.NO_ITEM_SELECTED:
+            if rating is not None and item_id != None:
                 interaction_dict[rec_name].append((user_id, int(item_id), rating, time))
         
         for rec_name in interaction_dict.keys():
-            rec: Recommender = Recommender.name2recommender(rec_name)
+            rec: Recommender = Recommender.name2base_recommender(rec_name)
             rec.update_dataset(interaction_dict[rec_name])
 
         # Run interaction triggers
@@ -196,32 +196,33 @@ class Smores:
             result = consumer.item_selection_model.select_item(consumer, recs)
         else:
             raise ItemSelectionUnassignedException(consumer)
-        
-        # Update item utility for item provider
-        if not ItemSelectionModel.is_empty_selection(result):
-            (selected_id, score) = result
-            state.providers.update_utility_item(consumer, consumer.recommender, selected_id, time)
 
-        # Update recommender choice model
-        if consumer.recommender_choice_model is not None:
-            if ItemSelectionModel.is_empty_selection(result):
-                selected_id = result[0]
+        interaction_utility = 0.0
+        recommender_utility = 0.0
+        
+        if not ItemSelectionModel.is_empty_selection(result):
+
+            selected_id = int(result[0])
+            # Add to clicked items
+            consumer.clicked_items.add(selected_id)
+            # Update item utility for item provider
+            state.providers.update_utility_item(consumer, consumer.recommender, selected_id, time)
+            # Update recommender choice model
+            if consumer.recommender_choice_model is not None:
+                interaction_utility = consumer.utility_model.compute_list_utility(consumer, recs)
+                recommender_utility = consumer.recommender_choice_model.update_recommender_utility(interaction_utility)
             else:
-                selected_id = ItemSelectionModel.NO_ITEM_SELECTED
-            interaction_utility = consumer.utility_model.compute_list_utility(consumer, recs)
-            recommender_utility = consumer.recommender_choice_model.update_recommender_utility(interaction_utility)
+                raise RecommenderChoiceUnassignedException(consumer)
         else:
-            raise RecommenderChoiceUnassignedException(consumer)
+            selected_id = None
         
         # log the consumer utility
         Smores.state.logger.log_consumer(ConsumerUtility(consumer.id, consumer.type, consumer.recommender.name, interaction_utility,
                                                          recommender_utility, time))
 
         # construct the interaction and return
-        if ItemSelectionModel.is_empty_selection(result):
-            interaction = (consumer.id, None, consumer.recommender.name, None, time)
-        else:
-            interaction = (consumer.id, selected_id, consumer.recommender.name, 1, time)
+        interaction = (consumer.id, selected_id, consumer.recommender.name, 1, time)
+
         return interaction
 
     def cycle_actions(self):

@@ -90,7 +90,7 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
         # remove items that the user has selected previously
         # TODO: Maybe this should be a configurable aspect?
         item_tuples_filtered = [item_tuple for item_tuple in item_tuples \
-                                 if not consumer.history.contains_item(item_tuple[0])]
+                                 if item_tuple[0] not in consumer.clicked_items]
 
         for id, score in item_tuples_filtered:
             item = smores.Smores.state.items.get_item(id)
