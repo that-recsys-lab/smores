@@ -116,12 +116,15 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
         maybe_new_recommender = old_recommender
         for recommender_name in smores.Smores.state.recommenders_active:
             utility = self.recommender_utilities[recommender_name] 
-            cycle_count = smores.Smores.state.cycle_count
+            days_per_cycle = smores.Smores.state.day_limit
+            time = smores.Smores.state.current_time()
             count = self.recommender_count[recommender_name]
 
             if count > 0:
-                # log(time+1) / (count * no days)
-                ucb = utility + np.sqrt(2*np.log(cycle_count+1)/count) # /(1+time)
+                # This version of UCB counts the days within a cycle as "experience" relative
+                # to the current recommender. Should enable faster convergence
+                ucb = utility + np.sqrt(2*np.log(time+1) / (count * days_per_cycle))
+                # ucb = utility + np.sqrt(2*np.log(cycle_count+1)/count)
                 self.recommender_ucbs[recommender_name] = ucb
                 if ucb > max_ucb:
                     maybe_new_recommender = recommender_name
