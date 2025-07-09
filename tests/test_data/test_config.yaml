@@ -55,9 +55,9 @@ consumer:
       utility_model: "Fixed utility 0.3"
       item_selection_model: "Category Similarity"
       recommender_choice_model:
-        class_name: fixed
+        class_name: ucb
         params:
-          recommender_name: Generic
+          beta: 2
 
 
 provider:

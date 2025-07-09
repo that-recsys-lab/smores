@@ -152,7 +152,7 @@ class Smores:
                 interaction_dict[rec_name].append((user_id, int(item_id), rating, time))
         
         for rec_name in interaction_dict.keys():
-            rec: Recommender = Recommender.name2recommender(rec_name)
+            rec: Recommender = Recommender.name2base_recommender(rec_name)
             rec.update_dataset(interaction_dict[rec_name])
 
         # Run interaction triggers
@@ -197,16 +197,15 @@ class Smores:
         else:
             raise ItemSelectionUnassignedException(consumer)
         
+        selected_id = int(result[0])
+        
         # Update item utility for item provider
         if not ItemSelectionModel.is_empty_selection(result):
-            (selected_id, score) = result
             state.providers.update_utility_item(consumer, consumer.recommender, selected_id, time)
 
         # Update recommender choice model
         if consumer.recommender_choice_model is not None:
             if ItemSelectionModel.is_empty_selection(result):
-                selected_id = result[0]
-            else:
                 selected_id = ItemSelectionModel.NO_ITEM_SELECTED
             interaction_utility = consumer.utility_model.compute_list_utility(consumer, recs)
             recommender_utility = consumer.recommender_choice_model.update_recommender_utility(interaction_utility)
