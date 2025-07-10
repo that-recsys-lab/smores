@@ -27,7 +27,7 @@ class LoggerConfig(BaseModel):
 class PythonClassConfig(BaseModel):
     name: Optional[str] = None
     class_name: str
-    params: dict[str, Any] = {}
+    params: Optional[dict[str, Any]] = {}
 
 class ConsumerModelsConfig(BaseModel):
     utility: list[PythonClassConfig]
