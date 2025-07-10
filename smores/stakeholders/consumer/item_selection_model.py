@@ -107,7 +107,7 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
             np.sum(np.exp(category_similarities - np.max(category_similarities)))
 
         # Select an item index based on probabilities
-        selected_tuple = smores.Smores.state.rand.choice(item_tuples, p=probabilities)
+        selected_tuple = smores.Smores.state.rand.choice(item_tuples_filtered, p=probabilities)
         return (selected_tuple[0], self.selection_utility)
     
 
