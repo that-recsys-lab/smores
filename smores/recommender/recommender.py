@@ -16,6 +16,7 @@ class Recommender(ABC):
         # Use this if there isn't enough data for a particular user
         self.cold_user_fallback: str = None
         self.name = None
+        self.trained = False
 
     @abstractmethod
     def setup(self, config):
@@ -98,6 +99,8 @@ class Recommender(ABC):
 class FixedItemRecommender(Recommender):
     def __init__(self):
         super().__init__()
+        # Needs no training
+        self.trained = True
 
     def setup(self, config):
         self.name = config.name

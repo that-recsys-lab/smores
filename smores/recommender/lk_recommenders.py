@@ -1,9 +1,11 @@
 from pydantic import BaseModel
 from sys import maxsize
 from icecream import ic
+from abc import abstractmethod
 
 from lenskit.pipeline import Pipeline, PipelineBuilder, Component, topn_pipeline
-from lenskit.basic.candidates import UnratedTrainingItemsCandidateSelector
+from lenskit.basic.candidates import AllTrainingItemsCandidateSelector, \
+    UnratedTrainingItemsCandidateSelector
 from lenskit.basic import UserTrainingHistoryLookup, TopNRanker
 from lenskit.basic.popularity import PopScorer, PopConfig
 from lenskit.knn import ItemKNNConfig, ItemKNNScorer
@@ -25,7 +27,6 @@ class LKRecommender(Recommender):
 
     def setup(self, config):
         super().setup(config)
-        self.pipeline = self.build_pipeline()
 
     def get_scorer(self):
         return self.scorer
@@ -34,27 +35,12 @@ class LKRecommender(Recommender):
         super().train()
         # Don't train on an empty dataset
         if self.dataset.interaction_count > 0:
-            self.scorer.train(self.dataset)
+            self.pipeline.train(self.dataset)
+        self.trained = True
     
+    @abstractmethod
     def build_pipeline(self):
-        scorer = self.get_scorer()
-        slate_size = smores.Smores.state.slate_size
-
-        pipe = PipelineBuilder()
-        # define an input parameter for the user ID (the 'query')
-        query = pipe.create_input('query', ID)
-        # look up a user's history in the training data
-        history = pipe.add_component('history-lookup', UserTrainingHistoryLookup, query=query)
-        # find candidates from the training data
-        default_candidates = pipe.add_component('candidate-selector',
-            UnratedTrainingItemsCandidateSelector, query=history)
-        # score the candidate items using the specified scorer
-        score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
-        # rank the items by score
-        recommend = pipe.add_component('ranker', TopNRanker, {'n': slate_size}, items=score)
-        pipe.alias('recommender', recommend)
-        pipe.default_component('recommender')
-        return pipe.build()
+        pass
 
     def get_recommendations(self, user_id: ID):
         if not self.isDatasetViable():
@@ -75,30 +61,55 @@ class PopularRecommender(LKRecommender):
         self.min_interaction_count: int = maxsize
 
     def setup(self, config):
+        super().setup(config)
         params = config.params
         self.min_user_count = int(params['min_user_count'])
         self.min_interaction_count = int(params['min_interaction_count'])
         self.lk_config = PopConfig(score='count')
         self.scorer = PopScorer(self.lk_config)
-        super().setup(config)
+        self.pipeline = self.build_pipeline()
 
+    # No minimum for training the popular recommender
     def train(self):
-        if self.dataset.interaction_count >= self.min_interaction_count and \
-                self.dataset.user_count >= self.min_user_count:
-            super().train()
-
+        super().train()
+    
     def build_pipeline(self):
         scorer = self.get_scorer()
         slate_size = smores.Smores.state.slate_size
         return topn_pipeline(scorer, n=slate_size)
 
+    # def build_pipeline(self):
+    #     scorer = self.get_scorer()
+    #     slate_size = smores.Smores.state.slate_size
+
+    #     pipe = PipelineBuilder()
+    #     # define an input parameter for the user ID (the 'query')
+    #     query = pipe.create_input('query', ID)
+    #     # find candidates from the training data. Because some users do not have data yet
+    #     # (cold user case) we can't use the UnratedTrainingItemsVersion. This may cause some problems
+    #     # if we can't build up enough of a history for a user.
+    #     default_candidates = pipe.add_component('candidate-selector',
+    #         AllTrainingItemsCandidateSelector)
+    #     # score the candidate items using the specified scorer
+    #     score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
+    #     # rank the items by score
+    #     recommend = pipe.add_component('ranker', TopNRanker, {'n': slate_size}, items=score)
+    #     pipe.alias('recommender', recommend)
+    #     pipe.default_component('recommender')
+    #     return pipe.build()
+
     def isDatasetViable(self):
-        user_count = self.dataset.user_count
-        interaction_count = self.dataset.interaction_count
-        if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
-            return True
-        else:
+        # If the model hasn't been trained, it can't be used
+        if not self.trained:
             return False
+        else:
+            user_count = self.dataset.user_count
+            interaction_count = self.dataset.interaction_count
+            if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
+                return True
+            else:
+                return False
+
         
     def isProfileViable(self, _):
         return True # Because we ignore the profile, everyone is viable
@@ -111,6 +122,7 @@ class ItemKnnRecommender(LKRecommender):
         self.min_profile_size = maxsize
 
     def setup(self, config):
+        super().setup(config)
         # get data from config
         params = config.params
         max_nbrs = int(params['max_neighbors'])
@@ -125,7 +137,26 @@ class ItemKnnRecommender(LKRecommender):
         # create ItemKNNScorer
         self.scorer = ItemKNNScorer(self.lk_config)
         self.pipeline = self.build_pipeline()
-        super().setup(config)
+
+    def build_pipeline(self):
+        scorer = self.get_scorer()
+        slate_size = smores.Smores.state.slate_size
+
+        pipe = PipelineBuilder()
+        # define an input parameter for the user ID (the 'query')
+        query = pipe.create_input('query', ID)
+        # look up a user's history in the training data
+        history = pipe.add_component('history-lookup', UserTrainingHistoryLookup, query=query)
+        # find candidates from the training data
+        default_candidates = pipe.add_component('candidate-selector',
+            UnratedTrainingItemsCandidateSelector, query=history)
+        # score the candidate items using the specified scorer
+        score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
+        # rank the items by score
+        recommend = pipe.add_component('ranker', TopNRanker, {'n': slate_size}, items=score)
+        pipe.alias('recommender', recommend)
+        pipe.default_component('recommender')
+        return pipe.build()
 
     def train(self):
         if self.dataset.interaction_count >= self.min_interaction_count and \
@@ -133,12 +164,17 @@ class ItemKnnRecommender(LKRecommender):
             super().train()
 
     def isDatasetViable(self):
-        user_count = self.dataset.user_count
-        interaction_count = self.dataset.interaction_count
-        if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
-            return True
-        else:
+        if not self.trained:
             return False
+        else:
+            user_count = self.dataset.user_count
+            interaction_count = self.dataset.interaction_count
+            if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
+                # smores.Smores.state.logger.debug(f"Recommender: {self.name} is viable. Interaction count {interaction_count}. User count {user_count}")
+                return True
+            else:
+                return False
+
         
     def isProfileViable(self, user_id: ID):
         items = self.dataset.user_row(user_id)
@@ -149,6 +185,7 @@ class ItemKnnRecommender(LKRecommender):
             if profile_size < self.min_profile_size:
                 return False
             else:
+                # smores.Smores.state.logger.debug(f"Recommender: {self.name} user {user_id} is viable.")
                 return True
 
 
@@ -160,6 +197,7 @@ class ImplicitMFRecommender(LKRecommender):
         self.min_profile_size = maxsize
 
     def setup(self, config):
+        super().setup(config)
         # get data from config
         params = config.params
         self.embedding_size = int(params['embedding_size'])
@@ -178,7 +216,27 @@ class ImplicitMFRecommender(LKRecommender):
 
         self.scorer = ImplicitMFScorer(self.lk_config)
         self.pipeline = self.build_pipeline()
-        super().setup(config)
+
+
+    def build_pipeline(self):
+        scorer = self.get_scorer()
+        slate_size = smores.Smores.state.slate_size
+
+        pipe = PipelineBuilder()
+        # define an input parameter for the user ID (the 'query')
+        query = pipe.create_input('query', ID)
+        # look up a user's history in the training data
+        history = pipe.add_component('history-lookup', UserTrainingHistoryLookup, query=query)
+        # find candidates from the training data
+        default_candidates = pipe.add_component('candidate-selector',
+            UnratedTrainingItemsCandidateSelector, query=history)
+        # score the candidate items using the specified scorer
+        score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
+        # rank the items by score
+        recommend = pipe.add_component('ranker', TopNRanker, {'n': slate_size}, items=score)
+        pipe.alias('recommender', recommend)
+        pipe.default_component('recommender')
+        return pipe.build()
 
     def train(self):
         if self.dataset.interaction_count >= self.min_interaction_count and \
@@ -186,12 +244,15 @@ class ImplicitMFRecommender(LKRecommender):
             super().train()
 
     def isDatasetViable(self):
-        user_count = self.dataset.user_count
-        interaction_count = self.dataset.interaction_count
-        if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
-            return True
-        else:
+        if not self.trained:
             return False
+        else:
+            user_count = self.dataset.user_count
+            interaction_count = self.dataset.interaction_count
+            if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
+                return True
+            else:
+                return False
         
     def isProfileViable(self, user_id: ID):
         items = self.dataset.user_row(user_id)

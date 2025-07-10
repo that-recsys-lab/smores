@@ -10,6 +10,8 @@ class FileBasedRecommender(Recommender):
         super().__init__()
         self.items: List[int] = []
         self.file_path = None
+        # Needs no training
+        self.trained = True
     
     def setup(self, config):
         super().setup(config)
