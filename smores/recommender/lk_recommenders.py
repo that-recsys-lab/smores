@@ -72,26 +72,31 @@ class PopularRecommender(LKRecommender):
     # No minimum for training the popular recommender
     def train(self):
         super().train()
-
+    
     def build_pipeline(self):
         scorer = self.get_scorer()
         slate_size = smores.Smores.state.slate_size
+        return topn_pipeline(scorer, n=slate_size)
 
-        pipe = PipelineBuilder()
-        # define an input parameter for the user ID (the 'query')
-        query = pipe.create_input('query', ID)
-        # find candidates from the training data. Because some users do not have data yet
-        # (cold user case) we can't use the UnratedTrainingItemsVersion. This may cause some problems
-        # if we can't build up enough of a history for a user.
-        default_candidates = pipe.add_component('candidate-selector',
-            AllTrainingItemsCandidateSelector)
-        # score the candidate items using the specified scorer
-        score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
-        # rank the items by score
-        recommend = pipe.add_component('ranker', TopNRanker, {'n': slate_size}, items=score)
-        pipe.alias('recommender', recommend)
-        pipe.default_component('recommender')
-        return pipe.build()
+    # def build_pipeline(self):
+    #     scorer = self.get_scorer()
+    #     slate_size = smores.Smores.state.slate_size
+
+    #     pipe = PipelineBuilder()
+    #     # define an input parameter for the user ID (the 'query')
+    #     query = pipe.create_input('query', ID)
+    #     # find candidates from the training data. Because some users do not have data yet
+    #     # (cold user case) we can't use the UnratedTrainingItemsVersion. This may cause some problems
+    #     # if we can't build up enough of a history for a user.
+    #     default_candidates = pipe.add_component('candidate-selector',
+    #         AllTrainingItemsCandidateSelector)
+    #     # score the candidate items using the specified scorer
+    #     score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
+    #     # rank the items by score
+    #     recommend = pipe.add_component('ranker', TopNRanker, {'n': slate_size}, items=score)
+    #     pipe.alias('recommender', recommend)
+    #     pipe.default_component('recommender')
+    #     return pipe.build()
 
     def isDatasetViable(self):
         # If the model hasn't been trained, it can't be used
