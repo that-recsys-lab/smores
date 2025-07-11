@@ -91,6 +91,9 @@ class CategorySimilarityLogitModel(ItemSelectionModel):
         # TODO: Maybe this should be a configurable aspect?
         item_tuples_filtered = [item_tuple for item_tuple in item_tuples \
                                  if item_tuple[0] not in consumer.clicked_items]
+        
+        if len(item_tuples_filtered) == 0:
+            smores.Smores.state.logger.debug(f"No clickable items for user {consumer.id}")
 
         for id, score in item_tuples_filtered:
             item = smores.Smores.state.items.get_item(id)
