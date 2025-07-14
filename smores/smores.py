@@ -87,8 +87,13 @@ class Smores:
         state.recommenders_base.setup(config.recommender.base_recommenders)
         state.recommenders_fallback.setup(config.recommender.fallback_recommenders)
 
+        # Setup dataset. Has to be a separate step so the fallback can point to the base dataset
+        state.recommenders_base.setup_datasets()
+        state.recommenders_base.setup_fallbacks()
+
         # Setup triggers
-        state.triggers.setup(config.triggers)
+        if config.triggers is not None:
+            state.triggers.setup(config.triggers)
 
         # Connect consumers with initial recommenders
         self.setup_initial_recommenders()
@@ -246,7 +251,7 @@ class Smores:
                         consumer.recommender = Smores.state.recommenders_base.get_recommender(next_rec_name)
                                     
                         for trigger in Smores.state.triggers.get_iterator('switch'):
-                            event = SwitchEvent(consumer, next_rec_name)
+                            event = SwitchEvent(consumer, rec_name, next_rec_name)
                             trigger.apply_trigger(event)
                     else: 
                         raise RecommenderNotActiveException(consumer, next_rec_name)
