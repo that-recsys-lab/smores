@@ -132,9 +132,9 @@ class Smores:
         self.train_recommenders()
 
         while self.state.day_count < self.state.day_limit:
-            self.state.logger.info(f'  Started day {self.state.day_count}')
+            self.state.logger.info(f'  Started day {self.state.cycle_count}:{self.state.day_count}')
             self.run_day()
-            self.state.logger.info(f'  Completed day {self.state.day_count}')
+            self.state.logger.info(f'  Completed day {self.state.cycle_count}:{self.state.day_count}')
             self.state.day_count += 1
         self.cycle_actions()
 
