@@ -2,7 +2,7 @@ from smores.recommender import Recommender, RecommenderFactory
 
 class RecommenderMap:
     def __init__(self):
-        self._rec_map = {}
+        self._rec_map: dict[str, Recommender] = {}
 
     # Assumes input comes from config.recommender.defintions (a list)
     # A little bit odd because usually setup doesn't create the objects
@@ -15,6 +15,19 @@ class RecommenderMap:
             self.set_recommender(name, inst)
 
             inst.setup(rec_config)
+
+    def setup_datasets(self):
+        for _, rec in self._rec_map.items():
+            rec.setup_dataset()
+
+    def setup_fallbacks(self):
+        for _, rec in self._rec_map.items():
+            cold_start_rec = rec.get_cold_start_fallback()
+            cold_user_rec = rec.get_cold_user_fallback()
+            if cold_start_rec is not None:
+                cold_start_rec.parent = rec
+            if cold_user_rec is not None:
+                cold_user_rec.parent = rec
 
     def is_recommender(self, name: str):
         return name in self._rec_map

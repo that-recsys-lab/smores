@@ -33,8 +33,8 @@ class LKRecommender(Recommender):
     def train(self):
         super().train()
         # Don't train on an empty dataset
-        if self.dataset.interaction_count > 0:
-            self.pipeline.train(self.dataset)
+        if self.get_dataset().interaction_count > 0:
+            self.pipeline.train(self.get_dataset())
         self.trained = True
     
     @abstractmethod
@@ -102,8 +102,8 @@ class PopularRecommender(LKRecommender):
         if not self.trained:
             return False
         else:
-            user_count = self.dataset.user_count
-            interaction_count = self.dataset.interaction_count
+            user_count = self.dataset_active_users()
+            interaction_count = self.get_dataset().interaction_count
             if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
                 return True
             else:
@@ -158,16 +158,16 @@ class ItemKnnRecommender(LKRecommender):
         return pipe.build()
 
     def train(self):
-        if self.dataset.interaction_count >= self.min_interaction_count and \
-                self.dataset.user_count >= self.min_user_count:
+        if self.get_dataset().interaction_count >= self.min_interaction_count and \
+                self.get_dataset().user_count >= self.min_user_count:
             super().train()
 
     def isDatasetViable(self):
         if not self.trained:
             return False
         else:
-            user_count = self.dataset.user_count
-            interaction_count = self.dataset.interaction_count
+            user_count = self.dataset_active_users()
+            interaction_count = self.get_dataset().interaction_count
             if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
                 # smores.Smores.state.logger.debug(f"Recommender: {self.name} is viable. Interaction count {interaction_count}. User count {user_count}")
                 return True
@@ -176,7 +176,7 @@ class ItemKnnRecommender(LKRecommender):
 
         
     def isProfileViable(self, user_id: ID):
-        items = self.dataset.user_row(user_id)
+        items = self.get_dataset().user_row(user_id)
         if items is None:
             return False
         else:
@@ -238,23 +238,23 @@ class ImplicitMFRecommender(LKRecommender):
         return pipe.build()
 
     def train(self):
-        if self.dataset.interaction_count >= self.min_interaction_count and \
-                self.dataset.user_count >= self.min_user_count:
+        if self.get_dataset().interaction_count >= self.min_interaction_count and \
+                self.get_dataset().user_count >= self.min_user_count:
             super().train()
 
     def isDatasetViable(self):
         if not self.trained:
             return False
         else:
-            user_count = self.dataset.user_count
-            interaction_count = self.dataset.interaction_count
+            user_count = self.dataset_active_users()
+            interaction_count = self.get_dataset().interaction_count
             if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
                 return True
             else:
                 return False
         
     def isProfileViable(self, user_id: ID):
-        items = self.dataset.user_row(user_id)
+        items = self.get_dataset().user_row(user_id)
         if items is None:
             return False
         else:

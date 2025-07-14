@@ -6,10 +6,10 @@ from .trigger import Trigger, TriggerEvent, TriggerFactory
 
 
 class SwitchEvent(TriggerEvent):
-    def __init__(self, consumer, next_rec_name):
+    def __init__(self, consumer, old_rec_name, next_rec_name):
         super().__init__('switch')
         self.consumer_id = consumer.id
-        self.from_rec = consumer.recommender.name
+        self.from_rec = old_rec_name
         self.next_rec = next_rec_name
 
 
@@ -49,9 +49,9 @@ class ProfileUserOwnershipTrigger(SwitchTrigger):
         from_rec: Recommender = Recommender.name2base_recommender(event.from_rec)
         user_data = from_rec.get_user(event.consumer_id)
 
-        if user_data is not None:
+        if len(user_data) > 0:
             to_rec: Recommender = Recommender.name2base_recommender(event.next_rec)
-            to_rec.update_dataset_itemlist(user_data)
+            to_rec.update_dataset_itemlist(event.consumer_id, user_data)
 
             from_rec.delete_user(event.consumer_id)
 

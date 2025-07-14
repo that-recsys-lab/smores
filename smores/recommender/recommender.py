@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from icecream import ic
+import pyarrow as pa
 
 from lenskit.data import Dataset, DatasetBuilder
 from lenskit.data import ItemList
@@ -17,6 +18,7 @@ class Recommender(ABC):
         self.cold_user_fallback: str = None
         self.name = None
         self.trained = False
+        self.parent = None
 
     @abstractmethod
     def setup(self, config):
@@ -28,7 +30,6 @@ class Recommender(ABC):
                 if 'cold_user_fallback' in params: 
                     self.cold_user_fallback = params['cold_user_fallback']
         self.name = config.name
-        self.dataset = self.setup_dataset()
     
     def setup_dataset(self):
         builder = DatasetBuilder(None)
@@ -37,7 +38,24 @@ class Recommender(ABC):
         builder.add_entity_class('item')
         builder.add_entities('item', smores.Smores.state.items.all_items())
         builder.add_relationship_class('interaction', ['user', 'item'], interaction=True)
-        return builder.build()
+        self.dataset = builder.build()
+
+    def get_dataset(self):
+        if self.dataset is None:
+            return self.parent.get_dataset()
+        return self.dataset
+
+    def set_dataset(self, dataset: Dataset):
+        if self.dataset is None:
+            self.parent.set_dataset(dataset)
+        else:
+            self.dataset = dataset
+
+    def dataset_active_users(self):
+        interactions: pa.Table = self.get_dataset().interaction_table(format='arrow', original_ids=True)
+        user_col = interactions.column('user_id')
+        unique_users = user_col.unique()
+        return len(unique_users)
 
     @classmethod
     def name2base_recommender(cls, name: str):
@@ -45,12 +63,29 @@ class Recommender(ABC):
 
     @abstractmethod
     def train(self):
-        if self.cold_start_fallback is not None:
-            cold_start_rec = smores.Smores.state.recommenders_fallback.get_recommender(self.cold_start_fallback)
+        cold_start_rec = self.get_cold_start_fallback()
+        cold_user_rec = self.get_cold_user_fallback()
+
+        if cold_start_rec is not None:
             cold_start_rec.train()
+        if cold_user_rec is not None:
+           cold_user_rec.train()
+
+    def get_cold_start_fallback(self):
+        if self.cold_start_fallback is not None:
+            cold_start_rec = smores.Smores.state.recommenders_fallback.get_recommender(
+                self.cold_start_fallback)
+            return cold_start_rec
+        else:
+            return None
+        
+    def get_cold_user_fallback(self):
         if self.cold_user_fallback is not None:
-            cold_user_rec = smores.Smores.state.recommenders_fallback.get_recommender(self.cold_user_fallback)
-            cold_user_rec.train()
+            cold_user_rec = smores.Smores.state.recommenders_fallback.get_recommender(
+                self.cold_user_fallback)
+            return cold_user_rec
+        else:
+            return None
         
 
     @abstractmethod
@@ -68,35 +103,21 @@ class Recommender(ABC):
     def update_dataset(self, interaction_list: list):
         hist = InteractionHistory()
         hist.add_interactions(interaction_list)
-        self.dataset = hist.to_dataset(self.dataset)
-        self.update_fallback(self.cold_start_fallback, interaction_list)
-        self.update_fallback(self.cold_user_fallback, interaction_list)
+        self.set_dataset(hist.to_dataset(self.get_dataset()))
 
-    def update_fallback(self, fallback_name, interaction_list: list):
-        if fallback_name is not None:
-            cold_rec = smores.Smores.state.recommenders_fallback.get_recommender(fallback_name)
-            cold_rec.update_dataset(interaction_list)
-
-    def update_fallback_itemlist(self, fallback_name, interaction_list: ItemList):
-        if fallback_name is not None:
-            cold_rec = smores.Smores.state.recommenders_fallback.get_recommender(fallback_name)
-            cold_rec.update_dataset_itemlist(interaction_list)
-
-    def update_dataset_itemlist(self, interaction_list: ItemList):
+    def update_dataset_itemlist(self, consumer_id, interaction_list: ItemList):
         if len(interaction_list) > 0:
             hist = InteractionHistory()
-            hist.add_interactions_itemlist(interaction_list)
-            self.dataset = hist.to_dataset(self.dataset)
-            self.update_fallback_itemlist(self.cold_start_fallback, interaction_list)
-            self.update_fallback_itemlist(self.cold_user_fallback, interaction_list)
-
+            hist.add_interactions_itemlist(consumer_id, interaction_list)
+            self.set_dataset(hist.to_dataset(self.get_dataset()))
+    
     def get_user(self, user_id) -> ItemList | None:
-        return self.dataset.user_row(user_id)
+        return self.get_dataset().user_row(user_id)
     
     def delete_user(self, user_id):
-        builder = DatasetBuilder(self.dataset)
+        builder = DatasetBuilder(self.get_dataset())
         builder.filter_interactions('interaction', remove={'user_id': [user_id]})
-        self.dataset = builder.build()
+        self.set_dataset(builder.build())
            
 
 class FixedItemRecommender(Recommender):
@@ -107,7 +128,6 @@ class FixedItemRecommender(Recommender):
 
     def setup(self, config):
         self.name = config.name
-        self.dataset = self.setup_dataset()
 
     def isDatasetViable(self):
         return True

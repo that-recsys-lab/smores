@@ -59,7 +59,6 @@ class ImplicitMFGenreRecommender(ImplicitMFRecommender):
             if 'cold_user_fallback' in params: 
                 self.cold_user_fallback = params['cold_user_fallback']
         self.name = config.name
-        self.dataset = self.setup_dataset()
 
         self.embedding_size = int(params['embedding_size'])
         self.epochs = int(params['epochs'])
@@ -73,8 +72,6 @@ class ImplicitMFGenreRecommender(ImplicitMFRecommender):
         self.min_user_count = int(params['min_user_count'])
         self.min_interaction_count = int(params['min_interaction_count'])
         self.min_profile_size = int(params['min_profile_size'])
-        # If you don't call the super class constructor, set up your own dataset
-        self.dataset = self.setup_dataset()
 
         self.lk_config = ImplicitMFConfig(embedding_size=self.embedding_size,
                                           epochs=self.epochs,
@@ -112,23 +109,23 @@ class ImplicitMFGenreRecommender(ImplicitMFRecommender):
         return pipe.build()
 
     def train(self):
-        if self.dataset.interaction_count >= self.min_interaction_count and \
-                self.dataset.user_count >= self.min_user_count:
+        if self.get_dataset().interaction_count >= self.min_interaction_count and \
+                self.get_dataset().user_count >= self.min_user_count:
             super().train()
 
     def isDatasetViable(self):
         if not self.trained:
             return False
         else:
-            user_count = self.dataset.user_count
-            interaction_count = self.dataset.interaction_count
+            user_count = self.dataset_active_users()
+            interaction_count = self.get_dataset().interaction_count
             if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
                 return True
             else:
                 return False
         
     def isProfileViable(self, user_id: ID):
-        items = self.dataset.user_row(user_id)
+        items = self.get_dataset().user_row(user_id)
         if items is None:
             return False
         else:
