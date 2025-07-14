@@ -30,10 +30,14 @@ class ItemMap():
     def __init__(self):
         self.item_map: dict[int, Item] = defaultdict(None)
         self.provider_map: dict[int, list[int]] = defaultdict(list)
+        self.genre_map: dict[int, list[int]] = defaultdict(list)
 
     def add_item(self, item: Item):
         self.item_map[item.item_id] = item
         self.provider_map[item.provider_id].append(item.item_id)
+        max_value = max(item.features)
+        max_feature = item.features.index(max_value)
+        self.genre_map[max_feature].append(item.item_id)
 
     def get_item(self, item_id: int):
         return self.item_map[item_id]
@@ -45,7 +49,10 @@ class ItemMap():
         return self.provider_map[provider_id]
     
     def all_items(self):
-        return self.item_map.keys()
+        return list(self.item_map.keys())
+    
+    def get_genre_items(self, genre):
+        return self.genre_map[genre]
     
     def load_items(self, item_data_path: Path):
         with open(item_data_path, 'r') as item_file:
