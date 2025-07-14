@@ -67,6 +67,9 @@ class ConsumerCollection():
 
     def get_consumer(self, consumer_id):
         return self.collection[consumer_id]
+    
+    def get_consumer_ids(self):
+        return list(self.collection.keys())
 
     def __iter__(self):
         return iter(self.collection.values())

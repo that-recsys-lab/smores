@@ -4,8 +4,7 @@ from icecream import ic
 from abc import abstractmethod
 
 from lenskit.pipeline import Pipeline, PipelineBuilder, Component, topn_pipeline
-from lenskit.basic.candidates import AllTrainingItemsCandidateSelector, \
-    UnratedTrainingItemsCandidateSelector
+from lenskit.basic.candidates import UnratedTrainingItemsCandidateSelector
 from lenskit.basic import UserTrainingHistoryLookup, TopNRanker
 from lenskit.basic.popularity import PopScorer, PopConfig
 from lenskit.knn import ItemKNNConfig, ItemKNNScorer
