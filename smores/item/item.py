@@ -35,9 +35,9 @@ class ItemMap():
     def add_item(self, item: Item):
         self.item_map[item.item_id] = item
         self.provider_map[item.provider_id].append(item.item_id)
-        max_value = max(item.features)
-        max_feature = item.features.index(max_value)
-        self.genre_map[max_feature].append(item.item_id)
+        for i, val in enumerate(item.features):
+            if val > 0:
+                self.genre_map[i].append(item.item_id)
 
     def get_item(self, item_id: int):
         return self.item_map[item_id]

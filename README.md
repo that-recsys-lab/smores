@@ -5,29 +5,29 @@ This repository contains the code for the SMORES (Simulator for Modular Recommen
 ## Installation
 
 ### 1. Create a Virtual Environment
-It is recommended to use a virtual environment to manage dependencies. Run the following commands:
+The package is set up to use the `uv` package manager. Run the following commands to set up the virtual environment:
 
 ```bash
 # Create a virtual environment
-python -m venv venv
+uv sync
 
 # Activate the virtual environment
 # On macOS/Linux:
-source venv/bin/activate
+source .venv/bin/activate
 # On Windows:
-venv\Scripts\activate
+.venv\Scripts\activate
 ```
 
 ### 2. Install Dependencies
 Once the virtual environment is activated, install the required packages:
 
 ```bash
-pip install -e .
+uv pip install -e .
 ```
 
-install 
+install latest lenskit
 ```bash
-pip install lenskit
+uv pip install -U git+https://github.com/lenskit/lkpy
 ```
 
 ## Running the test file
@@ -50,7 +50,7 @@ The following simulation components are implemented:
 - `PopularRecommender` (label: popular): Wrapper for the LensKit `PopScorer` class. Recommends popular itesm within the dataset.
 - `ItemKnnRecommender` (label: item_knn): Wrapper for the LensKit `ItemKNNScorer`. 
 - `ImplicitMFRecommender` (label: implicit_mf): Wrapper for the LensKit `ImplicitMFScorer`.
-- `FileRecommender` (label: file_based): Similar to FixedItemRecommender. Reads a file of popular items in a genre and recommends from those.
+- `FileRecommender` (label: file_based): Similar to FixedItemRecommender. Reads a file of popular items in a genre and recommends randomly from those.
 
 Recommended structure for a recommender is to have PopularRecommender as the cold user fallback and PopularFromFileRecommender as the cold start fallback.
 

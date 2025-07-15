@@ -66,17 +66,18 @@ class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
     def setup(self, config):
         self.threshold = config.params['threshold']
         self.beta = config.params['beta']
-        self.recommender_utilities = defaultdict(int)
+        self.recommender_utilities = defaultdict(float)
 
     def choose_recommender(self):
         maybe_new_recommender = self.consumer.recommender.name
         current_utility = self.recommender_utilities[maybe_new_recommender]
         if current_utility < self.threshold:
             for recommender_name in smores.Smores.state.recommenders_active:
-                utility = self.recommender_utilities[recommender_name] 
-                if utility > current_utility:
-                    maybe_new_recommender = recommender_name
-                    current_utility = utility
+                if recommender_name != self.consumer.recommender.name:
+                    utility = self.recommender_utilities[recommender_name] 
+                    if utility >= current_utility:
+                        maybe_new_recommender = recommender_name
+                        current_utility = utility
         self.next_recommender = maybe_new_recommender
         self.log_utilities()
         return maybe_new_recommender
@@ -156,6 +157,7 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
         current_recommender = self.consumer.recommender.name
         tuple = ChoiceUtility(self.consumer.id, self.consumer.type, current_recommender, \
                               self.next_recommender, utilities, cycle)
+        logger.debug(f"UCBs: {self.recommender_ucbs['']}")
         logger.log_recommender_choice(tuple)
 
 class RecommenderChoiceModelFactory():
