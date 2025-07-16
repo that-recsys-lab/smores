@@ -5,6 +5,8 @@ from json import loads
 from pydantic import BaseModel, PositiveInt, NonNegativeInt
 from icecream import ic
 
+import smores
+
 class Item(BaseModel):
     item_id: PositiveInt
     provider_id: NonNegativeInt
@@ -53,6 +55,11 @@ class ItemMap():
     
     def get_genre_items(self, genre):
         return self.genre_map[genre]
+    
+    def get_item_type(self, item_id: int):
+        provider_id = self.get_item(item_id).provider_id
+        provider = smores.Smores.state.providers.get_provider(provider_id)
+        return provider.type
     
     def load_items(self, item_data_path: Path):
         with open(item_data_path, 'r') as item_file:

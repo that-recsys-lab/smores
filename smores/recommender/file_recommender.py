@@ -25,16 +25,17 @@ class FileBasedRecommender(Recommender):
     
     def load_items(self):
         """Load item from a CSV file"""
-        try:
-            with open(self.file_path, 'r') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    if 'item_id' in row:
-                        self.items.append(int(row['item_id']))
+#        try:
+        with open(self.file_path, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if 'item_id' in row:
+                    self.items.append(int(row['item_id']))
                         
             smores.Smores.state.logger.info(f"Loaded {len(self.items)} items")
-        except IOError as e:
-            smores.Smores.state.logger.error(f"Error loading file {self.file_path}")
+# This error should be fatal
+ #       except IOError as e:
+ #           smores.Smores.state.logger.error(f"Error loading file {self.file_path}")
 
     def check_items(self):
         filtered_items = [item_id for item_id in self.items \
