@@ -1,5 +1,5 @@
 from icecream import ic
-from pydantic import BaseModel, PositiveInt
+from pydantic import BaseModel, NonNegativeInt
 from csv import DictReader
 from pathlib import Path
 
@@ -9,7 +9,7 @@ import smores
 
 
 class ProviderInfo (BaseModel):
-    provider_id: PositiveInt
+    provider_id: NonNegativeInt
     provider_type: str
 
 
@@ -55,7 +55,7 @@ class ProviderCollection():
     def add_provider(self, provider: Provider):
         self.collection[provider.id] = provider
 
-    def get_provider(self, provider_id: PositiveInt):
+    def get_provider(self, provider_id: NonNegativeInt):
         return self.collection[provider_id]
 
     def __iter__(self):
