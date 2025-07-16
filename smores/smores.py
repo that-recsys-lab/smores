@@ -206,20 +206,20 @@ class Smores:
         recommender_utility = 0.0
         
         if not ItemSelectionModel.is_empty_selection(result):
-
             selected_id = int(result[0])
             # Add to clicked items
             consumer.clicked_items.add(selected_id)
             # Update item utility for item provider
             state.providers.update_utility_item(consumer, consumer.recommender, selected_id, time)
-            # Update recommender choice model
-            if consumer.recommender_choice_model is not None:
-                interaction_utility = consumer.utility_model.compute_list_utility(consumer, recs)
-                recommender_utility = consumer.recommender_choice_model.update_recommender_utility(interaction_utility)
-            else:
-                raise RecommenderChoiceUnassignedException(consumer)
         else:
             selected_id = None
+
+        # Update recommender choice model
+        if consumer.recommender_choice_model is not None:
+            interaction_utility = consumer.utility_model.compute_list_utility(consumer, recs)
+            recommender_utility = consumer.recommender_choice_model.update_recommender_utility(interaction_utility)
+        else:
+            raise RecommenderChoiceUnassignedException(consumer)
         
         # log the consumer utility
         Smores.state.logger.log_consumer(ConsumerUtility(consumer.id, consumer.type, consumer.recommender.name, interaction_utility,

@@ -157,7 +157,7 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
         current_recommender = self.consumer.recommender.name
         tuple = ChoiceUtility(self.consumer.id, self.consumer.type, current_recommender, \
                               self.next_recommender, utilities, cycle)
-        logger.debug(f"UCBs: {self.recommender_ucbs['']}")
+        # logger.debug(f"UCBs: {self.recommender_ucbs['']}")
         logger.log_recommender_choice(tuple)
 
 class RecommenderChoiceModelFactory():
