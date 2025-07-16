@@ -66,7 +66,10 @@ class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
     def setup(self, config):
         self.threshold = config.params['threshold']
         self.beta = config.params['beta']
-        self.recommender_utilities = defaultdict(float)
+        self.recommender_utilities = defaultdict(lambda: np.nan)
+
+    def setup_recommender_utilities(self):
+        self.recommender_utilities = {name: np.nan for name in smores.Smores.state.recommenders_base.get_names()}
 
     def choose_recommender(self):
         maybe_new_recommender = self.consumer.recommender.name
@@ -75,9 +78,14 @@ class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
             for recommender_name in smores.Smores.state.recommenders_active:
                 if recommender_name != self.consumer.recommender.name:
                     utility = self.recommender_utilities[recommender_name] 
-                    if utility >= current_utility:
+                    if np.isnan(utility):
                         maybe_new_recommender = recommender_name
-                        current_utility = utility
+                        self.recommender_utilities[recommender_name] = 0
+                        break
+                    else:
+                        if utility >= current_utility:
+                            maybe_new_recommender = recommender_name
+                            current_utility = utility
         self.next_recommender = maybe_new_recommender
         self.log_utilities()
         return maybe_new_recommender
@@ -85,6 +93,8 @@ class ThresholdRecommenderChoiceModel(RecommenderChoiceModel):
     def update_recommender_utility(self, list_utility: float):
         current_recommender_name = self.consumer.recommender.name
         prev_utility = self.recommender_utilities[current_recommender_name]
+        if np.isnan(prev_utility):
+            prev_utility = 0
         new_utility = ((prev_utility * self.beta) + list_utility)/(1 + self.beta)
         self.recommender_utilities[current_recommender_name] = new_utility
         return new_utility
