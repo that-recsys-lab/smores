@@ -2,12 +2,12 @@ from collections import defaultdict
 from pathlib import Path
 from csv import DictReader
 from json import loads
-from pydantic import BaseModel, PositiveInt
+from pydantic import BaseModel, PositiveInt, NonNegativeInt
 from icecream import ic
 
 class Item(BaseModel):
     item_id: PositiveInt
-    provider_id: PositiveInt
+    provider_id: NonNegativeInt
     features: list[float]
 
 class ItemCollection():
