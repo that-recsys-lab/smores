@@ -41,8 +41,8 @@ class FileBasedRecommender(Recommender):
  #           smores.Smores.state.logger.error(f"Error loading file {self.file_path}")
 
     def check_items(self):
-        filtered_items = [item_id for item_id in self.items.keys() \
-                      if smores.Smores.state.items.exists_item(item_id)]
+        filtered_items = {item: value for item,value in self.items \
+                      if smores.Smores.state.items.exists_item(item)}
         return filtered_items
 
     def train(self):
@@ -57,7 +57,7 @@ class FileBasedRecommender(Recommender):
     def get_recommendations(self, user_id) -> ItemList:
         prior_interactions = self.get_user(user_id)
         if prior_interactions is not None and len(prior_interactions) > 0:
-            usable_items = {item: value for item,value in self.items() if item not in prior_interactions}
+            usable_items = {item: value for item,value in self.items if item not in prior_interactions}
         else:
             usable_items = self.items
 
