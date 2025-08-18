@@ -65,7 +65,7 @@ class FileBasedRecommender(Recommender):
         if len(usable_items) < slate_size:
             slate_size = len(usable_items)
         
-        items = smores.Smores.state.rand.choice(usable_items.keys(), slate_size, p=usable_items.values())
+        items = smores.Smores.state.rand.choice(list(usable_items.keys()), slate_size, p=list(usable_items.values()))
         
         scores = [1.0] * slate_size
         ranks = list(range(1, slate_size + 1))
