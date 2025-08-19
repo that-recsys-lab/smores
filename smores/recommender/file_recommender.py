@@ -1,14 +1,17 @@
-from lenskit.data.items import ItemList
 import csv
+from collections import defaultdict
+from lenskit.data.items import ItemList
+
 import smores
 from smores.recommender import Recommender, RecommenderFactory
+
 
 class FileBasedRecommender(Recommender):
     """Recommender that load items from a file"""
     
     def __init__(self):
         super().__init__()
-        self.items: List[int] = []
+        self.items = defaultdict(int)
         self.file_path = None
         # Needs no training
         self.trained = True
@@ -30,7 +33,7 @@ class FileBasedRecommender(Recommender):
             reader = csv.DictReader(f)
             for row in reader:
                 if 'item_id' in row:
-                    self.items.append(int(row['item_id']))
+                    self.items[int(row['item_id'])] = int(row['num_ratings'])
                         
             smores.Smores.state.logger.info(f"Loaded {len(self.items)} items")
 # This error should be fatal
@@ -38,8 +41,8 @@ class FileBasedRecommender(Recommender):
  #           smores.Smores.state.logger.error(f"Error loading file {self.file_path}")
 
     def check_items(self):
-        filtered_items = [item_id for item_id in self.items \
-                      if smores.Smores.state.items.exists_item(item_id)]
+        filtered_items = {item: value for item,value in self.items.items() \
+                      if smores.Smores.state.items.exists_item(item)}
         return filtered_items
 
     def train(self):
@@ -54,7 +57,7 @@ class FileBasedRecommender(Recommender):
     def get_recommendations(self, user_id) -> ItemList:
         prior_interactions = self.get_user(user_id)
         if prior_interactions is not None and len(prior_interactions) > 0:
-            usable_items = [item for item in self.items if item not in prior_interactions]
+            usable_items = {item: value for item,value in self.items.items() if item not in prior_interactions}
         else:
             usable_items = self.items
 
@@ -62,11 +65,18 @@ class FileBasedRecommender(Recommender):
         if len(usable_items) < slate_size:
             slate_size = len(usable_items)
         
-        items = smores.Smores.state.rand.choice(usable_items, slate_size)
+        probabilities = self._calculate_probabilities(usable_items)
+        items = smores.Smores.state.rand.choice(list(usable_items.keys()), slate_size, p=probabilities)
         
         scores = [1.0] * slate_size
         ranks = list(range(1, slate_size + 1))
         
         return ItemList(None, item_ids=items, scores=scores, rank=ranks)
+    
+    def _calculate_probabilities(self, usable_items):
+        num_ratings = list(usable_items.values())
+        total_ratings = sum(num_ratings)
+        return [x/total_ratings for x in num_ratings]
+
 
 RecommenderFactory.register('file_based', FileBasedRecommender)
