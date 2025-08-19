@@ -73,7 +73,7 @@ class FileBasedRecommender(Recommender):
         
         return ItemList(None, item_ids=items, scores=scores, rank=ranks)
     
-    def _scale_probabilities(self, usable_items):
+    def _scale_popularity(self, usable_items):
         popularities = list(usable_items.values())
         popularity_sum = sum(popularities)
         return [x/popularity_sum for x in popularities]
