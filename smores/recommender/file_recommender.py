@@ -33,7 +33,7 @@ class FileBasedRecommender(Recommender):
             reader = csv.DictReader(f)
             for row in reader:
                 if 'item_id' in row:
-                    self.items[int(row['item_id'])] = float(row['probability'])
+                    self.items[int(row['item_id'])] = int(row['num_ratings'])
                         
             smores.Smores.state.logger.info(f"Loaded {len(self.items)} items")
 # This error should be fatal
@@ -65,11 +65,18 @@ class FileBasedRecommender(Recommender):
         if len(usable_items) < slate_size:
             slate_size = len(usable_items)
         
-        items = smores.Smores.state.rand.choice(list(usable_items.keys()), slate_size, p=list(usable_items.values()))
+        probabilities = self._calculate_probabilities(usable_items)
+        items = smores.Smores.state.rand.choice(list(usable_items.keys()), slate_size, p=probabilities)
         
         scores = [1.0] * slate_size
         ranks = list(range(1, slate_size + 1))
         
         return ItemList(None, item_ids=items, scores=scores, rank=ranks)
+    
+    def _calculate_probabilities(self, usable_items):
+        num_ratings = list(usable_items.values())
+        total_ratings = sum(num_ratings)
+        return [x/total_ratings for x in num_ratings]
+
 
 RecommenderFactory.register('file_based', FileBasedRecommender)
