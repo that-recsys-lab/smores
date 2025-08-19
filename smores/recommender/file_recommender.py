@@ -11,7 +11,7 @@ class FileBasedRecommender(Recommender):
     
     def __init__(self):
         super().__init__()
-        self.items = defaultdict(float)
+        self.items = defaultdict(int)
         self.file_path = None
         # Needs no training
         self.trained = True
