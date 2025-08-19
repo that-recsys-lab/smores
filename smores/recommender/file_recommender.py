@@ -11,7 +11,7 @@ class FileBasedRecommender(Recommender):
     
     def __init__(self):
         super().__init__()
-        self.items = defaultdict(int)
+        self.items = defaultdict(float)
         self.file_path = None
         # Needs no training
         self.trained = True
@@ -33,7 +33,7 @@ class FileBasedRecommender(Recommender):
             reader = csv.DictReader(f)
             for row in reader:
                 if 'item_id' in row:
-                    self.items[int(row['item_id'])] = int(row['num_ratings'])
+                    self.items[int(row['item_id'])] = float(row['popularity'])
                         
             smores.Smores.state.logger.info(f"Loaded {len(self.items)} items")
 # This error should be fatal
@@ -65,7 +65,7 @@ class FileBasedRecommender(Recommender):
         if len(usable_items) < slate_size:
             slate_size = len(usable_items)
         
-        probabilities = self._calculate_probabilities(usable_items)
+        probabilities = self._scale_popularity(usable_items)
         items = smores.Smores.state.rand.choice(list(usable_items.keys()), slate_size, p=probabilities)
         
         scores = [1.0] * slate_size
@@ -73,10 +73,10 @@ class FileBasedRecommender(Recommender):
         
         return ItemList(None, item_ids=items, scores=scores, rank=ranks)
     
-    def _calculate_probabilities(self, usable_items):
-        num_ratings = list(usable_items.values())
-        total_ratings = sum(num_ratings)
-        return [x/total_ratings for x in num_ratings]
+    def _scale_probabilities(self, usable_items):
+        popularities = list(usable_items.values())
+        popularity_sum = sum(popularities)
+        return [x/popularity_sum for x in popularities]
 
 
 RecommenderFactory.register('file_based', FileBasedRecommender)
