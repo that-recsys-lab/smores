@@ -40,7 +40,9 @@ class FileBasedRecommender(Recommender):
                         invalid_items += 1
                         
         smores.Smores.state.logger.info(f"Loaded {len(self.items)} items")
+        print(f"Loaded {len(self.items)} items")
         smores.Smores.state.logger.debug(f"Items not found: {invalid_items} items.")
+        print(f"Items not found: {invalid_items} items.")
 
 # This error should be fatal
  #       except IOError as e:
@@ -59,6 +61,7 @@ class FileBasedRecommender(Recommender):
         prior_interactions = self.get_user(user_id)
         if prior_interactions is not None:
             for item in prior_interactions:
+                print(f'Prior interaction item {item} previous popularity: {self.usable_items[item]}')
                 self.usable_items[item] = 0 # set probability to 0
 
         slate_size = smores.Smores.state.slate_size
