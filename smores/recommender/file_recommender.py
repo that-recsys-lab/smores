@@ -39,8 +39,8 @@ class FileBasedRecommender(Recommender):
                     else:
                         invalid_items += 1
                         
-            smores.Smores.state.logger.info(f"Loaded {len(self.items)} items")
-            smores.Smores.state.logger.debug(f"Items not found: {invalid_items} items.")
+        smores.Smores.state.logger.info(f"Loaded {len(self.items)} items")
+        smores.Smores.state.logger.debug(f"Items not found: {invalid_items} items.")
 
 # This error should be fatal
  #       except IOError as e:
@@ -66,6 +66,8 @@ class FileBasedRecommender(Recommender):
             slate_size = len(self.usable_items)
         
         probabilities = self._scale_popularity()
+        print(f'Length of items: {len(self.usable_items)}')
+        print(f'Length of popularities: {len(probabilities)}')
         items = smores.Smores.state.rand.choice(list(self.usable_items.keys()), slate_size, p=probabilities)
         
         scores = [1.0] * slate_size
