@@ -22,28 +22,28 @@ class FileBasedRecommender(Recommender):
         self.file_path = smores.Smores.state.data_directory / \
                 config.params['file_name']
         self.load_items()
-        old_len = len(self.items)
-        self.items = self.check_items()
-        smores.Smores.state.logger.debug(f"Check items removed {old_len - len(self.items)} items.")
     
     def load_items(self):
         """Load item from a CSV file"""
 #        try:
         with open(self.file_path, 'r') as f:
             reader = csv.DictReader(f)
+            invalid_items = 0
             for row in reader:
                 if 'item_id' in row:
-                    self.items[int(row['item_id'])] = float(row['popularity'])
+                    item_id = int(row['item_id'])
+                    popularity = float(row['popularity'])
+                    if smores.Smores.state.items.exists_item(item_id):
+                        self.items[item_id] = popularity
+                    else:
+                        invalid_items += 1
                         
             smores.Smores.state.logger.info(f"Loaded {len(self.items)} items")
+            smores.Smores.state.logger.debug(f"Items not found: {invalid_items} items.")
+
 # This error should be fatal
  #       except IOError as e:
  #           smores.Smores.state.logger.error(f"Error loading file {self.file_path}")
-
-    def check_items(self):
-        filtered_items = {item: value for item,value in self.items.items() \
-                      if smores.Smores.state.items.exists_item(item)}
-        return filtered_items
 
     def train(self):
         pass
