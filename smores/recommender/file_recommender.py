@@ -22,6 +22,7 @@ class FileBasedRecommender(Recommender):
         self.file_path = smores.Smores.state.data_directory / \
                 config.params['file_name']
         self.load_items()
+        self.usable_items = self.items.copy()
     
     def load_items(self):
         """Load item from a CSV file"""
@@ -56,25 +57,29 @@ class FileBasedRecommender(Recommender):
     
     def get_recommendations(self, user_id) -> ItemList:
         prior_interactions = self.get_user(user_id)
-        if prior_interactions is not None and len(prior_interactions) > 0:
-            usable_items = {item: value for item,value in self.items.items() if item not in prior_interactions}
-        else:
-            usable_items = self.items
+        if prior_interactions is not None:
+            for item in prior_interactions:
+                self.usable_items[item] = 0 # set probability to 0
 
         slate_size = smores.Smores.state.slate_size
-        if len(usable_items) < slate_size:
-            slate_size = len(usable_items)
+        if len(self.usable_items) < slate_size:
+            slate_size = len(self.usable_items)
         
-        probabilities = self._scale_popularity(usable_items)
-        items = smores.Smores.state.rand.choice(list(usable_items.keys()), slate_size, p=probabilities)
+        probabilities = self._scale_popularity()
+        items = smores.Smores.state.rand.choice(list(self.usable_items.keys()), slate_size, p=probabilities)
         
         scores = [1.0] * slate_size
         ranks = list(range(1, slate_size + 1))
+
+        # reset self.usable items to match self.items
+        if prior_interactions is not None:
+            for item in prior_interactions:
+                self.usable_items[item] = self.items[item]
         
         return ItemList(None, item_ids=items, scores=scores, rank=ranks)
     
-    def _scale_popularity(self, usable_items):
-        popularities = list(usable_items.values())
+    def _scale_popularity(self):
+        popularities = list(self.usable_items.values())
         popularity_sum = sum(popularities)
         return [x/popularity_sum for x in popularities]
 
