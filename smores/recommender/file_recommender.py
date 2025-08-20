@@ -76,7 +76,7 @@ class FileBasedRecommender(Recommender):
 
         # reset self.usable items to match self.items
         if prior_interactions is not None:
-            for item in prior_interactions:
+            for item in prior_interactions.ids():
                 self.usable_items[item] = self.items[item]
         
         return ItemList(None, item_ids=items, scores=scores, rank=ranks)
