@@ -60,7 +60,7 @@ class FileBasedRecommender(Recommender):
     def get_recommendations(self, user_id) -> ItemList:
         prior_interactions = self.get_user(user_id)
         if prior_interactions is not None:
-            for item in prior_interactions:
+            for item in prior_interactions.ids():
                 print(f'Prior interaction item {item} previous popularity: {self.usable_items[item]}')
                 self.usable_items[item] = 0 # set probability to 0
 
@@ -69,8 +69,6 @@ class FileBasedRecommender(Recommender):
             slate_size = len(self.usable_items)
         
         probabilities = self._scale_popularity()
-        print(f'Length of items: {len(self.usable_items)}')
-        print(f'Length of popularities: {len(probabilities)}')
         items = smores.Smores.state.rand.choice(list(self.usable_items.keys()), slate_size, p=probabilities)
         
         scores = [1.0] * slate_size
