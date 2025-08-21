@@ -4,7 +4,7 @@ from icecream import ic
 from lenskit.data import DatasetBuilder, Dataset, ItemList
 
 class InteractionHistory:
-    INTERACTION_COLUMNS = ['user_id', 'item_id', 'rating', 'time']
+    INTERACTION_COLUMNS = ['user', 'item', 'rating', 'time']
 
     def __init__(self):
         self.interaction_table: pa.Table = None
