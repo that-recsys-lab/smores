@@ -34,7 +34,7 @@ class InteractionHistory:
     # TODO: What is the table format? Is an item list OK?
     def add_interactions_itemlist(self, consumer_id: int, interaction_items: ItemList):
         interaction_table = interaction_items.to_arrow()
-        interaction_table = interaction_table.add_column(0, "user_id", [[consumer_id]*len(interaction_items)])
+        interaction_table = interaction_table.add_column(0, self.INTERACTION_COLUMNS[0], [[consumer_id]*len(interaction_items)])
         if self.interaction_table is None:
             self.interaction_table = interaction_table
         else:
@@ -49,7 +49,7 @@ class InteractionHistory:
             builder = DatasetBuilder(old_dataset)
 
         builder.add_interactions('interaction', self.interaction_table, 
-                                 entities=['user', 'item'],
+                                 entities=[self.INTERACTION_COLUMNS[0], self.INTERACTION_COLUMNS[1]],
                                  missing='insert', allow_repeats=False, default=True)
         return builder.build()
     
