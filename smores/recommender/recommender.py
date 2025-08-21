@@ -33,11 +33,11 @@ class Recommender(ABC):
     
     def setup_dataset(self):
         builder = DatasetBuilder(None)
-        builder.add_entity_class(InteractionHistory.INTERACTION_COLUMNS[0])
-        builder.add_entities(InteractionHistory.INTERACTION_COLUMNS[0], smores.Smores.state.consumers.get_consumer_ids())
-        builder.add_entity_class(InteractionHistory.INTERACTION_COLUMNS[1])
-        builder.add_entities(InteractionHistory.INTERACTION_COLUMNS[1], smores.Smores.state.items.all_items())
-        builder.add_relationship_class('interaction', [InteractionHistory.INTERACTION_COLUMNS[0], InteractionHistory.INTERACTION_COLUMNS[1]], interaction=True)
+        builder.add_entity_class('user')
+        builder.add_entities('user', smores.Smores.state.consumers.get_consumer_ids())
+        builder.add_entity_class('item')
+        builder.add_entities('item', smores.Smores.state.items.all_items())
+        builder.add_relationship_class('interaction', ['user', 'item'], interaction=True)
         self.dataset = builder.build()
 
     def get_dataset(self):
@@ -53,7 +53,7 @@ class Recommender(ABC):
 
     def dataset_active_users(self):
         interactions: pa.Table = self.get_dataset().interaction_table(format='arrow', original_ids=True)
-        user_col = interactions.column(InteractionHistory.INTERACTION_COLUMNS[0])
+        user_col = interactions.column('user_id')
         unique_users = user_col.unique()
         return len(unique_users)
 
@@ -116,7 +116,7 @@ class Recommender(ABC):
     
     def delete_user(self, user_id):
         builder = DatasetBuilder(self.get_dataset())
-        builder.filter_interactions('interaction', remove={InteractionHistory.INTERACTION_COLUMNS[0]: [user_id]})
+        builder.filter_interactions('interaction', remove={'user_id': [user_id]})
         self.set_dataset(builder.build())
            
 
