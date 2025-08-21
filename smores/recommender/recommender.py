@@ -53,7 +53,7 @@ class Recommender(ABC):
 
     def dataset_active_users(self):
         interactions: pa.Table = self.get_dataset().interaction_table(format='arrow', original_ids=True)
-        user_col = interactions.column('user_id')
+        user_col = interactions.column('user')
         unique_users = user_col.unique()
         return len(unique_users)
 
@@ -116,7 +116,7 @@ class Recommender(ABC):
     
     def delete_user(self, user_id):
         builder = DatasetBuilder(self.get_dataset())
-        builder.filter_interactions('interaction', remove={'user_id': [user_id]})
+        builder.filter_interactions('interaction', remove={'user': [user_id]})
         self.set_dataset(builder.build())
            
 
