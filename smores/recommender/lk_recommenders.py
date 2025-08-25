@@ -10,6 +10,7 @@ from lenskit.basic.popularity import PopScorer, PopConfig
 from lenskit.knn import ItemKNNConfig, ItemKNNScorer
 from lenskit.als import ImplicitMFConfig, ImplicitMFScorer
 from lenskit.data import ID
+from lenskit.training import TrainingOptions
 from lenskit import recommend
 
 from .recommender import Recommender, RecommenderFactory
@@ -34,7 +35,8 @@ class LKRecommender(Recommender):
         super().train()
         # Don't train on an empty dataset
         if self.get_dataset().interaction_count > 0:
-            self.pipeline.train(self.get_dataset())
+            training_options = TrainingOptions(rng=smores.Smores.state.rand)
+            self.pipeline.train(self.get_dataset(), training_options)
         self.trained = True
     
     @abstractmethod
