@@ -120,6 +120,7 @@ class Smores:
 
 
     def run_experiment(self):
+        import os, sys; print(f"[py-spy] PID: {os.getpid()}", file=sys.stderr, flush=True)
         self.setup()
         self.run_cycles()
         self.cleanup()
