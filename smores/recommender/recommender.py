@@ -19,6 +19,7 @@ class Recommender(ABC):
         self.name = None
         self.trained = False
         self.parent = None
+        self._cached_user_count = None
 
     @abstractmethod
     def setup(self, config):
@@ -52,10 +53,12 @@ class Recommender(ABC):
             self.dataset = dataset
 
     def dataset_active_users(self):
-        interactions: pa.Table = self.get_dataset().interaction_table(format='arrow', original_ids=True)
-        user_col = interactions.column('user_id')
-        unique_users = user_col.unique()
-        return len(unique_users)
+        if self._cached_user_count is None:
+            interactions: pa.Table = self.get_dataset().interaction_table(format='arrow', original_ids=True)
+            user_col = interactions.column('user_id')
+            unique_users = user_col.unique()
+            self._cached_user_count = len(unique_users)
+        return self._cached_user_count
 
     @classmethod
     def name2base_recommender(cls, name: str):
@@ -70,6 +73,9 @@ class Recommender(ABC):
             cold_start_rec.train()
         if cold_user_rec is not None:
            cold_user_rec.train()
+        
+        # Invalidate user count cache after training
+        self._cached_user_count = None
 
     def get_cold_start_fallback(self):
         if self.cold_start_fallback is not None:
@@ -117,8 +123,7 @@ class Recommender(ABC):
     def delete_user(self, user_id):
         builder = DatasetBuilder(self.get_dataset())
         builder.filter_interactions('interaction', remove={'user_id': [user_id]})
-        self.set_dataset(builder.build())
-           
+        self.set_dataset(builder.build())           
 
 class FixedItemRecommender(Recommender):
     def __init__(self):

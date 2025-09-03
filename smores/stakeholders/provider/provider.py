@@ -61,8 +61,19 @@ class ProviderCollection():
     def __iter__(self):
         return iter(self.collection.values())
     
+    def get_relevant_providers(self, item_list):
+        """Get only providers that have items in the given item_list"""
+        provider_ids = set()
+        for item_id in item_list.ids():
+            item = smores.Smores.state.items.get_item(item_id)
+            provider_ids.add(item.provider_id)
+        
+        return [self.get_provider(provider_id) for provider_id in provider_ids]
+    
     def update_utility_list(self, consumer, recommender, item_list, time):
-        for provider in iter(self):
+        # Only process providers that have items in this recommendation list
+        relevant_providers = self.get_relevant_providers(item_list)
+        for provider in relevant_providers:
             provider.update_utility_list(consumer, recommender, item_list, time)
 
     def update_utility_item(self, consumer, recommender, item_id, time):

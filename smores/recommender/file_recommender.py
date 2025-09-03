@@ -23,6 +23,10 @@ class FileBasedRecommender(Recommender):
                 config.params['file_name']
         self.load_items()
         self.usable_items = self.items.copy()
+        
+        # Initialize cache variables for _scale_popularity
+        self._cached_probabilities = None
+        self._cache_dirty = True
     
     def load_items(self):
         """Load item from a CSV file"""
@@ -60,6 +64,7 @@ class FileBasedRecommender(Recommender):
         if prior_interactions is not None:
             for item in prior_interactions.ids():
                 self.usable_items[item] = 0 # set probability to 0
+            self._cache_dirty = True  # Invalidate cache when items change
 
         slate_size = smores.Smores.state.slate_size
         if len(self.usable_items) < slate_size:
@@ -75,13 +80,17 @@ class FileBasedRecommender(Recommender):
         if prior_interactions is not None:
             for item in prior_interactions.ids():
                 self.usable_items[item] = self.items[item]
+            self._cache_dirty = True  # Invalidate cache when items are reset
         
         return ItemList(None, item_ids=items, scores=scores, rank=ranks)
     
     def _scale_popularity(self):
-        popularities = list(self.usable_items.values())
-        popularity_sum = sum(popularities)
-        return [x/popularity_sum for x in popularities]
+        if self._cached_probabilities is None or self._cache_dirty:
+            popularities = list(self.usable_items.values())
+            popularity_sum = sum(popularities)
+            self._cached_probabilities = [x/popularity_sum for x in popularities]
+            self._cache_dirty = False
+        return self._cached_probabilities
 
 
 RecommenderFactory.register('file_based', FileBasedRecommender)
