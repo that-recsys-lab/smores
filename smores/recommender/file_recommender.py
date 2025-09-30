@@ -18,15 +18,16 @@ class FileBasedRecommender(Recommender):
     
     def setup(self, config):
         super().setup(config)
-        
+
         self.file_path = smores.Smores.state.data_directory / \
                 config.params['file_name']
         self.load_items()
-        self.usable_items = self.items.copy()
-        
-        # Initialize cache variables for _scale_popularity
-        self._cached_probabilities = None
-        self._cache_dirty = True
+
+        # Pre-compute probabilities once
+        self.item_ids = list(self.items.keys())
+        popularities = list(self.items.values())
+        popularity_sum = sum(popularities)
+        self.base_probabilities = [x/popularity_sum for x in popularities]
     
     def load_items(self):
         """Load item from a CSV file"""
@@ -60,37 +61,28 @@ class FileBasedRecommender(Recommender):
         return True
     
     def get_recommendations(self, user_id) -> ItemList:
+        # Copy base probabilities
+        probabilities = self.base_probabilities.copy()
+
+        # Set probability to 0 for items user has interacted with
         prior_interactions = self.get_user(user_id)
         if prior_interactions is not None:
             for item in prior_interactions.ids():
-                self.usable_items[item] = 0 # set probability to 0
-            self._cache_dirty = True  # Invalidate cache when items change
+                if item in self.items:
+                    idx = self.item_ids.index(item)
+                    probabilities[idx] = 0
 
         slate_size = smores.Smores.state.slate_size
-        if len(self.usable_items) < slate_size:
-            slate_size = len(self.usable_items)
-        
-        probabilities = self._scale_popularity()
-        items = smores.Smores.state.rand.choice(list(self.usable_items.keys()), slate_size, p=probabilities)
-        
+        if len(self.item_ids) < slate_size:
+            slate_size = len(self.item_ids)
+
+        # numpy.choice auto-normalizes probabilities
+        items = smores.Smores.state.rand.choice(self.item_ids, slate_size, p=probabilities, replace=False)
+
         scores = [1.0] * slate_size
         ranks = list(range(1, slate_size + 1))
 
-        # reset self.usable items to match self.items
-        if prior_interactions is not None:
-            for item in prior_interactions.ids():
-                self.usable_items[item] = self.items[item]
-            self._cache_dirty = True  # Invalidate cache when items are reset
-        
         return ItemList(None, item_ids=items, scores=scores, rank=ranks)
     
-    def _scale_popularity(self):
-        if self._cached_probabilities is None or self._cache_dirty:
-            popularities = list(self.usable_items.values())
-            popularity_sum = sum(popularities)
-            self._cached_probabilities = [x/popularity_sum for x in popularities]
-            self._cache_dirty = False
-        return self._cached_probabilities
-
 
 RecommenderFactory.register('file_based', FileBasedRecommender)
