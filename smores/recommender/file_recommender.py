@@ -4,6 +4,7 @@ from lenskit.data.items import ItemList
 
 import smores
 from smores.recommender import Recommender, RecommenderFactory
+from smores.samplers.rejection_sampler import sample_uninteracted_items
 
 
 class FileBasedRecommender(Recommender):
@@ -61,26 +62,25 @@ class FileBasedRecommender(Recommender):
         return True
     
     def get_recommendations(self, user_id) -> ItemList:
-        # Copy base probabilities
-        probabilities = self.base_probabilities.copy()
-
-        # Set probability to 0 for items user has interacted with
+        # Get items user has already interacted with
         prior_interactions = self.get_user(user_id)
+        interacted_items = set()
         if prior_interactions is not None:
-            for item in prior_interactions.ids():
-                if item in self.items:
-                    idx = self.item_ids.index(item)
-                    probabilities[idx] = 0
+            interacted_items = set(prior_interactions.ids())
 
         slate_size = smores.Smores.state.slate_size
-        if len(self.item_ids) < slate_size:
-            slate_size = len(self.item_ids)
 
-        # numpy.choice auto-normalizes probabilities
-        items = smores.Smores.state.rand.choice(self.item_ids, slate_size, p=probabilities, replace=False)
+        # Use rejection sampling to get uninteracted items
+        items = sample_uninteracted_items(
+            self.item_ids,
+            self.base_probabilities,
+            interacted_items,
+            slate_size
+        )
 
-        scores = [1.0] * slate_size
-        ranks = list(range(1, slate_size + 1))
+        actual_slate_size = len(items)
+        scores = [1.0] * actual_slate_size
+        ranks = list(range(1, actual_slate_size + 1))
 
         return ItemList(None, item_ids=items, scores=scores, rank=ranks)
     
