@@ -110,16 +110,24 @@ class UniversalProfileTrigger(InteractionBatchTrigger):
     def handle_event(self, event: InteractionBatchEvent):
         other_interaction_dict = defaultdict(list)
 
-        for name, recommender in smores.Smores.state.recommenders_base.items():
-            for other_name, other_rec in smores.Smores.state.recommenders_base.items():
-                rec_interactions = event.interaction_dict[name]
-                if other_name != name:
-                    other_interaction_dict[other_name] = other_interaction_dict[other_name] + rec_interactions
+        base_map = smores.Smores.state.recommenders_base
+        names = base_map.get_names()
 
-        for name, interactions in other_interaction_dict.items():
+        for name in names:
+            rec_interactions = event.interaction_dict.get(name, [])
+            if not rec_interactions:
+                continue
+            for other_name in names:
+                if other_name != name:
+                    other_interaction_dict[other_name].extend(rec_interactions)
+
+        for name in names:
+            interactions = other_interaction_dict.get(name, [])
+            if not interactions:
+                continue
             rec = Recommender.name2base_recommender(name)
             if rec is not None:
-                rec.update_interactions(interactions)
+                rec.update_dataset(interactions)
             else:
                 raise UnknownRecommenderError(name)
 

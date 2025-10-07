@@ -45,13 +45,16 @@ class LKRecommender(Recommender):
         if not self.isDatasetViable():
             cold_start_rec = smores.Smores.state.recommenders_fallback.get_recommender(self.cold_start_fallback)
             #smores.Smores.state.logger.debug(f'.       Insufficent interaction data. Fallback to {self.cold_start_fallback}')
+            # Fallback recommenders already return fully sampled slates
             return cold_start_rec.get_recommendations(user_id)
         elif not self.isProfileViable(user_id):
             cold_user_rec = smores.Smores.state.recommenders_fallback.get_recommender(self.cold_user_fallback)
             #smores.Smores.state.logger.debug(f'.       Insufficent profile data. Fallback to {self.cold_user_fallback}')
+            # Fallback recommenders already return fully sampled slates
             return cold_user_rec.get_recommendations(user_id)
         else:
-            return recommend(self.pipeline, user_id, n=smores.Smores.state.slate_size)
+            recs = recommend(self.pipeline, user_id)
+            return self.apply_item_sampling(user_id, recs)
 
 class PopularRecommender(LKRecommender):
     def __init__(self):
@@ -74,7 +77,7 @@ class PopularRecommender(LKRecommender):
     
     def build_pipeline(self):
         scorer = self.get_scorer()
-        slate_size = smores.Smores.state.slate_size
+        slate_size = max(smores.Smores.state.slate_size - self.sampled_item_count, 1)
         return topn_pipeline(scorer, n=slate_size)
 
     # def build_pipeline(self):
@@ -139,7 +142,7 @@ class ItemKnnRecommender(LKRecommender):
 
     def build_pipeline(self):
         scorer = self.get_scorer()
-        slate_size = smores.Smores.state.slate_size
+        slate_size = max(smores.Smores.state.slate_size - self.sampled_item_count, 1)
 
         pipe = PipelineBuilder()
         # define an input parameter for the user ID (the 'query')
@@ -219,7 +222,7 @@ class ImplicitMFRecommender(LKRecommender):
 
     def build_pipeline(self):
         scorer = self.get_scorer()
-        slate_size = smores.Smores.state.slate_size
+        slate_size = max(smores.Smores.state.slate_size - self.sampled_item_count, 1)
 
         pipe = PipelineBuilder()
         # define an input parameter for the user ID (the 'query')

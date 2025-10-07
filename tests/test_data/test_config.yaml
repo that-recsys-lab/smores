@@ -23,6 +23,15 @@ output:
   debug_level: "debug"
   use_timestamp: False
   use_parquet: False
+  enable_user_journeys: True
+  sampled_user_ids: [1, 2]
+  sampled_user_count: 2
+  sampled_user_file: user_journeys
+  enable_item_stats: True
+  item_stats_file: item_stats
+
+summary_logger:
+  enabled: True
 
 consumer:
   initial_recommender: "Generic"

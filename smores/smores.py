@@ -10,7 +10,7 @@ from smores.stakeholders.provider import ProviderModelComponents, ProviderCollec
 from smores.item import ItemMap
 from smores.recommender import Recommender, RecommenderMap
 from smores.trigger import TriggerCollection, DayEvent, CycleEvent, SwitchEvent, InteractionBatchEvent
-from smores.utils import SmoresConfig, SmoresLogger, ConsumerUtility, ProviderUtility
+from smores.utils import SmoresConfig, SmoresLogger, ConsumerUtility, ProviderUtility, UserJourney, SummaryLogger
 
 class Smores:
 
@@ -36,6 +36,7 @@ class Smores:
 
             # output
             self.logger = SmoresLogger(config.output)
+            self.summary_logger = SummaryLogger(enabled=config.summary_logger.enabled)
 
             # init consumer collection
             self.consumer_models: ConsumerModelComponents = ConsumerModelComponents()
@@ -122,6 +123,7 @@ class Smores:
     def run_experiment(self):
         import os, sys; print(f"[py-spy] PID: {os.getpid()}", file=sys.stderr, flush=True)
         self.setup()
+        self.state.summary_logger.start_timer()
         self.run_cycles()
         self.cleanup()
 
@@ -162,7 +164,7 @@ class Smores:
             rec.update_dataset(interaction_dict[rec_name])
 
         # Run interaction triggers
-        for trigger in Smores.state.triggers.get_iterator('interactions'):
+        for trigger in Smores.state.triggers.get_iterator('interaction'):
             event = InteractionBatchEvent(interaction_dict)
             trigger.apply_trigger(event)
         
@@ -193,7 +195,19 @@ class Smores:
             recs: ItemList = consumer.recommender.get_recommendations(consumer.id)
         else:
             raise RecommenderUnassignedException(consumer)
-        
+
+        slate_items = list(recs.ids())
+        consumer.seen_items.update(slate_items)
+        for item_id in slate_items:
+            state.logger.log_item_appear(int(item_id), consumer.recommender.name, state.cycle_count)
+
+        state.summary_logger.log_recommendation(
+            consumer.recommender.name,
+            consumer.id,
+            len(slate_items),
+            state.slate_size,
+        )
+
         # Update list utility for providers
         state.providers.update_utility_list(consumer, consumer.recommender, recs, time)
 
@@ -210,6 +224,7 @@ class Smores:
             selected_id = int(result[0])
             # Add to clicked items
             consumer.clicked_items.add(selected_id)
+            state.logger.log_item_click(selected_id, consumer.recommender.name, state.cycle_count)
             # Update item utility for item provider
             state.providers.update_utility_item(consumer, consumer.recommender, selected_id, time)
         else:
@@ -225,6 +240,49 @@ class Smores:
         # log the consumer utility
         Smores.state.logger.log_consumer(ConsumerUtility(consumer.id, consumer.type, consumer.recommender.name, interaction_utility,
                                                          recommender_utility, time))
+
+        if state.logger.is_sampled_user(consumer.id):
+            slate_scores_raw = recs.scores()
+            if slate_scores_raw is not None:
+                slate_scores = [float(score) for score in slate_scores_raw]
+            else:
+                slate_scores = [None] * len(slate_items)
+
+            slate_utilities = []
+            for item_id in slate_items:
+                item = state.items.get_item(int(item_id))
+                if consumer.preference_vector is not None:
+                    slate_utilities.append(float(np.dot(item.features, consumer.preference_vector)))
+                else:
+                    slate_utilities.append(0.0)
+
+            if selected_id is not None and selected_id in slate_items:
+                selected_rank = slate_items.index(selected_id) + 1
+                selected_utility = slate_utilities[selected_rank - 1]
+            else:
+                selected_rank = None
+                selected_utility = None
+
+            max_utility = max(slate_utilities) if slate_utilities else None
+
+            journey_info = UserJourney(
+                user_id=consumer.id,
+                cycle=state.cycle_count,
+                day=state.day_count,
+                time=time,
+                recommender=consumer.recommender.name,
+                slate_size=len(slate_items),
+                slate_items=str(slate_items),
+                slate_scores=str([round(s, 4) if s is not None else None for s in slate_scores]),
+                slate_utilities=str([round(u, 4) for u in slate_utilities]),
+                selected_item=selected_id,
+                selected_rank=selected_rank,
+                selected_utility=round(selected_utility, 4) if selected_utility is not None else None,
+                max_utility=round(max_utility, 4) if max_utility is not None else None,
+                num_unique_items_clicked=len(consumer.clicked_items),
+                num_unique_items_seen=len(consumer.seen_items),
+            )
+            state.logger.log_user_journey(journey_info)
 
         # construct the interaction and return
         interaction = (consumer.id, selected_id, consumer.recommender.name, 1, time)
@@ -259,6 +317,7 @@ class Smores:
                 # Else no change to the recommender
 
     def cleanup(self):
+        self.state.summary_logger.print_summary()
         self.state.logger.cleanup()
 
 

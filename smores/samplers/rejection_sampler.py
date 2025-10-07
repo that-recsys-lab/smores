@@ -1,33 +1,67 @@
+"""Probability based item sampler using simple rejection sampling."""
+
+from __future__ import annotations
+
+from csv import DictReader
+from pathlib import Path
+
+from .item_sampler import ItemSampler
 import smores
 
 
-def sample_uninteracted_items(item_ids, probabilities, interacted_items, n_items):
-    """Sample n_items using rejection sampling to avoid interacted items.
+class RejectionSampler(ItemSampler):
+    """Samples items without replacement according to popularity weights."""
 
-    Uses rejection sampling: keep sampling until we have enough unique items
-    that aren't in the interacted items set.
+    def __init__(self) -> None:
+        super().__init__()
+        self._file_path: Path | None = None
 
-    Args:
-        item_ids: List of all item IDs to sample from
-        probabilities: Probability distribution over item_ids (must sum to 1.0)
-        interacted_items: Set of item IDs to exclude from sampling
-        n_items: Number of items to sample
+    def load_from_file(self, path: Path | str) -> None:
+        file_path = Path(path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"Sampler file not found: {file_path}")
 
-    Returns:
-        List of sampled item IDs (length n_items or less if max_attempts reached)
-    """
-    sampled_items = []
-    max_attempts = len(item_ids) * 10  # Safety limit to prevent infinite loops
-    attempts = 0
+        self._file_path = file_path
+        items: list[int] = []
+        weights: list[float] = []
+        invalid = 0
 
-    while len(sampled_items) < n_items and attempts < max_attempts:
-        # Sample one item using the provided probabilities
-        item = smores.Smores.state.rand.choice(item_ids, p=probabilities)
+        with file_path.open(newline="") as handle:
+            reader = DictReader(handle)
+            if 'item_id' not in reader.fieldnames:
+                raise ValueError("Sampler file must contain an 'item_id' column")
 
-        # Accept if not interacted and not already sampled
-        if item not in interacted_items and item not in sampled_items:
-            sampled_items.append(item)
+            weight_field = 'popularity' if 'popularity' in reader.fieldnames else 'weight'
 
-        attempts += 1
+            for row in reader:
+                try:
+                    item_id = int(row['item_id'])
+                    weight = float(row.get(weight_field, 0.0))
+                except (ValueError, TypeError):
+                    invalid += 1
+                    continue
 
-    return sampled_items
+                if weight <= 0:
+                    continue
+
+                if not smores.Smores.state.items.exists_item(item_id):
+                    invalid += 1
+                    continue
+
+                items.append(item_id)
+                weights.append(weight)
+
+        if not items:
+            raise ValueError(f"No valid items loaded from {file_path}")
+
+        self.item_ids = items
+        self.base_probabilities = weights
+        self._normalize_probabilities()
+
+        smores.Smores.state.logger.info(
+            f"RejectionSampler loaded {len(self.item_ids)} items from {file_path}"
+        )
+        if invalid:
+            smores.Smores.state.logger.debug(
+                f"RejectionSampler skipped {invalid} invalid or unknown items from {file_path}"
+            )

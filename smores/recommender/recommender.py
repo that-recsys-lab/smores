@@ -20,6 +20,10 @@ class Recommender(ABC):
         self.trained = False
         self.parent = None
         self._cached_user_count = None
+        # Optional item sampling support
+        self.item_sampler = None
+        self.sampled_item_count = 0
+        self._copy_sampler_from_fallback = False
 
     @abstractmethod
     def setup(self, config):
@@ -30,6 +34,32 @@ class Recommender(ABC):
                     self.cold_start_fallback = params['cold_start_fallback']
                 if 'cold_user_fallback' in params: 
                     self.cold_user_fallback = params['cold_user_fallback']
+                if 'item_sampler' in params:
+                    sampler_config = params['item_sampler']
+                    sampler_params = sampler_config.get('params', {}) if sampler_config else {}
+                    self.sampled_item_count = int(sampler_params.get('sampled_item_count', 0))
+                    sampler_class = (sampler_config or {}).get('class_name')
+
+                    if sampler_class is None:
+                        raise ValueError(
+                            f"Recommender '{config.name}': item_sampler requires a class_name"
+                        )
+
+                    if sampler_class != 'rejection_sampler':
+                        raise ValueError(
+                            f"Recommender '{config.name}': unsupported item_sampler '{sampler_class}'"
+                        )
+
+                    from smores.samplers.rejection_sampler import RejectionSampler
+
+                    file_name = sampler_params.get('file_name') or params.get('file_name')
+                    if file_name is not None:
+                        file_path = smores.Smores.state.data_directory / file_name
+                        self.item_sampler = RejectionSampler()
+                        self.item_sampler.load_from_file(file_path)
+                    else:
+                        # Defer to fallback recommender for sampler instance
+                        self._copy_sampler_from_fallback = True
         self.name = config.name
     
     def setup_dataset(self):
@@ -73,6 +103,8 @@ class Recommender(ABC):
             cold_start_rec.train()
         if cold_user_rec is not None:
            cold_user_rec.train()
+        if self._copy_sampler_from_fallback:
+            self._copy_item_sampler_from_fallback()
         
         # Invalidate user count cache after training
         self._cached_user_count = None
@@ -92,7 +124,29 @@ class Recommender(ABC):
             return cold_user_rec
         else:
             return None
-        
+    
+    def _copy_item_sampler_from_fallback(self):
+        if self.cold_start_fallback is None:
+            raise ValueError(
+                f"Recommender '{self.name}': item_sampler requires a cold_start_fallback or explicit file"
+            )
+
+        cold_start_rec = self.get_cold_start_fallback()
+        if cold_start_rec is None:
+            raise ValueError(
+                f"Recommender '{self.name}': cold_start_fallback '{self.cold_start_fallback}' not available"
+            )
+
+        if getattr(cold_start_rec, 'item_sampler', None) is None:
+            raise ValueError(
+                f"Recommender '{self.name}': cold_start_fallback '{self.cold_start_fallback}' has no item_sampler"
+            )
+
+        self.item_sampler = cold_start_rec.item_sampler
+        smores.Smores.state.logger.debug(
+            f"Recommender '{self.name}': copied item_sampler from '{self.cold_start_fallback}'"
+        )
+        self._copy_sampler_from_fallback = False
 
     @abstractmethod
     def isDatasetViable(self):
@@ -123,7 +177,44 @@ class Recommender(ABC):
     def delete_user(self, user_id):
         builder = DatasetBuilder(self.get_dataset())
         builder.filter_interactions('interaction', remove={'user_id': [user_id]})
-        self.set_dataset(builder.build())           
+        self.set_dataset(builder.build())
+
+    def apply_item_sampling(self, user_id, recommendations: ItemList) -> ItemList:
+        """Append sampled items for diversity if configured."""
+
+        if self.item_sampler is None or self.sampled_item_count <= 0:
+            return recommendations
+
+        rec_ids = recommendations.ids()
+        rec_scores = recommendations.scores()
+        rec_ranks = recommendations.ranks()
+
+        prior = self.get_user(user_id)
+        exclusions = set(rec_ids)
+        if prior is not None:
+            exclusions.update(prior.ids())
+
+        sampled_ids = self.item_sampler.sample(self.sampled_item_count, exclude_items=exclusions)
+        if not sampled_ids:
+            return recommendations
+
+        final_ids = list(rec_ids) + sampled_ids
+
+        if rec_scores is not None:
+            final_scores = list(rec_scores) + [0.0] * len(sampled_ids)
+        else:
+            final_scores = None
+
+        if rec_ranks is not None and len(rec_ranks) > 0:
+            next_rank = int(rec_ranks[-1]) + 1
+            sampled_ranks = list(range(next_rank, next_rank + len(sampled_ids)))
+            final_ranks = list(rec_ranks) + sampled_ranks
+        elif rec_ranks is not None:
+            final_ranks = list(range(1, len(final_ids) + 1))
+        else:
+            final_ranks = None
+
+        return ItemList(None, item_ids=final_ids, scores=final_scores, rank=final_ranks)
 
 class FixedItemRecommender(Recommender):
     def __init__(self):
@@ -198,5 +289,4 @@ class UnregisteredRecommenderError(Exception):
     def __init__(self, name):
         self.message = f'Cannot create recommender: Class {name} is not registered and may not exist.'
         super().__init__(self.message)
-
 

@@ -23,6 +23,16 @@ class LoggerConfig(BaseModel):
     debug_level: str
     use_timestamp: bool
     use_parquet: bool
+    enable_user_journeys: bool = False
+    sampled_user_ids: Optional[list[int]] = None
+    sampled_user_count: Optional[int] = None
+    sampled_user_file: Optional[str] = None
+    enable_item_stats: bool = False
+    item_stats_file: Optional[str] = None
+
+
+class SummaryLoggerConfig(BaseModel):
+    enabled: bool = True
 
 class PythonClassConfig(BaseModel):
     name: Optional[str] = None
@@ -68,9 +78,9 @@ class SmoresConfig(BaseModel):
     simulation: SimulationConfig
     data: DataConfig
     output: LoggerConfig
+    summary_logger: SummaryLoggerConfig = SummaryLoggerConfig()
     consumer: ConsumerConfig
     provider: ProviderConfig
     platform: PlatformConfig
     recommender: RecommenderConfig
     triggers: Optional[list[PythonClassConfig]]
-
