@@ -4,7 +4,6 @@ from lenskit.data.items import ItemList
 
 import smores
 from smores.recommender import Recommender, RecommenderFactory
-from smores.samplers.rejection_sampler import RejectionSampler
 
 
 class FileBasedRecommender(Recommender):
@@ -23,9 +22,8 @@ class FileBasedRecommender(Recommender):
             file_name = params.get('file_name')
             if file_name is None:
                 raise ValueError("FileBasedRecommender requires 'file_name' in params")
-            file_path = smores.Smores.state.data_directory / file_name
-            sampler = RejectionSampler()
-            sampler.load_from_file(file_path)
+            sampler = self._create_item_sampler('rejection_sampler')
+            sampler.load_from_file(smores.Smores.state.data_directory / file_name)
             self.item_sampler = sampler
 
     def train(self):

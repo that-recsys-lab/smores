@@ -23,43 +23,31 @@ class Recommender(ABC):
         # Optional item sampling support
         self.item_sampler = None
         self.sampled_item_count = 0
-        self._copy_sampler_from_fallback = False
 
     @abstractmethod
     def setup(self, config):
         if type(config) is PythonClassConfig:
-            params = config.params
-            if params is not None:
-                if 'cold_start_fallback' in params:
-                    self.cold_start_fallback = params['cold_start_fallback']
-                if 'cold_user_fallback' in params: 
-                    self.cold_user_fallback = params['cold_user_fallback']
-                if 'item_sampler' in params:
-                    sampler_config = params['item_sampler']
-                    sampler_params = sampler_config.get('params', {}) if sampler_config else {}
-                    self.sampled_item_count = int(sampler_params.get('sampled_item_count', 0))
-                    sampler_class = (sampler_config or {}).get('class_name')
+            params = config.params or {}
+            if 'cold_start_fallback' in params:
+                self.cold_start_fallback = params['cold_start_fallback']
+            if 'cold_user_fallback' in params:
+                self.cold_user_fallback = params['cold_user_fallback']
 
-                    if sampler_class is None:
-                        raise ValueError(
-                            f"Recommender '{config.name}': item_sampler requires a class_name"
-                        )
+            sampler_cfg = params.get('item_sampler')
+            if sampler_cfg:
+                sampler_params = sampler_cfg.get('params', {}) or {}
+                sampler_class = sampler_cfg.get('class_name', 'rejection_sampler')
 
-                    if sampler_class != 'rejection_sampler':
-                        raise ValueError(
-                            f"Recommender '{config.name}': unsupported item_sampler '{sampler_class}'"
-                        )
+                file_name = sampler_params.get('file_name')
+                if not file_name:
+                    raise ValueError(
+                        f"Recommender '{config.name}': item_sampler '{sampler_class}' requires params.file_name"
+                    )
 
-                    from smores.samplers.rejection_sampler import RejectionSampler
-
-                    file_name = sampler_params.get('file_name') or params.get('file_name')
-                    if file_name is not None:
-                        file_path = smores.Smores.state.data_directory / file_name
-                        self.item_sampler = RejectionSampler()
-                        self.item_sampler.load_from_file(file_path)
-                    else:
-                        # Defer to fallback recommender for sampler instance
-                        self._copy_sampler_from_fallback = True
+                file_path = smores.Smores.state.data_directory / file_name
+                self.item_sampler = self._create_item_sampler(sampler_class)
+                self.item_sampler.load_from_file(file_path)
+                self.sampled_item_count = int(sampler_params.get('sampled_item_count', 0))
         self.name = config.name
     
     def setup_dataset(self):
@@ -102,9 +90,7 @@ class Recommender(ABC):
         if cold_start_rec is not None:
             cold_start_rec.train()
         if cold_user_rec is not None:
-           cold_user_rec.train()
-        if self._copy_sampler_from_fallback:
-            self._copy_item_sampler_from_fallback()
+            cold_user_rec.train()
         
         # Invalidate user count cache after training
         self._cached_user_count = None
@@ -125,28 +111,15 @@ class Recommender(ABC):
         else:
             return None
     
-    def _copy_item_sampler_from_fallback(self):
-        if self.cold_start_fallback is None:
-            raise ValueError(
-                f"Recommender '{self.name}': item_sampler requires a cold_start_fallback or explicit file"
-            )
+    def _create_item_sampler(self, class_name: str):
+        if class_name == 'rejection_sampler':
+            from smores.samplers.rejection_sampler import RejectionSampler
 
-        cold_start_rec = self.get_cold_start_fallback()
-        if cold_start_rec is None:
-            raise ValueError(
-                f"Recommender '{self.name}': cold_start_fallback '{self.cold_start_fallback}' not available"
-            )
+            return RejectionSampler()
 
-        if getattr(cold_start_rec, 'item_sampler', None) is None:
-            raise ValueError(
-                f"Recommender '{self.name}': cold_start_fallback '{self.cold_start_fallback}' has no item_sampler"
-            )
-
-        self.item_sampler = cold_start_rec.item_sampler
-        smores.Smores.state.logger.debug(
-            f"Recommender '{self.name}': copied item_sampler from '{self.cold_start_fallback}'"
+        raise ValueError(
+            f"Recommender '{self.name}': unsupported item sampler '{class_name}'"
         )
-        self._copy_sampler_from_fallback = False
 
     @abstractmethod
     def isDatasetViable(self):
@@ -289,4 +262,3 @@ class UnregisteredRecommenderError(Exception):
     def __init__(self, name):
         self.message = f'Cannot create recommender: Class {name} is not registered and may not exist.'
         super().__init__(self.message)
-
