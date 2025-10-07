@@ -49,11 +49,13 @@ class ProfileUserOwnershipTrigger(SwitchTrigger):
         from_rec: Recommender = Recommender.name2base_recommender(event.from_rec)
         user_data = from_rec.get_user(event.consumer_id)
 
-        if len(user_data) > 0:
-            to_rec: Recommender = Recommender.name2base_recommender(event.next_rec)
-            to_rec.update_dataset_itemlist(event.consumer_id, user_data)
+        if user_data is None or len(user_data) == 0:
+            return
 
-            from_rec.delete_user(event.consumer_id)
+        to_rec: Recommender = Recommender.name2base_recommender(event.next_rec)
+        to_rec.update_dataset_itemlist(event.consumer_id, user_data)
+
+        from_rec.delete_user(event.consumer_id)
 
 # Cold Start
 # The profile information is deleted from the FROM recommender
