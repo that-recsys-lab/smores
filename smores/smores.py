@@ -10,7 +10,7 @@ from smores.stakeholders.provider import ProviderModelComponents, ProviderCollec
 from smores.item import ItemMap
 from smores.recommender import Recommender, RecommenderMap
 from smores.trigger import TriggerCollection, DayEvent, CycleEvent, SwitchEvent, InteractionBatchEvent
-from smores.utils import SmoresConfig, SmoresLogger, ConsumerUtility, ProviderUtility
+from smores.utils import SmoresConfig, SmoresLogger, ConsumerUtility, ProviderUtility, ItemChoice
 
 class Smores:
 
@@ -225,6 +225,9 @@ class Smores:
         # log the consumer utility
         Smores.state.logger.log_consumer(ConsumerUtility(consumer.id, consumer.type, consumer.recommender.name, interaction_utility,
                                                          recommender_utility, time))
+        
+        # log item choice (item can be None)
+        Smores.state.logger.log_item_choice(ItemChoice(consumer.id, consumer.type, consumer.recommender.name, selected_id, time))
 
         # construct the interaction and return
         interaction = (consumer.id, selected_id, consumer.recommender.name, 1, time)
