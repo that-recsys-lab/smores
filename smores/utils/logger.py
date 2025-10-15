@@ -13,12 +13,13 @@ import smores
 ConsumerUtility = namedtuple('ConsumerUtility', ['consumer_id', 'consumer_type', 'recommender', 'utility', 'aggregate', 'time'])
 ProviderUtility = namedtuple('ProviderUtility', ['provider_id', 'provider_type', 'recommender', 'utility', 'time'])
 ChoiceUtility = namedtuple('ChoiceUtility', ['consumer_id', 'consumer_type', 'current_recommender', 'next_recommender', 'utilities', 'time'])
-
+ItemChoice = namedtuple('ItemChoice', ['consumer_id', 'consumer_type', 'recommender', 'item_id', 'time'])
 
 class SmoresLogger:
     CONSUMER_UTILITY_HEADERS = ['user_id', 'consumer_type', 'recommender', 'utility', 'aggregate', 'time']
     PROVIDER_UTILITY_HEADERS = ['provider_id', 'provider_type', 'recommender', 'utility', 'time']
     RECOMMENDER_CHOICE_HEADERS = ['consumer_id', 'consumer_type', 'time', 'current_recommender', 'next_recommender']
+    ITEM_CHOICE_HEADERS = ['consumer_id', 'consumer_type', 'recommender', 'item_id', 'time']
 
     def __init__(self, config: LoggerConfig):
         self.use_timestamp = config.use_timestamp
@@ -59,6 +60,13 @@ class SmoresLogger:
             choice_file_name = f'{config.choice_file}.csv'
         self.choice_log_path = output_dir / choice_file_name
 
+        # item choice output
+        if self.use_timestamp:
+            item_choice_file_name = f'{config.item_choice_file}_{timestamp}.csv'
+        else:
+            item_choice_file_name = f'{config.item_choice_file}.csv'
+        self.item_choice_log_path = output_dir / item_choice_file_name
+
     def setup(self, config):
         debug_file_handler = logging.FileHandler(self.debug_log_path)
         debug_console_handler = logging.StreamHandler()
@@ -83,6 +91,10 @@ class SmoresLogger:
         rec_names = smores.Smores.state.recommenders_base.get_names()
         headers = self.RECOMMENDER_CHOICE_HEADERS + rec_names
         self.choice_writer.writerow(headers) 
+
+        self.item_choice_output_file = open(self.item_choice_log_path, 'w', newline='')
+        self.item_choice_writer = csv.DictWriter(self.item_choice_output_file, fieldnames=ItemChoice._fields)
+        self.item_choice_writer.writeheader()
 
     # Debug log
     def debug(self, message):
@@ -118,6 +130,10 @@ class SmoresLogger:
                 choice_info.utilities
         self.choice_writer.writerow(row)
         self.choice_output_file.flush()
+
+    def log_item_choice(self, item_choice_info:ItemChoice):
+        self.item_choice_writer.writerow(item_choice_info._asdict())
+        self.item_choice_output_file.flush()
 
     def copy_parquet(self, inpath: Path):
         outpath = inpath.with_suffix('.parquet')
