@@ -19,6 +19,7 @@ class LoggerConfig(BaseModel):
     consumer_file: str
     provider_file: str
     choice_file: str
+    item_choice_file: str
     debug_file: str
     debug_level: str
     use_timestamp: bool
