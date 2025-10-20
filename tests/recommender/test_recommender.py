@@ -15,6 +15,7 @@ class RecommenderTestCase(unittest.TestCase):
         test_config_path = test_data_path / 'test_config.yaml'
         self.config = SmoresConfig.model_validate(yaml.safe_load(test_config_path.read_text()))
         self.smores = Smores(self.config)
+        self.smores.setup()
 
         interactions_path = test_data_path / 'interactions.csv'
         with open(interactions_path, ) as csvfile:
@@ -43,6 +44,8 @@ class RecommenderTestCase(unittest.TestCase):
       self.assertTrue(self.smores.state.recommenders_fallback.is_recommender('Popular Fallback'))
       self.assertIsNotNone(rec)
       rec.setup(rec_config)
+      rec.setup_dataset()
+      initial_items = set(self.smores.state.items.all_items())
       self.assertIsNotNone(self.interactions)
       time_step1 = [row for row in self.interactions if row[3] == 1]
       time_step2 = [row for row in self.interactions if row[3] == 2]
@@ -54,7 +57,8 @@ class RecommenderTestCase(unittest.TestCase):
       rec.update_dataset(time_step2)
       self.assertEqual(rec.dataset.interaction_count, 10)
       self.assertEqual(rec.dataset.user_count, 5)
-      self.assertEqual(rec.dataset.item_count, 8)
+      expected_items = initial_items.union({row[1] for row in time_step1 + time_step2})
+      self.assertEqual(rec.dataset.item_count, len(expected_items))
       self.assertEqual(rec.dataset.user_row(100).ids().size, 2)
 
     def fallback_creation(self):

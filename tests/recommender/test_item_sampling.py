@@ -75,6 +75,7 @@ class ItemSamplingTestCase(unittest.TestCase):
                 'item_sampler': {
                     'class_name': 'rejection_sampler',
                     'params': {
+                        'file_name': 'item_popularity.csv',
                         'sampled_item_count': 2
                     }
                 }
@@ -105,6 +106,7 @@ class ItemSamplingTestCase(unittest.TestCase):
                 'item_sampler': {
                     'class_name': 'rejection_sampler',
                     'params': {
+                        'file_name': 'item_popularity.csv',
                         'sampled_item_count': 2
                     }
                 }
@@ -169,6 +171,7 @@ class ItemSamplingTestCase(unittest.TestCase):
                 'item_sampler': {
                     'class_name': 'rejection_sampler',
                     'params': {
+                        'file_name': 'item_popularity.csv',
                         'sampled_item_count': 3
                     }
                 }
