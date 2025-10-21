@@ -52,43 +52,19 @@ class ImplicitMFGenreRecommender(ImplicitMFRecommender):
     def __init__(self):
         super().__init__()
 
-    # Note: not calling superclass setup because we need to build our own pipeline.
     def setup(self, config):
-        params = config.params
-        if params is not None:
-            if 'cold_start_fallback' in params:
-                self.cold_start_fallback = params['cold_start_fallback']
-            if 'cold_user_fallback' in params: 
-                self.cold_user_fallback = params['cold_user_fallback']
-        self.name = config.name
-
-        self.embedding_size = int(params['embedding_size'])
-        self.epochs = int(params['epochs'])
-        self.regularization = float(params['regularization'])
-        self.positive_weight = float(params['positive_weight'])
+        params = config.params or {}
 
         self.genre = int(params['genre_feature'])
         # Maybe should be a set
         self.genre_items = smores.Smores.state.items.get_genre_items(self.genre)
 
-        self.min_user_count = int(params['min_user_count'])
-        self.min_interaction_count = int(params['min_interaction_count'])
-        self.min_profile_size = int(params['min_profile_size'])
-
-        self.lk_config = ImplicitMFConfig(embedding_size=self.embedding_size,
-                                          epochs=self.epochs,
-                                          regularization=self.regularization,
-                                          weight=self.positive_weight,
-                                          user_embeddings=True,
-                                          use_ratings=False)
-
-        self.scorer = ImplicitMFScorer(self.lk_config)
-        self.pipeline = self.build_pipeline()
+        super().setup(config)
 
 
     def build_pipeline(self):
         scorer = self.get_scorer()
-        slate_size = smores.Smores.state.slate_size
+        candidate_count = max(self._candidate_request_count(), 1)
 
         pipe = PipelineBuilder()
         # define an input parameter for the user ID (the 'query')
@@ -105,7 +81,7 @@ class ImplicitMFGenreRecommender(ImplicitMFRecommender):
         # score the candidate items using the specified scorer
         score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
         # rank the items by score
-        recommend = pipe.add_component('ranker', TopNRanker, {'n': slate_size}, items=score)
+        recommend = pipe.add_component('ranker', TopNRanker, {'n': candidate_count}, items=score)
         pipe.alias('recommender', recommend)
         pipe.default_component('recommender')
         return pipe.build()
@@ -144,39 +120,18 @@ class GenreKnnRecommender(ItemKnnRecommender):
         self.min_interaction_count = maxsize
         self.min_profile_size = maxsize
 
-    # Note: not calling superclass setup because we need to build our own pipeline.
     def setup(self, config):
-        params = config.params
-        if params is not None:
-            if 'cold_start_fallback' in params:
-                self.cold_start_fallback = params['cold_start_fallback']
-            if 'cold_user_fallback' in params: 
-                self.cold_user_fallback = params['cold_user_fallback']
-        self.name = config.name
-
-        # get data from config
-        params = config.params
-        max_nbrs = int(params['max_neighbors'])
-        min_nbrs = int(params['min_neighbors'])
-        min_sim = float(params['min_similarity'])
+        params = config.params or {}
 
         self.genre = int(params['genre_feature'])
         # Maybe should be a set
         self.genre_items = smores.Smores.state.items.get_genre_items(self.genre)
 
-        self.min_user_count = int(params['min_user_count'])
-        self.min_interaction_count = int(params['min_interaction_count'])
-        self.min_profile_size = int(params['min_profile_size'])
-        # create ItemKNNConfig object
-        self.lk_config = ItemKNNConfig(max_nbrs=max_nbrs, min_nbrs=min_nbrs, 
-                                       min_sim=min_sim, feedback='implicit')
-        # create ItemKNNScorer
-        self.scorer = ItemKNNScorer(self.lk_config)
-        self.pipeline = self.build_pipeline()
+        super().setup(config)
 
     def build_pipeline(self):
         scorer = self.get_scorer()
-        slate_size = smores.Smores.state.slate_size
+        candidate_count = max(self._candidate_request_count(), 1)
 
         pipe = PipelineBuilder()
         # define an input parameter for the user ID (the 'query')
@@ -193,7 +148,7 @@ class GenreKnnRecommender(ItemKnnRecommender):
         # score the candidate items using the specified scorer
         score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
         # rank the items by score
-        recommend = pipe.add_component('ranker', TopNRanker, {'n': slate_size}, items=score)
+        recommend = pipe.add_component('ranker', TopNRanker, {'n': candidate_count}, items=score)
         pipe.alias('recommender', recommend)
         pipe.default_component('recommender')
         return pipe.build()

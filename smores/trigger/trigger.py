@@ -27,7 +27,7 @@ class DayEvent(TriggerEvent):
 
 class InteractionBatchEvent(TriggerEvent):
     def __init__(self, interaction_dict):
-        super().__init__('interaction')
+        super().__init__('interactions')
         self.interaction_dict = interaction_dict
 
 
@@ -94,7 +94,7 @@ class InitialBurnInTrigger(CycleTrigger):
 
 class InteractionBatchTrigger(Trigger):
     def __init__(self):
-        super().__init__('interaction')
+        super().__init__('interactions')
 
     def setup(self, config):
         self.name = config.name

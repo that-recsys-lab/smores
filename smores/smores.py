@@ -1,7 +1,7 @@
 import numpy as np
 from icecream import ic
 from pathlib import Path
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 from lenskit.data.items import ItemList
 
@@ -51,6 +51,8 @@ class Smores:
             self.recommenders_fallback = RecommenderMap()
             self.recommenders_active: list[str] = []
             self.initial_recommenders = config.recommender.initial
+            # per-cycle per-user clicked blocklist to avoid repeat exposure
+            self.cycle_clicked_blocklist: dict[int, set[int]] = defaultdict(set)
 
             # init trigger collections
             self.triggers = TriggerCollection()
@@ -82,6 +84,7 @@ class Smores:
 
         # Setup items
         state.items.load_items(state.item_file)
+        state.summary_logger.set_catalog_size(len(state.items.all_items()))
 
         # Setup recommenders
         state.recommenders_active = config.recommender.initial
@@ -129,21 +132,27 @@ class Smores:
 
     def run_cycles(self):
         while self.state.cycle_count < self.state.cycle_limit:
-            self.state.logger.info(f'Started cycle {self.state.cycle_count}')
+            display_cycle = self.state.cycle_count + 1
+            self.state.logger.info(f'Started cycle {display_cycle}')
             self.run_cycle()
-            self.state.logger.info(f'Completed cycle {self.state.cycle_count}')
+            self._log_cycle_stats(display_cycle)
             self.state.day_count = 0
             self.state.cycle_count += 1
 
     def run_cycle(self):
+        # Reset per-cycle clicked blocklist
+        self.state.cycle_clicked_blocklist.clear()
         self.state.logger.debug(f'    Active recommenders are: {self.state.recommenders_active}')
         self.train_recommenders()
 
         while self.state.day_count < self.state.day_limit:
-            self.state.logger.info(f'  Started day {self.state.cycle_count}:{self.state.day_count}')
+            display_cycle = self.state.cycle_count + 1
+            display_day = self.state.day_count + 1
+            self.state.logger.info(f'  Day {display_cycle}:{display_day}')
             self.run_day()
-            self.state.logger.info(f'  Completed day {self.state.cycle_count}:{self.state.day_count}')
             self.state.day_count += 1
+        display_cycle = self.state.cycle_count + 1
+        self.state.logger.info(f'  Finished cycle {display_cycle}')
         self.cycle_actions()
 
     def train_recommenders(self):
@@ -164,7 +173,7 @@ class Smores:
             rec.update_dataset(interaction_dict[rec_name])
 
         # Run interaction triggers
-        for trigger in Smores.state.triggers.get_iterator('interaction'):
+        for trigger in Smores.state.triggers.get_iterator('interactions'):
             event = InteractionBatchEvent(interaction_dict)
             trigger.apply_trigger(event)
         
@@ -184,6 +193,29 @@ class Smores:
             event = DayEvent(self.state.day_count, self.state.current_time())
             trigger.apply_trigger(event)
 
+
+    def _log_cycle_stats(self, display_cycle: int) -> None:
+        state = Smores.state
+        assignment_counts: Counter[str] = Counter()
+        for consumer in state.consumers:
+            assigned_rec = getattr(consumer, 'recommender', None)
+            if assigned_rec is not None and getattr(assigned_rec, 'name', None):
+                assignment_counts[assigned_rec.name] += 1
+
+        for rec_name in state.recommenders_active:
+            rec = state.recommenders_base.get_recommender(rec_name)
+            if rec is None:
+                continue
+            dataset = rec.get_dataset()
+            if dataset is None:
+                continue
+            interactions = dataset.interaction_count
+            assigned_users = assignment_counts.get(rec_name, 0)
+            state.logger.info(
+                f"  Cycle {display_cycle}: {rec_name} interactions={interactions}, active_users={assigned_users}"
+            )
+            state.summary_logger.set_active_users(rec_name, assigned_users)
+
     def run_consumer_day(self, consumer: Consumer):
         state = Smores.state
         # state.logger.debug(f'     Processing user {consumer.id}')
@@ -196,16 +228,18 @@ class Smores:
         else:
             raise RecommenderUnassignedException(consumer)
 
-        slate_items = list(recs.ids())
+        slate_items = [int(item_id) for item_id in recs.ids()]
         consumer.seen_items.update(slate_items)
         for item_id in slate_items:
-            state.logger.log_item_appear(int(item_id), consumer.recommender.name, state.cycle_count)
+            state.logger.log_item_appear(item_id, consumer.recommender.name, state.cycle_count)
 
         state.summary_logger.log_recommendation(
             consumer.recommender.name,
             consumer.id,
-            len(slate_items),
+            slate_items,
             state.slate_size,
+            sampled_count=getattr(consumer.recommender, '_last_sampled_count', 0),
+            used_fallback=getattr(consumer.recommender, '_last_used_fallback', False),
         )
 
         # Update list utility for providers
@@ -227,8 +261,12 @@ class Smores:
             state.logger.log_item_click(selected_id, consumer.recommender.name, state.cycle_count)
             # Update item utility for item provider
             state.providers.update_utility_item(consumer, consumer.recommender, selected_id, time)
+            state.cycle_clicked_blocklist[consumer.id].add(selected_id)
         else:
             selected_id = None
+
+        consumer.recommender.update_feedback(consumer.id, slate_items, selected_id)
+        state.summary_logger.log_click(consumer.recommender.name, selected_id is not None)
 
         # Update recommender choice model
         if consumer.recommender_choice_model is not None:

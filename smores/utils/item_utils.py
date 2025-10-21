@@ -10,4 +10,7 @@ def itemList2rankedTuples(item_list: ItemList):
 
     sort_indices = np.argsort(ranks)
 
+    if scores is None:
+        return [(ids[i], 1) for i in sort_indices]
+
     return [(ids[i], scores[i]) for i in sort_indices]
