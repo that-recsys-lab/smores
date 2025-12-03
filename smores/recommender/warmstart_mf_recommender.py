@@ -1,4 +1,5 @@
 import pickle
+import numpy as np
 from pathlib import Path
 from sys import maxsize
 
@@ -15,14 +16,23 @@ import smores
 
 class WarmStartImplicitMFRecommender(ImplicitMFRecommender):
     """
-    Matrix Factorization recommender that loads pre-trained embeddings from a file.
-    This allows the recommender to start with knowledge from a large training dataset
-    instead of training from scratch during the simulation.
+    Implicit MF recommender that initializes item embeddings from a pre-trained model.
+    
+    Loads pre-trained item embeddings once during the first training cycle, then
+    allows normal adaptation in subsequent cycles. This gives the model a head start
+    on item representations while still learning user preferences from simulation data.
+    
+    Config params:
+        pretrained_model_path: Path to pickled ImplicitMFScorer with item_embeddings
+        embedding_size, epochs, regularization, positive_weight: Standard MF params
+        min_user_count, min_interaction_count, min_profile_size: Training thresholds
     """
     
     def __init__(self):
         super().__init__()
         self.pretrained_model_path = None
+        self.embeddings_injected = False  
+        self.pretrained_scorer = None
         
     def setup(self, config):
         """Setup the recommender with config parameters"""
@@ -31,19 +41,16 @@ class WarmStartImplicitMFRecommender(ImplicitMFRecommender):
         params = config.params
         
         self.embedding_size = int(params['embedding_size'])
-        self.epochs = int(params.get('epochs', 1))
+        self.epochs = int(params.get('epochs', 5))
         self.regularization = float(params['regularization'])
         self.positive_weight = float(params['positive_weight'])
         
-        # Thresholds
         self.min_user_count = int(params.get('min_user_count', 0))
         self.min_interaction_count = int(params.get('min_interaction_count', 0))
         self.min_profile_size = int(params.get('min_profile_size', 1))
         
-        # Path to pre-trained model file
         self.pretrained_model_path = params['pretrained_model_path']
         
-        # Create LensKit config
         self.lk_config = ImplicitMFConfig(
             embedding_size=self.embedding_size,
             epochs=self.epochs,
@@ -55,9 +62,44 @@ class WarmStartImplicitMFRecommender(ImplicitMFRecommender):
         
         self.scorer = ImplicitMFScorer(self.lk_config)
         self.pipeline = self.build_pipeline()
+        
+        # Load pre-trained scorer at setup time
+        self._load_pretrained_scorer()
+
+    def _load_pretrained_scorer(self):
+        """Load pre-trained scorer from file"""
+        model_path = Path(self.pretrained_model_path)
+        
+        if model_path.exists():
+            try:
+                with open(model_path, 'rb') as f:
+                    self.pretrained_scorer = pickle.load(f)
+                
+                if isinstance(self.pretrained_scorer, ImplicitMFScorer):
+                    if hasattr(self.pretrained_scorer, 'item_embeddings') and \
+                       hasattr(self.pretrained_scorer, 'items'):
+                        smores.Smores.state.logger.info(
+                            f"Loaded pre-trained scorer: {self.pretrained_scorer.item_embeddings.shape[0]} items, "
+                            f"{self.pretrained_scorer.item_embeddings.shape[1]} dimensions"
+                        )
+                    else:
+                        smores.Smores.state.logger.warning(
+                            f"Pre-trained scorer missing item_embeddings or items attribute"
+                        )
+                else:
+                    smores.Smores.state.logger.warning(
+                        f"Pre-trained model is not ImplicitMFScorer: {type(self.pretrained_scorer)}"
+                    )
+                    self.pretrained_scorer = None
+                        
+            except Exception as e:
+                smores.Smores.state.logger.error(f"Error loading pre-trained scorer: {e}")
+                self.pretrained_scorer = None
+        else:
+            smores.Smores.state.logger.warning(f"Pre-trained model not found: {model_path}")
 
     def build_pipeline(self):
-        """Build the recommendation pipeline - same as parent class"""
+        """Build the recommendation pipeline"""
         scorer = self.get_scorer()
         slate_size = smores.Smores.state.slate_size
 
@@ -72,9 +114,53 @@ class WarmStartImplicitMFRecommender(ImplicitMFRecommender):
         pipe.default_component('recommender')
         return pipe.build()
     
+    def _inject_pretrained_embeddings(self):
+        """
+        Inject pre-trained item embeddings into the current scorer.
+        Called ONLY ONCE after first training.
+        """
+        if self.pretrained_scorer is None:
+            return 0
+        
+        if not hasattr(self.scorer, 'items') or self.scorer.items is None:
+            return 0
+        
+        if not hasattr(self.scorer, 'item_embeddings') or self.scorer.item_embeddings is None:
+            return 0
+        
+        if not hasattr(self.pretrained_scorer, 'items') or self.pretrained_scorer.items is None:
+            return 0
+            
+        if not hasattr(self.pretrained_scorer, 'item_embeddings') or self.pretrained_scorer.item_embeddings is None:
+            return 0
+        
+        # Build lookup for pre-trained items
+        pretrained_item_ids = list(self.pretrained_scorer.items.ids())
+        pretrained_lookup = {int(item_id): idx for idx, item_id in enumerate(pretrained_item_ids)}
+        
+        # Get current scorer's items
+        current_item_ids = list(self.scorer.items.ids())
+        
+        # Inject pre-trained embeddings
+        injected_count = 0
+        for current_idx, item_id in enumerate(current_item_ids):
+            item_id_int = int(item_id)
+            if item_id_int in pretrained_lookup:
+                pretrained_idx = pretrained_lookup[item_id_int]
+                self.scorer.item_embeddings[current_idx] = \
+                    self.pretrained_scorer.item_embeddings[pretrained_idx]
+                injected_count += 1
+        
+        return injected_count
+    
     def train(self):
-        """Load pre-trained model instead of training from scratch"""
-        # Check if we have enough data to train
+        """
+        Train with warm-start.
+        
+        KEY DIFFERENCE: Only inject embeddings on FIRST training.
+        Subsequent cycles train normally, allowing adaptation.
+        """
+        # Check data thresholds
         if self.get_dataset().interaction_count < self.min_interaction_count or \
                 self.get_dataset().user_count < self.min_user_count:
             smores.Smores.state.logger.debug(
@@ -90,73 +176,47 @@ class WarmStartImplicitMFRecommender(ImplicitMFRecommender):
                 cold_user_rec.train()
             return
         
-        model_path = Path(self.pretrained_model_path)
+        # Train the pipeline
+        if self.get_dataset().interaction_count > 0:
+            self.pipeline.train(self.get_dataset())
         
-        if model_path.exists():
-            smores.Smores.state.logger.info(f"Loading pre-trained model from {self.pretrained_model_path}")
+        self.trained = True
+        
+        # ONLY inject embeddings on FIRST training cycle
+        if not self.embeddings_injected:
+            injected = self._inject_pretrained_embeddings()
+            total_items = len(self.scorer.items.ids()) if hasattr(self.scorer, 'items') and self.scorer.items else 0
             
-            try:
-                with open(model_path, 'rb') as f:
-                    pretrained_scorer = pickle.load(f)
-                
-                if not isinstance(pretrained_scorer, ImplicitMFScorer):
-                    raise TypeError(f"Loaded object is {type(pretrained_scorer)}, expected ImplicitMFScorer")
-                
-                self.scorer = pretrained_scorer
-                
-                self.pipeline = self.build_pipeline()
-                
-                self.pipeline.train(self.get_dataset())
-                
-                self.trained = True
-                smores.Smores.state.logger.info(
-                    f"Pre-trained model loaded successfully for {self.name}"
-                )
-                
-                cold_start_rec = self.get_cold_start_fallback()
-                cold_user_rec = self.get_cold_user_fallback()
-                if cold_start_rec is not None:
-                    cold_start_rec.train()
-                if cold_user_rec is not None:
-                    cold_user_rec.train()
-                    
-            except Exception as e:
-                smores.Smores.state.logger.error(f"Error loading pre-trained model: {e}")
-                smores.Smores.state.logger.info("Falling back to training from scratch")
-                # Call the parent's parent train method
-                super(ImplicitMFRecommender, self).train()
-        else:
-            smores.Smores.state.logger.warning(
-                f"Pre-trained model not found at {self.pretrained_model_path}"
+            smores.Smores.state.logger.info(
+                f"Warm-start {self.name}: ONE-TIME injection of {injected}/{total_items} pre-trained item embeddings"
             )
-            smores.Smores.state.logger.info(f"Training {self.name} from scratch")
-            # Call the parent's parent train method
-            super(ImplicitMFRecommender, self).train()
+            self.embeddings_injected = True
+        else:
+            smores.Smores.state.logger.info(
+                f"Warm-start {self.name}: Normal training (embeddings already injected, now adapting)"
+            )
+        
+        # Train fallbacks
+        cold_start_rec = self.get_cold_start_fallback()
+        cold_user_rec = self.get_cold_user_fallback()
+        if cold_start_rec is not None:
+            cold_start_rec.train()
+        if cold_user_rec is not None:
+            cold_user_rec.train()
 
     def isDatasetViable(self):
-        """Check if we have enough data to use the recommender"""
         if not self.trained:
             return False
-        else:
-            user_count = self.dataset_active_users()
-            interaction_count = self.get_dataset().interaction_count
-            if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
-                return True
-            else:
-                return False
+        user_count = self.dataset_active_users()
+        interaction_count = self.get_dataset().interaction_count
+        return user_count >= self.min_user_count and interaction_count >= self.min_interaction_count
         
     def isProfileViable(self, user_id: ID):
-        """Check if user has enough interactions in their profile"""
         items = self.get_dataset().user_row(user_id)
         if items is None:
             return False
-        else:
-            profile_size = items.ids().size
-            if profile_size < self.min_profile_size:
-                return False
-            else:
-                return True
+        return items.ids().size >= self.min_profile_size
 
 
-# Register the recommender with the factory
+# Register the recommender
 RecommenderFactory.register('warmstart_implicit_mf', WarmStartImplicitMFRecommender)
