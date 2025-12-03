@@ -67,36 +67,58 @@ class WarmStartImplicitMFRecommender(ImplicitMFRecommender):
         self._load_pretrained_scorer()
 
     def _load_pretrained_scorer(self):
-        """Load pre-trained scorer from file"""
+        """
+        Load pre-trained scorer from file.
+
+        Raises:
+            FileNotFoundError: If the model file doesn't exist
+            ValueError: If the loaded object is invalid or missing required attributes
+            Exception: If the pickle file can't be loaded
+        """
         model_path = Path(self.pretrained_model_path)
-        
-        if model_path.exists():
-            try:
-                with open(model_path, 'rb') as f:
-                    self.pretrained_scorer = pickle.load(f)
-                
-                if isinstance(self.pretrained_scorer, ImplicitMFScorer):
-                    if hasattr(self.pretrained_scorer, 'item_embeddings') and \
-                       hasattr(self.pretrained_scorer, 'items'):
-                        smores.Smores.state.logger.info(
-                            f"Loaded pre-trained scorer: {self.pretrained_scorer.item_embeddings.shape[0]} items, "
-                            f"{self.pretrained_scorer.item_embeddings.shape[1]} dimensions"
-                        )
-                    else:
-                        smores.Smores.state.logger.warning(
-                            f"Pre-trained scorer missing item_embeddings or items attribute"
-                        )
-                else:
-                    smores.Smores.state.logger.warning(
-                        f"Pre-trained model is not ImplicitMFScorer: {type(self.pretrained_scorer)}"
-                    )
-                    self.pretrained_scorer = None
-                        
-            except Exception as e:
-                smores.Smores.state.logger.error(f"Error loading pre-trained scorer: {e}")
-                self.pretrained_scorer = None
-        else:
-            smores.Smores.state.logger.warning(f"Pre-trained model not found: {model_path}")
+
+        # Check if file exists
+        if not model_path.exists():
+            raise FileNotFoundError(
+                f"Pre-trained model file not found: {model_path}\n"
+                f"Please ensure the pre-trained model exists at the specified path."
+            )
+
+        # Load the pickle file
+        try:
+            with open(model_path, 'rb') as f:
+                self.pretrained_scorer = pickle.load(f)
+        except Exception as e:
+            raise Exception(
+                f"Failed to load pre-trained model from {model_path}: {e}\n"
+                f"The pickle file may be corrupted or incompatible."
+            )
+
+        # Validate the loaded object
+        if not isinstance(self.pretrained_scorer, ImplicitMFScorer):
+            raise ValueError(
+                f"Pre-trained model is not an ImplicitMFScorer instance.\n"
+                f"Expected: ImplicitMFScorer, Got: {type(self.pretrained_scorer)}"
+            )
+
+        # Validate required attributes
+        if not hasattr(self.pretrained_scorer, 'item_embeddings'):
+            raise ValueError(
+                f"Pre-trained scorer is missing 'item_embeddings' attribute.\n"
+                f"The model may not be properly trained."
+            )
+
+        if not hasattr(self.pretrained_scorer, 'items'):
+            raise ValueError(
+                f"Pre-trained scorer is missing 'items' attribute.\n"
+                f"The model may not be properly trained."
+            )
+
+        # Log success
+        smores.Smores.state.logger.info(
+            f"Loaded pre-trained scorer: {self.pretrained_scorer.item_embeddings.shape[0]} items, "
+            f"{self.pretrained_scorer.item_embeddings.shape[1]} dimensions"
+        )
 
     def build_pipeline(self):
         """Build the recommendation pipeline"""
@@ -157,7 +179,7 @@ class WarmStartImplicitMFRecommender(ImplicitMFRecommender):
         """
         Train with warm-start.
         
-        KEY DIFFERENCE: Only inject embeddings on FIRST training.
+        Only inject embeddings on FIRST training.
         Subsequent cycles train normally, allowing adaptation.
         """
         # Check data thresholds
