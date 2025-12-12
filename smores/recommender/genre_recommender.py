@@ -63,55 +63,23 @@ class ImplicitMFGenreRecommender(ImplicitMFRecommender):
 
 
     def build_pipeline(self):
-        scorer = self.get_scorer()
-        candidate_count = max(self._candidate_request_count(), 1)
-
-        pipe = PipelineBuilder()
-        # define an input parameter for the user ID (the 'query')
-        query = pipe.create_input('query', ID)
-        # look up a user's history in the training data
-        history = pipe.add_component('history-lookup', UserTrainingHistoryLookup, query=query)
-        # find candidates from the training data
-        # Adding the candidate selector for the specific niche genre
         selector_config = MyGenreConfig()
         selector_config.genre_list = self.genre_items
-        default_candidates = pipe.add_component('candidate-selector',
-            UnratedItemsGenreCandidateSelector, selector_config,
-            query=history)
-        # score the candidate items using the specified scorer
-        score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
-        # rank the items by score
-        recommend = pipe.add_component('ranker', TopNRanker, {'n': candidate_count}, items=score)
-        pipe.alias('recommender', recommend)
-        pipe.default_component('recommender')
-        return pipe.build()
+        return self._build_history_pipeline(
+            self.get_scorer(),
+            candidate_selector=UnratedItemsGenreCandidateSelector,
+            selector_config=selector_config,
+        )
 
     def train(self):
-        if self.get_dataset().interaction_count >= self.min_interaction_count and \
-                self.get_dataset().user_count >= self.min_user_count:
+        if self._should_train(self.min_user_count, self.min_interaction_count):
             super().train()
 
     def isDatasetViable(self):
-        if not self.trained:
-            return False
-        else:
-            user_count = self.dataset_active_users()
-            interaction_count = self.get_dataset().interaction_count
-            if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
-                return True
-            else:
-                return False
+        return self._dataset_viable(self.min_user_count, self.min_interaction_count)
         
     def isProfileViable(self, user_id: ID):
-        items = self.get_dataset().user_row(user_id)
-        if items is None:
-            return False
-        else:
-            profile_size = items.ids().size
-            if profile_size < self.min_profile_size:
-                return False
-            else:
-                return True
+        return self._profile_viable(user_id, self.min_profile_size)
             
 class GenreKnnRecommender(ItemKnnRecommender):
     def __init__(self):
@@ -130,58 +98,24 @@ class GenreKnnRecommender(ItemKnnRecommender):
         super().setup(config)
 
     def build_pipeline(self):
-        scorer = self.get_scorer()
-        candidate_count = max(self._candidate_request_count(), 1)
-
-        pipe = PipelineBuilder()
-        # define an input parameter for the user ID (the 'query')
-        query = pipe.create_input('query', ID)
-        # look up a user's history in the training data
-        history = pipe.add_component('history-lookup', UserTrainingHistoryLookup, query=query)
-        # find candidates from the training data
-        # Adding the candidate selector for the specific niche genre
         selector_config = MyGenreConfig()
         selector_config.genre_list = self.genre_items
-        default_candidates = pipe.add_component('candidate-selector',
-            UnratedItemsGenreCandidateSelector, selector_config,
-            query=history)
-        # score the candidate items using the specified scorer
-        score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
-        # rank the items by score
-        recommend = pipe.add_component('ranker', TopNRanker, {'n': candidate_count}, items=score)
-        pipe.alias('recommender', recommend)
-        pipe.default_component('recommender')
-        return pipe.build()
+        return self._build_history_pipeline(
+            self.get_scorer(),
+            candidate_selector=UnratedItemsGenreCandidateSelector,
+            selector_config=selector_config,
+        )
 
     def train(self):
-        if self.get_dataset().interaction_count >= self.min_interaction_count and \
-                self.get_dataset().user_count >= self.min_user_count:
+        if self._should_train(self.min_user_count, self.min_interaction_count):
             super().train()
 
     def isDatasetViable(self):
-        if not self.trained:
-            return False
-        else:
-            user_count = self.dataset_active_users()
-            interaction_count = self.get_dataset().interaction_count
-            if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
-                # smores.Smores.state.logger.debug(f"Recommender: {self.name} is viable. Interaction count {interaction_count}. User count {user_count}")
-                return True
-            else:
-                return False
+        return self._dataset_viable(self.min_user_count, self.min_interaction_count)
 
         
     def isProfileViable(self, user_id: ID):
-        items = self.get_dataset().user_row(user_id)
-        if items is None:
-            return False
-        else:
-            profile_size = items.ids().size
-            if profile_size < self.min_profile_size:
-                return False
-            else:
-                # smores.Smores.state.logger.debug(f"Recommender: {self.name} user {user_id} is viable.")
-                return True
+        return self._profile_viable(user_id, self.min_profile_size)
 
 
 RecommenderFactory.register('genre_implicit_mf', ImplicitMFGenreRecommender)
