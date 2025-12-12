@@ -11,6 +11,7 @@ from lenskit.basic import UserTrainingHistoryLookup, TopNRanker
 from lenskit.basic.popularity import PopScorer, PopConfig
 from lenskit.knn import ItemKNNConfig, ItemKNNScorer
 from lenskit.als import ImplicitMFConfig, ImplicitMFScorer
+from lenskit.funksvd import FunkSVDConfig, FunkSVDScorer
 from lenskit.data import ID
 from lenskit import recommend
 
@@ -42,6 +43,50 @@ class LKRecommender(Recommender):
     @abstractmethod
     def build_pipeline(self):
         pass
+    
+    def _should_train(self, min_users: int, min_interactions: int) -> bool:
+        dataset = self.get_dataset()
+        if dataset is None:
+            return False
+        return dataset.interaction_count >= min_interactions and dataset.user_count >= min_users
+
+    def _dataset_viable(self, min_users: int, min_interactions: int) -> bool:
+        if not self.trained:
+            return False
+        user_count = self.dataset_active_users()
+        interaction_count = self.get_dataset().interaction_count
+        return user_count >= min_users and interaction_count >= min_interactions
+
+    def _profile_viable(self, user_id: ID, min_profile_size: int) -> bool:
+        items = self.get_dataset().user_row(user_id)
+        if items is None:
+            return False
+        return items.ids().size >= min_profile_size
+
+    def _build_history_pipeline(
+        self,
+        scorer: Component,
+        candidate_selector=UnratedTrainingItemsCandidateSelector,
+        selector_config=None,
+        ranker_kwargs: dict | None = None,
+    ):
+        candidate_count = max(self._candidate_request_count(), 1)
+        ranker_args = ranker_kwargs or {'n': candidate_count}
+
+        pipe = PipelineBuilder()
+        query = pipe.create_input('query', ID)
+        history = pipe.add_component('history-lookup', UserTrainingHistoryLookup, query=query)
+        if selector_config is not None:
+            default_candidates = pipe.add_component('candidate-selector',
+                candidate_selector, selector_config, query=history)
+        else:
+            default_candidates = pipe.add_component('candidate-selector',
+                candidate_selector, query=history)
+        score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
+        recommend_comp = pipe.add_component('ranker', TopNRanker, ranker_args, items=score)
+        pipe.alias('recommender', recommend_comp)
+        pipe.default_component('recommender')
+        return pipe.build()
 
     def get_recommendations(self, user_id: ID):
         if not self.isDatasetViable():
@@ -197,54 +242,18 @@ class ItemKnnRecommender(LKRecommender):
         self.pipeline = self.build_pipeline()
 
     def build_pipeline(self):
-        scorer = self.get_scorer()
-        candidate_count = max(self._candidate_request_count(), 1)
-
-        pipe = PipelineBuilder()
-        # define an input parameter for the user ID (the 'query')
-        query = pipe.create_input('query', ID)
-        # look up a user's history in the training data
-        history = pipe.add_component('history-lookup', UserTrainingHistoryLookup, query=query)
-        # find candidates from the training data
-        default_candidates = pipe.add_component('candidate-selector',
-            UnratedTrainingItemsCandidateSelector, query=history)
-        # score the candidate items using the specified scorer
-        score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
-        # rank the items by score
-        recommend = pipe.add_component('ranker', TopNRanker, {'n': candidate_count}, items=score)
-        pipe.alias('recommender', recommend)
-        pipe.default_component('recommender')
-        return pipe.build()
+        return self._build_history_pipeline(self.get_scorer())
 
     def train(self):
-        if self.get_dataset().interaction_count >= self.min_interaction_count and \
-                self.get_dataset().user_count >= self.min_user_count:
+        if self._should_train(self.min_user_count, self.min_interaction_count):
             super().train()
 
     def isDatasetViable(self):
-        if not self.trained:
-            return False
-        else:
-            user_count = self.dataset_active_users()
-            interaction_count = self.get_dataset().interaction_count
-            if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
-                # smores.Smores.state.logger.debug(f"Recommender: {self.name} is viable. Interaction count {interaction_count}. User count {user_count}")
-                return True
-            else:
-                return False
+        return self._dataset_viable(self.min_user_count, self.min_interaction_count)
 
         
     def isProfileViable(self, user_id: ID):
-        items = self.get_dataset().user_row(user_id)
-        if items is None:
-            return False
-        else:
-            profile_size = items.ids().size
-            if profile_size < self.min_profile_size:
-                return False
-            else:
-                # smores.Smores.state.logger.debug(f"Recommender: {self.name} user {user_id} is viable.")
-                return True
+        return self._profile_viable(user_id, self.min_profile_size)
 
 
 class ImplicitMFRecommender(LKRecommender):
@@ -277,52 +286,59 @@ class ImplicitMFRecommender(LKRecommender):
 
 
     def build_pipeline(self):
-        scorer = self.get_scorer()
-        candidate_count = max(self._candidate_request_count(), 1)
-
-        pipe = PipelineBuilder()
-        # define an input parameter for the user ID (the 'query')
-        query = pipe.create_input('query', ID)
-        # look up a user's history in the training data
-        history = pipe.add_component('history-lookup', UserTrainingHistoryLookup, query=query)
-        # find candidates from the training data
-        default_candidates = pipe.add_component('candidate-selector',
-            UnratedTrainingItemsCandidateSelector, query=history)
-        # score the candidate items using the specified scorer
-        score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
-        # rank the items by score
-        recommend = pipe.add_component('ranker', TopNRanker, {'n': candidate_count}, items=score)
-        pipe.alias('recommender', recommend)
-        pipe.default_component('recommender')
-        return pipe.build()
+        return self._build_history_pipeline(self.get_scorer())
 
     def train(self):
-        if self.get_dataset().interaction_count >= self.min_interaction_count and \
-                self.get_dataset().user_count >= self.min_user_count:
+        if self._should_train(self.min_user_count, self.min_interaction_count):
             super().train()
 
     def isDatasetViable(self):
-        if not self.trained:
-            return False
-        else:
-            user_count = self.dataset_active_users()
-            interaction_count = self.get_dataset().interaction_count
-            if user_count >= self.min_user_count and interaction_count >= self.min_interaction_count:
-                return True
-            else:
-                return False
+        return self._dataset_viable(self.min_user_count, self.min_interaction_count)
         
     def isProfileViable(self, user_id: ID):
-        items = self.get_dataset().user_row(user_id)
-        if items is None:
-            return False
-        else:
-            profile_size = items.ids().size
-            if profile_size < self.min_profile_size:
-                return False
-            else:
-                return True
+        return self._profile_viable(user_id, self.min_profile_size)
+    
+class FunkSVDRecommender(LKRecommender):
+    def __init__(self):
+        super().__init__()
+        self.min_user_count = maxsize
+        self.min_interaction_count = maxsize
+        self.min_profile_size = maxsize
+    
+    def setup(self, config):
+        super().setup(config)
+        params = config.params
+        self.embedding_size = int(params['embedding_size'])
+        self.epochs = int(params['epochs'])
+        self.learning_rate = float(params['learning_rate'])
+        self.regularization = float(params['regularization'])
+        self.min_user_count = int(params['min_user_count'])
+        self.min_interaction_count = int(params['min_interaction_count'])
+        self.min_profile_size = int(params['min_profile_size'])
+        # optional: damping = params.get('damping'), range = params.get('range')
+        self.lk_config = FunkSVDConfig(
+            embedding_size=self.embedding_size,
+            epochs=self.epochs,
+            learning_rate=self.learning_rate,
+            regularization=self.regularization,
+        )
+        self.scorer = FunkSVDScorer(self.lk_config)
+        self.pipeline = self.build_pipeline()
+    
+    def build_pipeline(self):
+        return self._build_history_pipeline(self.get_scorer())
+
+    def train(self):
+        if self._should_train(self.min_user_count, self.min_interaction_count):
+            super().train()
+
+    def isDatasetViable(self):
+        return self._dataset_viable(self.min_user_count, self.min_interaction_count)
+        
+    def isProfileViable(self, user_id: ID):
+        return self._profile_viable(user_id, self.min_profile_size)
 
 RecommenderFactory.register('popular', PopularRecommender)
 RecommenderFactory.register('item_knn', ItemKnnRecommender)
 RecommenderFactory.register('implicit_mf', ImplicitMFRecommender)
+RecommenderFactory.register('funk_svd', FunkSVDRecommender)
