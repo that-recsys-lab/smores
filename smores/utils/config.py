@@ -23,6 +23,7 @@ class LoggerConfig(BaseModel):
     debug_level: str
     use_timestamp: bool
     use_parquet: bool
+    cycle_file: Optional[str] = "cycle_metrics"
     enable_user_journeys: bool = False
     sampled_user_ids: Optional[list[int]] = None
     sampled_user_count: Optional[int] = None
@@ -33,6 +34,12 @@ class LoggerConfig(BaseModel):
 
 class SummaryLoggerConfig(BaseModel):
     enabled: bool = True
+
+class TriggerTesterConfig(BaseModel):
+    enabled: bool = False
+    sample_count: int = 5
+    seed: Optional[int] = None
+    scenario: Optional[str] = None
 
 class PythonClassConfig(BaseModel):
     name: Optional[str] = None
@@ -84,3 +91,4 @@ class SmoresConfig(BaseModel):
     platform: PlatformConfig
     recommender: RecommenderConfig
     triggers: Optional[list[PythonClassConfig]]
+    trigger_tester: Optional[TriggerTesterConfig] = None

@@ -164,9 +164,13 @@ class Recommender(ABC):
         return self.get_dataset().user_row(user_id)
     
     def delete_user(self, user_id):
+        user_data = self.get_user(user_id)
+        removed = user_data.ids().size if user_data is not None else 0
         builder = DatasetBuilder(self.get_dataset())
         builder.filter_interactions('interaction', remove={'user_id': [user_id]})
         self.set_dataset(builder.build())
+        if removed and getattr(smores.Smores, "state", None) is not None:
+            smores.Smores.state.recommender_metrics[self.name]["deleted_interactions"] += int(removed)
 
     def _candidate_request_count(self) -> int:
         """Return the number of candidates to request from the core recommender."""

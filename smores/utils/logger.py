@@ -39,6 +39,14 @@ class SmoresLogger:
         else:
             self.debug_logger.setLevel(logging.INFO)
 
+        # cycle metrics output
+        cycle_file = config.cycle_file or "cycle_metrics"
+        if self.use_timestamp:
+            cycle_file_name = f"{cycle_file}_{timestamp}.csv"
+        else:
+            cycle_file_name = f"{cycle_file}.csv"
+        self.cycle_log_path = output_dir / cycle_file_name
+
         # consumer utility output
         if self.use_timestamp:
             consumer_file_name = f'{config.consumer_file}_{timestamp}.csv'
@@ -92,6 +100,9 @@ class SmoresLogger:
                 stats_filename = f"{config.item_stats_file}.csv"
             self.item_stats_path = output_dir / stats_filename
 
+        self.cycle_output_file = None
+        self.cycle_writer = None
+
     def setup(self, config):
         debug_file_handler = logging.FileHandler(self.debug_log_path)
         debug_console_handler = logging.StreamHandler()
@@ -102,6 +113,32 @@ class SmoresLogger:
 
         self.debug_logger.addHandler(debug_file_handler)
         self.debug_logger.addHandler(debug_console_handler)
+
+        self.cycle_output_file = open(self.cycle_log_path, 'w', newline='')
+        cycle_fieldnames = [
+            'cycle',
+            'recommender',
+            'interactions',
+            'dataset_users',
+            'dataset_items',
+            'avg_profile_len',
+            'active_users',
+            'new_users',
+            'churned_users',
+            'new_interactions',
+            'deleted_interactions',
+            'avg_slate_size',
+            'unique_items',
+            'coverage_pct',
+            'rec_requests',
+            'fallback_used',
+            'avg_sampled',
+            'ctr',
+        ]
+        if smores.Smores.state.trigger_tester is not None:
+            cycle_fieldnames.append('trigger_success')
+        self.cycle_writer = csv.DictWriter(self.cycle_output_file, fieldnames=cycle_fieldnames)
+        self.cycle_writer.writeheader()
 
         self.consumer_output_file = open(self.consumer_log_path, 'w', newline='')
         self.consumer_writer = csv.DictWriter(self.consumer_output_file, fieldnames=ConsumerUtility._fields)
@@ -173,6 +210,13 @@ class SmoresLogger:
         self.choice_writer.writerow(row)
         self.choice_output_file.flush()
 
+    def log_cycle_metrics(self, metrics: dict):
+        """Persist per-cycle recommender metrics to CSV."""
+        if self.cycle_writer is None:
+            return
+        self.cycle_writer.writerow(metrics)
+        self.cycle_output_file.flush()
+
     def log_user_journey(self, journey_info: UserJourney):
         if not self.enable_journey_logging or self.journey_writer is None:
             return
@@ -205,6 +249,8 @@ class SmoresLogger:
     # TODO: convert to parquet
     def cleanup(self):
         """Close the data file when done."""
+        if self.cycle_output_file is not None:
+            self.cycle_output_file.close()
         self.consumer_output_file.close()
         self.provider_output_file.close()
         self.choice_output_file.close()
@@ -217,7 +263,12 @@ class SmoresLogger:
             self.item_stats_output_file.close()
 
         if self.use_parquet:
-            parquet_targets = [self.consumer_log_path, self.provider_log_path, self.choice_log_path]
+            parquet_targets = [
+                self.consumer_log_path,
+                self.provider_log_path,
+                self.choice_log_path,
+                self.cycle_log_path,
+            ]
             if self.enable_journey_logging and self.journey_log_path is not None:
                 parquet_targets.append(self.journey_log_path)
             if self.enable_item_stats and self.item_stats_path is not None:
