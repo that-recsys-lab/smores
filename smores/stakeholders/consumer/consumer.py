@@ -23,6 +23,7 @@ class Consumer:
         self.recommender: str = None
         self.utility_model = None
         self.clicked_items = set()
+        self.seen_items = set()
         self.item_selection_model = None
         self.recommender_choice_model = None
 
@@ -130,5 +131,4 @@ class UnregisteredConsumerError(Exception):
     def __init__(self, name):
         self.message = f'Cannot create Consumer object: Class {name} is not registered and may not exist.'
         super().__init__(self.message)
-
 

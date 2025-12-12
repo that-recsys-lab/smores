@@ -1,5 +1,5 @@
-import csv
-from collections import defaultdict
+from __future__ import annotations
+
 from lenskit.data.items import ItemList
 
 import smores
@@ -7,81 +7,47 @@ from smores.recommender import Recommender, RecommenderFactory
 
 
 class FileBasedRecommender(Recommender):
-    """Recommender that load items from a file"""
-    
-    def __init__(self):
+    """Recommender that loads items from a file and samples based on popularity."""
+
+    def __init__(self) -> None:
         super().__init__()
-        self.items = defaultdict(float)
-        self.file_path = None
         # Needs no training
         self.trained = True
-    
+
     def setup(self, config):
         super().setup(config)
-        
-        self.file_path = smores.Smores.state.data_directory / \
-                config.params['file_name']
-        self.load_items()
-        self.usable_items = self.items.copy()
-    
-    def load_items(self):
-        """Load item from a CSV file"""
-#        try:
-        with open(self.file_path, 'r') as f:
-            reader = csv.DictReader(f)
-            invalid_items = 0
-            for row in reader:
-                if 'item_id' in row:
-                    item_id = int(row['item_id'])
-                    popularity = float(row['popularity'])
-                    if smores.Smores.state.items.exists_item(item_id):
-                        self.items[item_id] = popularity
-                    else:
-                        invalid_items += 1
-                        
-        smores.Smores.state.logger.info(f"Loaded {len(self.items)} items")
-        smores.Smores.state.logger.debug(f"Items not found: {invalid_items} items.")
 
-# This error should be fatal
- #       except IOError as e:
- #           smores.Smores.state.logger.error(f"Error loading file {self.file_path}")
+        if self.item_sampler is None:
+            params = config.params or {}
+            file_name = params.get('file_name')
+            if file_name is None:
+                raise ValueError("FileBasedRecommender requires 'file_name' in params")
+            sampler = self._create_item_sampler('rejection_sampler')
+            sampler.load_from_file(smores.Smores.state.data_directory / file_name)
+            self.item_sampler = sampler
 
     def train(self):
         pass
-    
+
     def isDatasetViable(self):
-        return len(self.items) > 0
-    
+        return self.item_sampler is not None and self.item_sampler.has_items()
+
     def isProfileViable(self, user_id):
         return True
-    
+
     def get_recommendations(self, user_id) -> ItemList:
         prior_interactions = self.get_user(user_id)
+        interacted_items = set()
         if prior_interactions is not None:
-            for item in prior_interactions.ids():
-                self.usable_items[item] = 0 # set probability to 0
+            interacted_items.update(prior_interactions.ids())
 
         slate_size = smores.Smores.state.slate_size
-        if len(self.usable_items) < slate_size:
-            slate_size = len(self.usable_items)
-        
-        probabilities = self._scale_popularity()
-        items = smores.Smores.state.rand.choice(list(self.usable_items.keys()), slate_size, p=probabilities)
-        
-        scores = [1.0] * slate_size
-        ranks = list(range(1, slate_size + 1))
+        sampled_items = self.item_sampler.sample(slate_size, exclude_items=interacted_items)
 
-        # reset self.usable items to match self.items
-        if prior_interactions is not None:
-            for item in prior_interactions.ids():
-                self.usable_items[item] = self.items[item]
-        
-        return ItemList(None, item_ids=items, scores=scores, rank=ranks)
-    
-    def _scale_popularity(self):
-        popularities = list(self.usable_items.values())
-        popularity_sum = sum(popularities)
-        return [x/popularity_sum for x in popularities]
+        scores = [1.0] * len(sampled_items)
+        ranks = list(range(1, len(sampled_items) + 1))
+
+        return ItemList(None, item_ids=sampled_items, scores=scores, rank=ranks)
 
 
 RecommenderFactory.register('file_based', FileBasedRecommender)

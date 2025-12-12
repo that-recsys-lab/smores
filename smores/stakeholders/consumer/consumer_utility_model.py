@@ -77,6 +77,26 @@ class ConsumerPrefCosineAvgUtilityModel (ConsumerPrefCosineUtilityModel):
             return average(self.compute_item_utilities(consumer, item_list))
 
 
+class ConsumerPrefDotProductUtilityModel(ConsumerUtilityModel):
+    """Utility model based on the raw dot product of preferences and item features."""
+
+    def setup(self, config):
+        # No configuration needed for raw dot product utility
+        pass
+
+    def compute_item_utility(self, consumer, item: Item) -> float:
+        pref_vector = consumer.preference_vector
+        item_vector = item.features
+        if pref_vector is None or item_vector is None:
+            return 0.0
+        return float(dot(pref_vector, item_vector))
+
+    def compute_list_utility(self, consumer, item_list: ItemList) -> float:
+        if len(item_list) == 0:
+            return 0.0
+        return average(self.compute_item_utilities(consumer, item_list))
+
+
 class ConsumerUtilityModelFactory():
     """
     The ConsumerUtilityModelFactory associates names with class objects so these can be passed to
@@ -105,7 +125,9 @@ class ConsumerUtilityModelFactory():
 
 # Registering
 ConsumerUtilityModelFactory.register('fixed_utility', ConsumerFixedUtilityModel)
-ConsumerUtilityModelFactory.register('list_average', ConsumerPrefCosineAvgUtilityModel)
+ConsumerUtilityModelFactory.register('list_average', ConsumerPrefCosineAvgUtilityModel)  # Backwards compatibility
+ConsumerUtilityModelFactory.register('cosine_similarity', ConsumerPrefCosineAvgUtilityModel)
+ConsumerUtilityModelFactory.register('dot_product', ConsumerPrefDotProductUtilityModel)
 
 
 
@@ -120,4 +142,3 @@ class UnregisteredConsumerUtilityModelError(Exception):
     def __init__(self, name):
         self.message = f'Cannot create consumer utility model: Class {name} is not registered and may not exist.'
         super().__init__(self.message)
-

@@ -1,6 +1,7 @@
 # from .utility_history import UtilityHistory, UtilityHistoryEntry
 from .config import SmoresConfig, PythonClassConfig, ConsumerModelsConfig, ConsumerTypeConfig, \
-    ProviderTypeConfig, ProviderModelsConfig, LoggerConfig
+    ProviderTypeConfig, ProviderModelsConfig, LoggerConfig, SummaryLoggerConfig
 from .interaction_history import InteractionHistory
 from .item_utils import itemList2rankedTuples
-from .logger import SmoresLogger, ConsumerUtility, ProviderUtility, ChoiceUtility
+from .logger import SmoresLogger, ConsumerUtility, ProviderUtility, ChoiceUtility, UserJourney
+from .summary_logger import SummaryLogger

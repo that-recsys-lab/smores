@@ -38,7 +38,7 @@ class InteractionHistory:
         if self.interaction_table is None:
             self.interaction_table = interaction_table
         else:
-            new_table = pa.concat_tables(self.interaction_table, interaction_table)
+            new_table = pa.concat_tables([self.interaction_table, interaction_table])
             self.interaction_table = new_table
     
 
@@ -65,4 +65,3 @@ class InteractionHistory:
 
     
     
-

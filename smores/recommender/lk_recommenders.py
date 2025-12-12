@@ -2,7 +2,9 @@ from pydantic import BaseModel
 from sys import maxsize
 from icecream import ic
 from abc import abstractmethod
+import numpy as np
 
+import smores
 from lenskit.pipeline import Pipeline, PipelineBuilder, Component, topn_pipeline
 from lenskit.basic.candidates import UnratedTrainingItemsCandidateSelector
 from lenskit.basic import UserTrainingHistoryLookup, TopNRanker
@@ -44,14 +46,20 @@ class LKRecommender(Recommender):
     def get_recommendations(self, user_id: ID):
         if not self.isDatasetViable():
             cold_start_rec = smores.Smores.state.recommenders_fallback.get_recommender(self.cold_start_fallback)
-            #smores.Smores.state.logger.debug(f'.       Insufficent interaction data. Fallback to {self.cold_start_fallback}')
-            return cold_start_rec.get_recommendations(user_id)
+            self._last_used_fallback = True
+            result = cold_start_rec.get_recommendations(user_id)
+            self._last_sampled_count = getattr(cold_start_rec, '_last_sampled_count', 0)
+            return result
         elif not self.isProfileViable(user_id):
             cold_user_rec = smores.Smores.state.recommenders_fallback.get_recommender(self.cold_user_fallback)
-            #smores.Smores.state.logger.debug(f'.       Insufficent profile data. Fallback to {self.cold_user_fallback}')
-            return cold_user_rec.get_recommendations(user_id)
+            self._last_used_fallback = True
+            result = cold_user_rec.get_recommendations(user_id)
+            self._last_sampled_count = getattr(cold_user_rec, '_last_sampled_count', 0)
+            return result
         else:
-            return recommend(self.pipeline, user_id, n=smores.Smores.state.slate_size)
+            recs = recommend(self.pipeline, user_id)
+            self._last_used_fallback = False
+            return self.apply_item_sampling(user_id, recs)
 
 class PopularRecommender(LKRecommender):
     def __init__(self):
@@ -69,13 +77,64 @@ class PopularRecommender(LKRecommender):
         self.pipeline = self.build_pipeline()
 
     # No minimum for training the popular recommender
+    def _select_core_items(
+        self,
+        user_id: int,
+        ids: list[int],
+        scores: list[float] | None,
+        ranks: list[int] | None,
+        desired_count: int,
+    ) -> tuple[list[int], list[float] | None, list[int] | None]:
+        if desired_count <= 0 or not ids:
+            return super()._select_core_items(user_id, ids, scores, ranks, desired_count)
+
+        prior = self.get_user(user_id)
+        history = set(int(i) for i in prior.ids()) if prior is not None else set()
+        blocked = self._current_blocked_items(user_id)
+
+        candidates: list[int] = []
+        weights: list[float] = []
+        index_lookup: list[int] = []
+        for idx, item_id in enumerate(ids):
+            item_int = int(item_id)
+            if item_int in history or item_int in blocked:
+                continue
+            candidates.append(item_int)
+            index_lookup.append(idx)
+            if scores is not None:
+                weights.append(max(float(scores[idx]), 0.0))
+            else:
+                weights.append(1.0)
+
+        if not candidates:
+            return super()._select_core_items(user_id, ids, scores, ranks, desired_count)
+
+        limit = min(desired_count, len(candidates))
+        weight_array = np.asarray(weights, dtype=float)
+        if weight_array.sum() > 0:
+            probs = weight_array / weight_array.sum()
+            chosen_pos = smores.Smores.state.rand.choice(len(candidates), size=limit, replace=False, p=probs)
+        else:
+            chosen_pos = smores.Smores.state.rand.choice(len(candidates), size=limit, replace=False)
+        chosen_indices = [index_lookup[pos] for pos in chosen_pos]
+
+        selected_ids = [ids[idx] for idx in chosen_indices]
+        selected_scores = None
+        if scores is not None:
+            selected_scores = [scores[idx] for idx in chosen_indices]
+        selected_ranks = None
+        if ranks is not None:
+            selected_ranks = [ranks[idx] for idx in chosen_indices]
+
+        return selected_ids, selected_scores, selected_ranks
+
     def train(self):
         super().train()
     
     def build_pipeline(self):
         scorer = self.get_scorer()
-        slate_size = smores.Smores.state.slate_size
-        return topn_pipeline(scorer, n=slate_size)
+        candidate_count = max(self._candidate_request_count(), 1)
+        return topn_pipeline(scorer, n=candidate_count)
 
     # def build_pipeline(self):
     #     scorer = self.get_scorer()
@@ -139,7 +198,7 @@ class ItemKnnRecommender(LKRecommender):
 
     def build_pipeline(self):
         scorer = self.get_scorer()
-        slate_size = smores.Smores.state.slate_size
+        candidate_count = max(self._candidate_request_count(), 1)
 
         pipe = PipelineBuilder()
         # define an input parameter for the user ID (the 'query')
@@ -152,7 +211,7 @@ class ItemKnnRecommender(LKRecommender):
         # score the candidate items using the specified scorer
         score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
         # rank the items by score
-        recommend = pipe.add_component('ranker', TopNRanker, {'n': slate_size}, items=score)
+        recommend = pipe.add_component('ranker', TopNRanker, {'n': candidate_count}, items=score)
         pipe.alias('recommender', recommend)
         pipe.default_component('recommender')
         return pipe.build()
@@ -219,7 +278,7 @@ class ImplicitMFRecommender(LKRecommender):
 
     def build_pipeline(self):
         scorer = self.get_scorer()
-        slate_size = smores.Smores.state.slate_size
+        candidate_count = max(self._candidate_request_count(), 1)
 
         pipe = PipelineBuilder()
         # define an input parameter for the user ID (the 'query')
@@ -232,7 +291,7 @@ class ImplicitMFRecommender(LKRecommender):
         # score the candidate items using the specified scorer
         score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
         # rank the items by score
-        recommend = pipe.add_component('ranker', TopNRanker, {'n': slate_size}, items=score)
+        recommend = pipe.add_component('ranker', TopNRanker, {'n': candidate_count}, items=score)
         pipe.alias('recommender', recommend)
         pipe.default_component('recommender')
         return pipe.build()
