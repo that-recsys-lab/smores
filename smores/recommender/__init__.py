@@ -1,5 +1,5 @@
 from .recommender import Recommender, RecommenderFactory
 from .recommender_map import RecommenderMap, UnknownRecommenderError
 from .file_recommender import FileBasedRecommender
-from .lk_recommenders import PopularRecommender, ItemKnnRecommender, ImplicitMFRecommender
+from .lk_recommenders import PopularRecommender, ItemKnnRecommender, ImplicitMFRecommender, BPRRecommender
 from .genre_recommender import ImplicitMFGenreRecommender
