@@ -3,13 +3,16 @@ name = "smores"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "icecream>=2.1.4",
+    "lenskit @ git+https://github.com/lenskit/lkpy",
     "numpy>=2.2.6",
     "pandas>=2.2.3",
+    "pyarrow",
     "pydantic>=2.11.4",
     "pyyaml>=6.0.2",
+    "setuptools>=61.0",
 ]
 
 [build-system]
