@@ -10,7 +10,7 @@ from lenskit.data import ID
 from lenskit.data import ItemList, QueryInput, RecQuery
 
 from .recommender import RecommenderFactory
-from .lk_recommenders import ImplicitMFRecommender, ItemKnnRecommender
+from .lk_recommenders import ImplicitMFRecommender, ItemKnnRecommender, BPRRecommender
 
 import smores
 
@@ -117,6 +117,38 @@ class GenreKnnRecommender(ItemKnnRecommender):
     def isProfileViable(self, user_id: ID):
         return self._profile_viable(user_id, self.min_profile_size)
 
+class GenreBPRRecommender(BPRRecommender):
+    def __init__(self):
+        super().__init__()
+
+    def setup(self, config):
+        params = config.params or {}
+
+        self.genre = int(params['genre_feature'])
+        self.genre_items = smores.Smores.state.items.get_genre_items(self.genre)
+
+        super().setup(config)
+
+    def build_pipeline(self):
+        selector_config = MyGenreConfig()
+        selector_config.genre_list = self.genre_items
+        return self._build_history_pipeline(
+            self.get_scorer(),
+            candidate_selector=UnratedItemsGenreCandidateSelector,
+            selector_config=selector_config,
+        )
+
+    def train(self):
+        if self._should_train(self.min_user_count, self.min_interaction_count):
+            super().train()
+
+    def isDatasetViable(self):
+        return self._dataset_viable(self.min_user_count, self.min_interaction_count)
+
+    def isProfileViable(self, user_id: ID):
+        return self._profile_viable(user_id, self.min_profile_size)
+
 
 RecommenderFactory.register('genre_implicit_mf', ImplicitMFGenreRecommender)
 RecommenderFactory.register('genre_knn', GenreKnnRecommender)
+RecommenderFactory.register('genre_bpr', GenreBPRRecommender)

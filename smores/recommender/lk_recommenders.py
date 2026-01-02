@@ -11,7 +11,11 @@ from lenskit.basic import UserTrainingHistoryLookup, TopNRanker
 from lenskit.basic.popularity import PopScorer, PopConfig
 from lenskit.knn import ItemKNNConfig, ItemKNNScorer
 from lenskit.als import ImplicitMFConfig, ImplicitMFScorer
-from lenskit.funksvd import FunkSVDConfig, FunkSVDScorer
+try:
+    from lenskit.implicit import BPR as LKBPR, ImplicitConfig as LKImplicitConfig
+except ModuleNotFoundError:
+    LKBPR = None
+    LKImplicitConfig = None
 from lenskit.data import ID
 from lenskit import recommend
 
@@ -297,34 +301,33 @@ class ImplicitMFRecommender(LKRecommender):
         
     def isProfileViable(self, user_id: ID):
         return self._profile_viable(user_id, self.min_profile_size)
-    
-class FunkSVDRecommender(LKRecommender):
+
+class BPRRecommender(LKRecommender):
     def __init__(self):
         super().__init__()
         self.min_user_count = maxsize
         self.min_interaction_count = maxsize
         self.min_profile_size = maxsize
-    
+
     def setup(self, config):
         super().setup(config)
-        params = config.params
-        self.embedding_size = int(params['embedding_size'])
-        self.epochs = int(params['epochs'])
-        self.learning_rate = float(params['learning_rate'])
-        self.regularization = float(params['regularization'])
-        self.min_user_count = int(params['min_user_count'])
-        self.min_interaction_count = int(params['min_interaction_count'])
-        self.min_profile_size = int(params['min_profile_size'])
-        # optional: damping = params.get('damping'), range = params.get('range')
-        self.lk_config = FunkSVDConfig(
-            embedding_size=self.embedding_size,
-            epochs=self.epochs,
-            learning_rate=self.learning_rate,
-            regularization=self.regularization,
-        )
-        self.scorer = FunkSVDScorer(self.lk_config)
+        params = config.params or {}
+        self.min_user_count = int(params.get('min_user_count', maxsize))
+        self.min_interaction_count = int(params.get('min_interaction_count', maxsize))
+        self.min_profile_size = int(params.get('min_profile_size', maxsize))
+
+        if LKBPR is None or LKImplicitConfig is None:
+            raise ImportError(
+                "BPRRecommender requires the 'implicit' package; install lenskit[implicit] or pip install implicit."
+            )
+
+        model_params = params.get('model_params') or params.get('bpr_params') or {}
+        if not isinstance(model_params, dict):
+            raise TypeError("BPRRecommender params.model_params must be a mapping of BPR hyperparameters")
+        self.lk_config = LKImplicitConfig(**model_params)
+        self.scorer = LKBPR(self.lk_config)
         self.pipeline = self.build_pipeline()
-    
+
     def build_pipeline(self):
         return self._build_history_pipeline(self.get_scorer())
 
@@ -334,11 +337,11 @@ class FunkSVDRecommender(LKRecommender):
 
     def isDatasetViable(self):
         return self._dataset_viable(self.min_user_count, self.min_interaction_count)
-        
+
     def isProfileViable(self, user_id: ID):
         return self._profile_viable(user_id, self.min_profile_size)
 
 RecommenderFactory.register('popular', PopularRecommender)
 RecommenderFactory.register('item_knn', ItemKnnRecommender)
 RecommenderFactory.register('implicit_mf', ImplicitMFRecommender)
-RecommenderFactory.register('funk_svd', FunkSVDRecommender)
+RecommenderFactory.register('bpr', BPRRecommender)
