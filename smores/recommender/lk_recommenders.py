@@ -74,6 +74,9 @@ class LKRecommender(Recommender):
         # Don't train on an empty dataset
         if self.get_dataset().interaction_count > 0:
             self.pipeline.train(self.get_dataset())
+            self._trained_this_step = True
+        else:
+            self._trained_this_step = False
         self.trained = True
     
     @abstractmethod

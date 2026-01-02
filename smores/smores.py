@@ -197,10 +197,16 @@ class Smores:
             self.state.trigger_success = self.state.trigger_success and tester_ok
 
     def train_recommenders(self):
+        trained_any = False
         for rec_name in Smores.state.recommenders_active:
             recommender = Smores.state.recommenders_base.get_recommender(rec_name)
+            recommender._trained_this_step = False
             recommender.train()
-        self.state.logger.info(f'  Completed recommender training')
+            trained_any = trained_any or bool(getattr(recommender, "_trained_this_step", False))
+        if trained_any:
+            self.state.logger.info('  Completed recommender training')
+        else:
+            self.state.logger.info('  No training performed - using popular items')
 
     # Interaction format: (consumer.id, selected_id, consumer.recommender.name, rating, Smores.state.current_time)
     def process_interactions(self, interactions: list):
