@@ -30,6 +30,32 @@ from .recommender import Recommender, RecommenderFactory
 import smores
 
 
+def _implicit_has_cuda() -> bool:
+    try:
+        import implicit
+    except ModuleNotFoundError:
+        return False
+    return bool(getattr(getattr(implicit, "gpu", None), "HAS_CUDA", False))
+
+
+def _resolve_implicit_use_gpu(params: dict, model_params: dict) -> dict:
+    resolved = dict(model_params)
+    use_gpu = resolved.get("use_gpu")
+    if use_gpu is None and "use_gpu" in params:
+        use_gpu = params.get("use_gpu")
+
+    has_cuda = _implicit_has_cuda()
+    if use_gpu is None:
+        use_gpu = has_cuda
+    else:
+        use_gpu = bool(use_gpu)
+        if use_gpu and not has_cuda:
+            use_gpu = False
+
+    resolved["use_gpu"] = use_gpu
+    return resolved
+
+
 class LKRecommender(Recommender):
     def __init__(self):
         super().__init__()
@@ -298,6 +324,7 @@ class ImplicitMFRecommender(LKRecommender):
         als_params.setdefault('factors', self.embedding_size)
         als_params.setdefault('iterations', self.epochs)
         als_params.setdefault('regularization', self.regularization)
+        als_params = _resolve_implicit_use_gpu(params, als_params)
         self.lk_config = LKImplicitALSConfig(weight=self.positive_weight, **als_params)
 
         self.scorer = LKImplicitALS(self.lk_config)
@@ -339,7 +366,8 @@ class BPRRecommender(LKRecommender):
         model_params = params.get('model_params') or params.get('bpr_params') or {}
         if not isinstance(model_params, dict):
             raise TypeError("BPRRecommender params.model_params must be a mapping of BPR hyperparameters")
-        self.lk_config = LKImplicitConfig(**model_params)
+        bpr_params = _resolve_implicit_use_gpu(params, model_params)
+        self.lk_config = LKImplicitConfig(**bpr_params)
         self.scorer = LKBPR(self.lk_config)
         self.pipeline = self.build_pipeline()
 
