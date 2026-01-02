@@ -10,10 +10,16 @@ from lenskit.basic.candidates import UnratedTrainingItemsCandidateSelector
 from lenskit.basic import UserTrainingHistoryLookup, TopNRanker
 from lenskit.basic.popularity import PopScorer, PopConfig
 from lenskit.knn import ItemKNNConfig, ItemKNNScorer
-from lenskit.als import ImplicitMFConfig, ImplicitMFScorer
 try:
-    from lenskit.implicit import BPR as LKBPR, ImplicitConfig as LKImplicitConfig
+    from lenskit.implicit import (
+        ALS as LKImplicitALS,
+        BPR as LKBPR,
+        ImplicitALSConfig as LKImplicitALSConfig,
+        ImplicitConfig as LKImplicitConfig,
+    )
 except ModuleNotFoundError:
+    LKImplicitALS = None
+    LKImplicitALSConfig = None
     LKBPR = None
     LKImplicitConfig = None
 from lenskit.data import ID
@@ -278,14 +284,23 @@ class ImplicitMFRecommender(LKRecommender):
         self.min_user_count = int(params['min_user_count'])
         self.min_interaction_count = int(params['min_interaction_count'])
         self.min_profile_size = int(params['min_profile_size'])
-        self.lk_config = ImplicitMFConfig(embedding_size=self.embedding_size,
-                                          epochs=self.epochs,
-                                          regularization=self.regularization,
-                                          weight=self.positive_weight,
-                                          user_embeddings=True,
-                                          use_ratings=False)
 
-        self.scorer = ImplicitMFScorer(self.lk_config)
+        if LKImplicitALS is None or LKImplicitALSConfig is None:
+            raise ImportError(
+                "ImplicitMFRecommender now uses implicit ALS; install lenskit[implicit] or pip install implicit."
+            )
+
+        model_params = params.get('model_params') or params.get('als_params') or {}
+        if not isinstance(model_params, dict):
+            raise TypeError("ImplicitMFRecommender params.model_params must be a mapping of ALS hyperparameters")
+
+        als_params = dict(model_params)
+        als_params.setdefault('factors', self.embedding_size)
+        als_params.setdefault('iterations', self.epochs)
+        als_params.setdefault('regularization', self.regularization)
+        self.lk_config = LKImplicitALSConfig(weight=self.positive_weight, **als_params)
+
+        self.scorer = LKImplicitALS(self.lk_config)
         self.pipeline = self.build_pipeline()
 
 

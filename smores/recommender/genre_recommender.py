@@ -5,7 +5,6 @@ from lenskit.pipeline import PipelineBuilder
 from lenskit.basic.candidates import UnratedTrainingItemsCandidateSelector
 from lenskit.basic import UserTrainingHistoryLookup, TopNRanker
 from lenskit.knn import ItemKNNConfig, ItemKNNScorer
-from lenskit.als import ImplicitMFConfig, ImplicitMFScorer
 from lenskit.data import ID
 from lenskit.data import ItemList, QueryInput, RecQuery
 

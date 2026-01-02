@@ -13,6 +13,7 @@ from smores.trigger import TriggerCollection, DayEvent, CycleEvent, InteractionB
 from smores.trigger.switch_trigger import SwitchEvent
 from smores.trigger.trigger_tester import TriggerTester
 from smores.utils import SmoresConfig, SmoresLogger, ConsumerUtility, ProviderUtility, UserJourney, SummaryLogger
+from smores.utils.gpu_check import log_implicit_gpu_status
 
 class Smores:
 
@@ -133,6 +134,7 @@ class Smores:
 
         # Setup log. Must be last so that it can use the set up information
         state.logger.setup(config.output)
+        log_implicit_gpu_status(state)
 
         # Ignoring provider/recommender connections
         self.state.logger.info('Completed setup')

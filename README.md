@@ -49,7 +49,7 @@ The following simulation components are implemented:
 - `FixedItemRecommender` (label: fixed_recommender): **Only useful for testing.** Recommends a fixed set of items from dataset. It does remove items already recommended to a given user to prevent duplicate interactions in the dataset.
 - `PopularRecommender` (label: popular): Wrapper for the LensKit `PopScorer` class. Recommends popular itesm within the dataset.
 - `ItemKnnRecommender` (label: item_knn): Wrapper for the LensKit `ItemKNNScorer`. 
-- `ImplicitMFRecommender` (label: implicit_mf): Wrapper for the LensKit `ImplicitMFScorer`.
+- `ImplicitMFRecommender` (label: implicit_mf): Wrapper for the LensKit `lenskit.implicit.ALS` recommender.
 - `FileRecommender` (label: file_based): Similar to FixedItemRecommender. Reads a file of popular items in a genre and recommends randomly from those.
 
 Recommended structure for a recommender is to have PopularRecommender as the cold user fallback and PopularFromFileRecommender as the cold start fallback.
@@ -86,4 +86,3 @@ Recommended structure for a recommender is to have PopularRecommender as the col
 
 ## License
 This project is licensed under the terms specified in the `LICENSE` file.
-
