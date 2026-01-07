@@ -121,7 +121,7 @@ class LKRecommender(Recommender):
         else:
             default_candidates = pipe.add_component('candidate-selector',
                 candidate_selector, query=history)
-        score = pipe.add_component('scorer', scorer, query=query, items=default_candidates)
+        score = pipe.add_component('scorer', scorer, query=history, items=default_candidates)
         recommend_comp = pipe.add_component('ranker', TopNRanker, ranker_args, items=score)
         pipe.alias('recommender', recommend_comp)
         pipe.default_component('recommender')
