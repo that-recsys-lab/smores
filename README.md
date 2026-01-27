@@ -36,11 +36,6 @@ python -m tests.test_smores
 ```
 
 
-## Project Structure
-```
-
-```
-
 ## Components
 The following simulation components are implemented:
 
