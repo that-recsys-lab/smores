@@ -1,6 +1,6 @@
-# SMORES
+# Multi-stakeholder Recommendation Simulation Framework
 
-This repository contains the code for the SMORES (Simulator for Modular Recommendation EcoSystems) simulation package. We recommend creating a separate repository for running experiments. 
+This repository contains the code for the simulation framework. We recommend creating a separate repository for running experiments.
 
 ## Installation
 
