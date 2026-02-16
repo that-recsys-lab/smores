@@ -10,13 +10,12 @@ from smores.item import Item
 from smores.trigger import InitialBurnInTrigger
 from smores.utils import SmoresConfig
 from smores import Smores
+from tests.paths import TEST_CONFIG_PATH
 
 
 class SmoresTestCase(unittest.TestCase):
     def setUp(self):
-        test_data_path = Path('tests/test_data')
-        test_config_path = test_data_path / 'test_config.yaml'
-        self.config = SmoresConfig.model_validate(yaml.safe_load(test_config_path.read_text()))
+        self.config = SmoresConfig.model_validate(yaml.safe_load(TEST_CONFIG_PATH.read_text()))
         self.smores = Smores(self.config)
 
     def testInit(self):
@@ -92,14 +91,15 @@ class SmoresTestCase(unittest.TestCase):
     def test_profile_portability(self):
         self.smores.setup()
         self.smores.train_recommenders()
-        # Switching doesn't happen so this shouldn't change anything
-        # Universal profile should still be active so all recommenders get updated with
-        # all interactions
+        # Switching does not happen in this run; attached fallback recommenders
+        # should read from their parent recommender dataset.
         self.smores.state.triggers.clear_trigger_type('switch')
         self.smores.run_cycles()
-        rec1 = self.smores.state.recommenders_fallback.get_recommender('Popular Niche')
+        rec1 = self.smores.state.recommenders_fallback.get_recommender('Popular Fallback')
         rec2 = self.smores.state.recommenders_base.get_recommender('Generic')
-        self.assertEqual(rec1.dataset.interaction_count, rec2.dataset.interaction_count)
+        self.assertIs(rec1.parent, rec2)
+        self.assertIsNone(rec1.dataset)
+        self.assertEqual(rec1.get_dataset().interaction_count, rec2.get_dataset().interaction_count)
 
     def test_fallback_update(self):
         self.smores.setup()
@@ -109,10 +109,11 @@ class SmoresTestCase(unittest.TestCase):
         self.smores.run_cycles()
         rec1 = self.smores.state.recommenders_fallback.get_recommender('Popular Fallback')
         rec2 = self.smores.state.recommenders_base.get_recommender('Generic')
-        self.assertEqual(rec1.dataset.interaction_count, rec2.dataset.interaction_count)
+        self.assertEqual(rec1.get_dataset().interaction_count, rec2.get_dataset().interaction_count)
 
         rec3 = self.smores.state.recommenders_fallback.get_recommender('Popular Niche')
-        self.assertEqual(rec1.dataset.interaction_count, 0)
+        self.assertIsNone(rec3.parent)
+        self.assertIsNone(rec3.dataset)
                          
 if __name__ == '__main__':
     unittest.main()

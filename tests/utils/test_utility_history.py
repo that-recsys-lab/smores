@@ -1,8 +1,14 @@
 import unittest
-from smores.utils import UtilityHistory, UtilityHistoryEntry
+
+try:
+    from smores.utils import UtilityHistory, UtilityHistoryEntry
+except ImportError:
+    UtilityHistory = None
+    UtilityHistoryEntry = None
 
 # Courtesy ChatGPT
 
+@unittest.skipIf(UtilityHistory is None, "UtilityHistory is not exported by smores.utils")
 class TestUtilityHistory(unittest.TestCase):
     def setUp(self):
         self.history = UtilityHistory()

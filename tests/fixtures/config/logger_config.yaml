@@ -9,7 +9,7 @@ simulation:
     seed: 20250513
 
 data:
-  directory: tests/test_data/
+  directory: tests/fixtures/data/
   consumer_file: consumers.csv
   item_file: items.csv
   provider_file: providers.csv
@@ -18,20 +18,8 @@ output:
   directory: tests/test_output/
   consumer_file: consumer_utility
   provider_file: provider_utility
-  choice_file: choice_utility
   debug_file: debug
   debug_level: "debug"
-  use_timestamp: False
-  use_parquet: False
-  enable_user_journeys: True
-  sampled_user_ids: [1, 2]
-  sampled_user_count: 2
-  sampled_user_file: user_journeys
-  enable_item_stats: True
-  item_stats_file: item_stats
-
-summary_logger:
-  enabled: True
 
 consumer:
   initial_recommender: "Generic"
@@ -64,9 +52,9 @@ consumer:
       utility_model: "Fixed utility 0.3"
       item_selection_model: "Category Similarity"
       recommender_choice_model:
-        class_name: ucb
+        class_name: fixed
         params:
-          beta: 2
+          recommender_name: Generic
 
 
 provider:
@@ -95,7 +83,7 @@ platform:
 
 recommender:
   initial: ["Generic"]
-  base_recommenders:
+  definitions:
     - name: "Generic"
       class_name: item_knn
       params:
@@ -108,7 +96,6 @@ recommender:
         cold_user_fallback: "Popular Fallback"
         cold_start_fallback: "Dummy Fixed"
 
-  fallback_recommenders:
     - name: "Popular Fallback"
       class_name: popular
       params:

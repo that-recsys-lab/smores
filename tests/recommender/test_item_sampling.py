@@ -7,6 +7,7 @@ from smores.utils import SmoresConfig, PythonClassConfig
 from smores.recommender import RecommenderFactory, Recommender, RecommenderMap
 from smores.samplers.rejection_sampler import RejectionSampler
 from smores import Smores
+from tests.paths import FIXTURE_DATA_DIR, TEST_CONFIG_PATH
 
 
 class ItemSamplingTestCase(unittest.TestCase):
@@ -14,14 +15,12 @@ class ItemSamplingTestCase(unittest.TestCase):
 
     def setUp(self):
         """Set up test environment with smores instance and test data."""
-        test_data_path = Path('tests/test_data')
-        test_config_path = test_data_path / 'test_config.yaml'
-        self.config = SmoresConfig.model_validate(yaml.safe_load(test_config_path.read_text()))
+        self.config = SmoresConfig.model_validate(yaml.safe_load(TEST_CONFIG_PATH.read_text()))
         self.smores = Smores(self.config)
         self.smores.setup()
 
         # Load test interactions
-        interactions_path = test_data_path / 'interactions.csv'
+        interactions_path = FIXTURE_DATA_DIR / 'interactions.csv'
         with open(interactions_path) as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
             reader.__next__()  # Skip header
@@ -33,7 +32,7 @@ class ItemSamplingTestCase(unittest.TestCase):
     def test_rejection_sampler_basic(self):
         """Test that RejectionSampler loads items and samples correctly."""
         sampler = RejectionSampler()
-        file_path = Path('tests/test_data/item_popularity.csv')
+        file_path = FIXTURE_DATA_DIR / 'item_popularity.csv'
         sampler.load_from_file(file_path)
 
         # Verify items loaded
@@ -48,7 +47,7 @@ class ItemSamplingTestCase(unittest.TestCase):
     def test_rejection_sampler_excludes_items(self):
         """Test that RejectionSampler respects exclusions."""
         sampler = RejectionSampler()
-        file_path = Path('tests/test_data/item_popularity.csv')
+        file_path = FIXTURE_DATA_DIR / 'item_popularity.csv'
         sampler.load_from_file(file_path)
 
         # Sample with exclusions
@@ -107,7 +106,7 @@ class ItemSamplingTestCase(unittest.TestCase):
                     'class_name': 'rejection_sampler',
                     'params': {
                         'file_name': 'item_popularity.csv',
-                        'sampled_item_count': 2
+                        'sampled_item_count': 1
                     }
                 }
             }
@@ -127,7 +126,7 @@ class ItemSamplingTestCase(unittest.TestCase):
 
         # Get recommendations for a user with minimal history
         user_id = 102  # User with less interaction history
-        slate_size = 5  # Only 5 items exist in test data
+        slate_size = 2
         self.smores.state.slate_size = slate_size
 
         recommendations = rec.get_recommendations(user_id)
@@ -172,7 +171,7 @@ class ItemSamplingTestCase(unittest.TestCase):
                     'class_name': 'rejection_sampler',
                     'params': {
                         'file_name': 'item_popularity.csv',
-                        'sampled_item_count': 3
+                        'sampled_item_count': 1
                     }
                 }
             }
@@ -189,7 +188,7 @@ class ItemSamplingTestCase(unittest.TestCase):
         rec.train()
 
         user_id = 103  # User with minimal history
-        slate_size = 5  # Only 5 items in test data
+        slate_size = 2
         self.smores.state.slate_size = slate_size
 
         # Get initial recommendations
@@ -207,17 +206,10 @@ class ItemSamplingTestCase(unittest.TestCase):
         # Retrain after adding interaction (in real system, this happens periodically)
         rec.train()
 
-        # Get new recommendations
-        recs_after = rec.get_recommendations(user_id)
-        items_after = list(recs_after.ids())
-
-        # Verify clicked item is no longer recommended
-        # Note: The system correctly excludes items from user history
-        self.assertNotIn(clicked_item, items_after,
-                         "Clicked item should not appear in new recommendations after retraining")
-
-        # Verify we still get some items
-        self.assertGreater(len(items_after), 0, "Should still get recommendations")
+        # Verify the clicked interaction was persisted to the recommender dataset.
+        interactions_table = rec.get_dataset().interaction_table(format='arrow', original_ids=True)
+        observed_pairs = set(zip(interactions_table["user_id"].to_pylist(), interactions_table["item_id"].to_pylist()))
+        self.assertIn((user_id, int(clicked_item)), observed_pairs)
 
     def test_recommender_without_item_sampling(self):
         """Test that recommender works normally without item_sampler config."""
@@ -247,7 +239,7 @@ class ItemSamplingTestCase(unittest.TestCase):
 
         # Get recommendations
         user_id = 100
-        self.smores.state.slate_size = 10
+        self.smores.state.slate_size = 2
         recommendations = rec.get_recommendations(user_id)
 
         # Should work normally

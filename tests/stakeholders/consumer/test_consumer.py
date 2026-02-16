@@ -8,19 +8,18 @@ from smores import Smores
 from icecream import ic
 
 from smores.stakeholders.consumer import Consumer, ConsumerCollection, ConsumerInfo
+from tests.paths import FIXTURE_DATA_DIR, TEST_CONFIG_PATH
 
 TEST_CONSUMER_FILE = "consumers.csv"
 
 
 class ConsumerTestCase(unittest.TestCase):
     def setUp(self):
-        test_data_path = Path('tests/test_data')
-        test_config_path = test_data_path / 'test_config.yaml'
-        self.config = SmoresConfig.model_validate(yaml.safe_load(test_config_path.read_text()))
+        self.config = SmoresConfig.model_validate(yaml.safe_load(TEST_CONFIG_PATH.read_text()))
         self.smores = Smores(self.config)
         self.smores.setup()
 
-        self.consumer_data_path = test_data_path / TEST_CONSUMER_FILE
+        self.consumer_data_path = FIXTURE_DATA_DIR / TEST_CONSUMER_FILE
 
     def test_component_creation(self):
         ccoll = ConsumerCollection()

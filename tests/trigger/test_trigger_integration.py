@@ -10,7 +10,7 @@ from smores.trigger.switch_trigger import ProfileColdStartTrigger, ProfileUserOw
 from smores.utils import SmoresConfig
 
 
-TEST_DATA_DIR = Path(__file__).parent / "../test_data"
+TEST_DATA_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "data"
 
 
 def _build_config(initial_recs, triggers, include_niche=False):

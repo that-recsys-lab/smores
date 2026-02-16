@@ -6,6 +6,7 @@ from pathlib import Path
 from smores.utils import SmoresConfig
 from smores.trigger import TriggerEvent, TriggerFactory, InitialBurnInTrigger, CycleEvent, CycleTrigger, TriggerCollection
 from smores import Smores
+from tests.paths import TEST_CONFIG_PATH
 
 from icecream import ic
 
@@ -29,9 +30,7 @@ TriggerFactory.register('cold_start_memory', ForgetUnconnected)
 
 class TestTrigger(unittest.TestCase):
     def setUp(self):
-        test_data_path = Path('tests/test_data')
-        test_config_path = test_data_path / 'test_config.yaml'
-        self.config = SmoresConfig.model_validate(yaml.safe_load(test_config_path.read_text()))
+        self.config = SmoresConfig.model_validate(yaml.safe_load(TEST_CONFIG_PATH.read_text()))
         self.smores = Smores(self.config)
 
 

@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "dataset": "ml-tmdb",
+  "generated_at": "2025-12-22T19:18:16Z",
+  "source_files": {
+    "provider_items": "data/ml-tmdb/standard/provider_items.csv",
+    "consumer_ratings": "data/ml-tmdb/standard/consumer_ratings.csv"
+  },
+  "niche_genres": [
+    "Horror"
+  ],
+  "counts": {
+    "num_users": 6040,
+    "num_items": 2186,
+    "num_providers": 926,
+    "num_ratings": 1000209,
+    "num_genres": 18,
+    "num_niche_providers": 59,
+    "num_generic_providers": 867,
+    "num_niche_consumers": 101,
+    "num_generic_consumers": 5939,
+    "num_niche_items": 189,
+    "num_generic_items": 1997
+  },
+  "genre_stats": {
+    "items_per_genre": {
+      "Action": 314,
+      "Adventure": 181,
+      "Animation": 54,
+      "Children's": 143,
+      "Comedy": 768,
+      "Crime": 136,
+      "Documentary": 32,
+      "Drama": 839,
+      "Fantasy": 44,
+      "Film-Noir": 29,
+      "Horror": 189,
+      "Musical": 71,
+      "Mystery": 71,
+      "Romance": 295,
+      "Sci-Fi": 180,
+      "Thriller": 310,
+      "War": 89,
+      "Western": 47
+    },
+    "users_per_genre": {
+      "Action": 769,
+      "Adventure": 67,
+      "Animation": 14,
+      "Children's": 34,
+      "Comedy": 2410,
+      "Crime": 25,
+      "Documentary": 5,
+      "Drama": 1895,
+      "Fantasy": 14,
+      "Film-Noir": 21,
+      "Horror": 101,
+      "Musical": 15,
+      "Mystery": 18,
+      "Romance": 127,
+      "Sci-Fi": 363,
+      "Thriller": 133,
+      "War": 18,
+      "Western": 11
+    },
+    "providers_per_genre": {
+      "Action": 105,
+      "Adventure": 29,
+      "Animation": 15,
+      "Children's": 13,
+      "Comedy": 264,
+      "Crime": 31,
+      "Documentary": 22,
+      "Drama": 289,
+      "Film-Noir": 7,
+      "Horror": 59,
+      "Musical": 8,
+      "Mystery": 5,
+      "Romance": 17,
+      "Sci-Fi": 17,
+      "Thriller": 27,
+      "War": 6,
+      "Western": 12
+    }
+  },
+  "rating_stats": {
+    "min": 1.0,
+    "max": 5.0,
+    "mean": 3.581564,
+    "median": 4.0,
+    "std": 1.117101
+  },
+  "ratings_per_user": {
+    "min": 20,
+    "p50": 96,
+    "p95": 556,
+    "max": 2314
+  },
+  "ratings_per_item": {
+    "min": 1,
+    "p50": 123,
+    "p95": 1052,
+    "max": 3428
+  },
+  "flags": {
+    "items_missing_genres": 0,
+    "providers_missing_genres": 0,
+    "users_missing_genres": 0,
+    "ratings_missing_items": 320601
+  }
+}

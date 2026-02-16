@@ -1,0 +1,165 @@
+# SMORES configuration
+# Data: MovieLens
+# Variant: Algorithm-specific user profiles, Threshold switching
+
+simulation:
+    experiment_name: "MovieLens_Algorithm-specific"
+    num_days: 2
+    num_cycles: 2
+    slate_size: 10
+    seed: 20250702
+
+
+data:
+  directory: data/simulation
+  consumer_file: consumers.csv
+  item_file: items.csv
+  provider_file: providers.csv
+
+output:
+  directory: output/ml1m-mini
+  consumer_file: consumer_utility
+  provider_file: provider_utility
+  choice_file: rchoice_utility
+  debug_file: debug
+  debug_level: "debug"
+  use_timestamp: false
+  use_parquet: true
+  # User journey logging
+  enable_user_journeys: true
+  sampled_user_count: 5  # to sample specific users:  sampled_user_ids: [1, 5, 10]
+  sampled_user_file: user_journeys
+  # Item statistics logging
+  enable_item_stats: true
+  item_stats_file: item_stats
+
+# Summary logger (separate section)
+summary_logger:
+  enabled: true
+
+consumer:
+  initial_recommender: "Generic"
+  models:
+      utility:
+        - name: "Dot Product"
+          class_name: dot_product
+      item_selection:
+        - name: "Category Similarity"
+          class_name: category_similarity_logit
+          params:
+            threshold: 0.2
+            selection_utility: 1.0 
+
+  types:
+    - name: "Generic"
+      utility_model: "Dot Product"
+      item_selection_model: "Category Similarity"
+      recommender_choice_model:
+        class_name: threshold
+        params:
+          beta: 2
+          threshold: 0.2
+
+    - name: "Niche"
+      utility_model: "Dot Product"
+      item_selection_model: "Category Similarity"
+      recommender_choice_model:
+        class_name: threshold
+        params:
+          beta: 2
+          threshold: 0.2
+
+provider:
+  initial_recommender: "__all__" 
+  models:
+    utility:
+      - name: "Click Fixed 1.0"
+        class_name: click_fixed
+        params:
+          value: 1.0
+
+  types:
+    - name: "Generic"
+      utility_model: "Click Fixed 1.0"
+
+    - name: "Niche"
+      utility_model: "Click Fixed 1.0"
+
+platform:
+  utility_model:
+    class_name: null_model
+
+recommender:
+  initial: ["Generic"]
+  base_recommenders:
+    - name: "Generic"
+      class_name: item_knn
+      params:
+        max_neighbors: 20
+        min_neighbors: 2
+        min_similarity: 0.001
+        min_user_count: 20
+        min_interaction_count: 500
+        min_profile_size: 5
+        cold_user_fallback: "Popular File Generic"
+        cold_start_fallback: "Popular File Generic"
+        recency_threshold: 3
+        cooldown_cycles: 1
+        candidate_multiplier: 3
+        item_sampler:
+          class_name: rejection_sampler
+          params:
+            file_name: popular_generic_items.csv
+            sampled_item_count: 2
+
+    - name: "Niche"
+      class_name: genre_knn
+      params:
+        genre_feature: 10
+        max_neighbors: 20
+        min_neighbors: 2
+        min_similarity: 0.001
+        min_user_count: 20
+        min_interaction_count: 500
+        min_profile_size: 5
+        cold_user_fallback: "Popular File Niche"
+        cold_start_fallback: "Popular File Niche"
+        recency_threshold: 3
+        cooldown_cycles: 1
+        candidate_multiplier: 3
+        item_sampler:
+          class_name: rejection_sampler
+          params:
+            file_name: popular_niche_items.csv
+            sampled_item_count: 2
+
+  fallback_recommenders:
+    - name: "Popular Generic"
+      class_name: popular
+      params:
+          min_user_count: 20
+          min_interaction_count: 500
+
+    - name: "Popular Niche"
+      class_name: popular
+      params:
+          min_user_count: 20
+          min_interaction_count: 500
+
+    - name: "Popular File Generic"
+      class_name: file_based
+      params:
+          file_name: popular_generic_items.csv
+
+    - name: "Popular File Niche"
+      class_name: file_based
+      params:
+          file_name: popular_niche_items.csv
+
+triggers:
+  - name: "Cycle2Freeze"
+    class_name: initial_burnin
+    params:
+      cycle_count: 2
+      repeating: False
+      recommenders: ["Niche"]

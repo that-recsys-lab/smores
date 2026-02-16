@@ -6,18 +6,17 @@ from pathlib import Path
 from smores.utils import SmoresConfig
 from smores.recommender import RecommenderFactory, Recommender, PopularRecommender, RecommenderMap
 from smores import Smores
+from tests.paths import FIXTURE_DATA_DIR, TEST_CONFIG_PATH
 
 from icecream import ic
 
 class RecommenderTestCase(unittest.TestCase):
     def setUp(self):
-        test_data_path = Path('tests/test_data')
-        test_config_path = test_data_path / 'test_config.yaml'
-        self.config = SmoresConfig.model_validate(yaml.safe_load(test_config_path.read_text()))
+        self.config = SmoresConfig.model_validate(yaml.safe_load(TEST_CONFIG_PATH.read_text()))
         self.smores = Smores(self.config)
         self.smores.setup()
 
-        interactions_path = test_data_path / 'interactions.csv'
+        interactions_path = FIXTURE_DATA_DIR / 'interactions.csv'
         with open(interactions_path, ) as csvfile:
           reader = csv.reader(csvfile, delimiter=',')
           # skip header row

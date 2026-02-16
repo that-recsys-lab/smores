@@ -3,23 +3,35 @@
 
 simulation:
     experiment_name: test_experiment
-    num_days: 10
-    num_cycles: 10
+    num_days: 2
+    num_cycles: 2
     slate_size: 5
     seed: 20250513
 
 data:
-  directory: doc/
+  directory: tests/fixtures/data/
   consumer_file: consumers.csv
   item_file: items.csv
   provider_file: providers.csv
 
 output:
-  directory: doc/
+  directory: tests/test_output/
   consumer_file: consumer_utility
   provider_file: provider_utility
+  choice_file: choice_utility
   debug_file: debug
   debug_level: "debug"
+  use_timestamp: False
+  use_parquet: False
+  enable_user_journeys: True
+  sampled_user_ids: [1, 2]
+  sampled_user_count: 2
+  sampled_user_file: user_journeys
+  enable_item_stats: True
+  item_stats_file: item_stats
+
+summary_logger:
+  enabled: True
 
 consumer:
   initial_recommender: "Generic"
@@ -37,8 +49,8 @@ consumer:
         - name: "Category Similarity"
           class_name: category_similarity_logit
           params:
-            threshold: 0.3
-            selection_utility: 1.0      
+            threshold: 0.3     
+            selection_utility: 1.0 
   types:
     - name: "Generic"
       utility_model: "Fixed utility 0.5"
@@ -52,13 +64,13 @@ consumer:
       utility_model: "Fixed utility 0.3"
       item_selection_model: "Category Similarity"
       recommender_choice_model:
-        class_name: fixed
+        class_name: ucb
         params:
-          recommender_name: Generic
+          beta: 2
 
 
 provider:
-  initial_recommender: "__all__"
+  initial_recommender: "__all__" 
   models:
     utility:
       - name: "Click Fixed 1.0"
@@ -69,10 +81,11 @@ provider:
         class_name: click_fixed
         params:
           value: 1.5
-  
+
   types:
     - name: "Generic"
       utility_model: "Click Fixed 1.0"
+
     - name: "Niche"
       utility_model: "Click Fixed 1.5"
 
@@ -82,7 +95,7 @@ platform:
 
 recommender:
   initial: ["Generic"]
-  definitions:
+  base_recommenders:
     - name: "Generic"
       class_name: item_knn
       params:
@@ -95,16 +108,12 @@ recommender:
         cold_user_fallback: "Popular Fallback"
         cold_start_fallback: "Dummy Fixed"
 
+  fallback_recommenders:
     - name: "Popular Fallback"
       class_name: popular
       params:
           min_user_count: 20
           min_interaction_count: 500
-
-    - name: "FileBasedRecs"
-      class_name: file_based
-      params:
-        file_path: "doc/items.csv"
 
     - name: "Popular Niche"
       class_name: popular
@@ -116,11 +125,16 @@ recommender:
       class_name: fixed_recommender
 
 triggers:
-  - name: Cycle5Freeze
+  - name: "Cycle5Freeze"
     class_name: initial_burnin
     params:
       cycle_count: 5
       repeating: False
       recommenders: ["Generic", "Popular Niche"]
+  - name: "Cold Start"
+    class_name: cold_start
+  - name: "User Ownership"
+    class_name: user_ownership
   - name: "Universal Profile"
     class_name: universal_profile
+    

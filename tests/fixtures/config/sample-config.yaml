@@ -3,13 +3,13 @@
 
 simulation:
     experiment_name: test_experiment
-    num_days: 2
-    num_cycles: 2
+    num_days: 10
+    num_cycles: 10
     slate_size: 5
     seed: 20250513
 
 data:
-  directory: tests/test_data/
+  directory: tests/fixtures/data/
   consumer_file: consumers.csv
   item_file: items.csv
   provider_file: providers.csv
@@ -37,8 +37,8 @@ consumer:
         - name: "Category Similarity"
           class_name: category_similarity_logit
           params:
-            threshold: 0.3     
-            selection_utility: 1.0 
+            threshold: 0.3
+            selection_utility: 1.0      
   types:
     - name: "Generic"
       utility_model: "Fixed utility 0.5"
@@ -58,7 +58,7 @@ consumer:
 
 
 provider:
-  initial_recommender: "__all__" 
+  initial_recommender: "__all__"
   models:
     utility:
       - name: "Click Fixed 1.0"
@@ -69,11 +69,10 @@ provider:
         class_name: click_fixed
         params:
           value: 1.5
-
+  
   types:
     - name: "Generic"
       utility_model: "Click Fixed 1.0"
-
     - name: "Niche"
       utility_model: "Click Fixed 1.5"
 
@@ -102,6 +101,11 @@ recommender:
           min_user_count: 20
           min_interaction_count: 500
 
+    - name: "FileBasedRecs"
+      class_name: file_based
+      params:
+        file_path: "tests/fixtures/data/items.csv"
+
     - name: "Popular Niche"
       class_name: popular
       params:
@@ -112,16 +116,11 @@ recommender:
       class_name: fixed_recommender
 
 triggers:
-  - name: "Cycle5Freeze"
+  - name: Cycle5Freeze
     class_name: initial_burnin
     params:
       cycle_count: 5
       repeating: False
       recommenders: ["Generic", "Popular Niche"]
-  - name: "Cold Start"
-    class_name: cold_start
-  - name: "User Ownership"
-    class_name: user_ownership
   - name: "Universal Profile"
     class_name: universal_profile
-    

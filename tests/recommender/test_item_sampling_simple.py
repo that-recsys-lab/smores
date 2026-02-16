@@ -6,6 +6,9 @@ Usage:
     python tests/recommender/test_item_sampling_simple.py
 """
 
+from tests.paths import FIXTURE_DATA_DIR, TEST_CONFIG_PATH
+
+
 def test_imports():
     """Test that all imports work."""
     print("Testing imports...")
@@ -38,14 +41,13 @@ def test_rejection_sampler():
     import yaml
 
     # Setup smores state (needed for logging and random)
-    test_config_path = Path('tests/test_data/test_config.yaml')
-    config = SmoresConfig.model_validate(yaml.safe_load(test_config_path.read_text()))
+    config = SmoresConfig.model_validate(yaml.safe_load(TEST_CONFIG_PATH.read_text()))
     smores_instance = smores.Smores(config)
     smores_instance.setup()
 
     # Create sampler
     sampler = RejectionSampler()
-    file_path = Path('tests/test_data/item_popularity.csv')
+    file_path = FIXTURE_DATA_DIR / 'item_popularity.csv'
 
     print(f"  Loading items from {file_path}...")
     sampler.load_from_file(file_path)
@@ -92,8 +94,7 @@ def test_recommender_integration():
     import csv
 
     # Setup smores
-    test_config_path = Path('tests/test_data/test_config.yaml')
-    config = SmoresConfig.model_validate(yaml.safe_load(test_config_path.read_text()))
+    config = SmoresConfig.model_validate(yaml.safe_load(TEST_CONFIG_PATH.read_text()))
     smores_instance = smores.Smores(config)
     smores_instance.setup()
 
@@ -129,7 +130,7 @@ def test_recommender_integration():
     assert rec.sampled_item_count == 2, "Should be 2 sampled items"
 
     # Add interactions
-    interactions_path = Path('tests/test_data/interactions.csv')
+    interactions_path = FIXTURE_DATA_DIR / 'interactions.csv'
     with open(interactions_path) as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
         reader.__next__()  # Skip header

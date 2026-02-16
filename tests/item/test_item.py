@@ -4,6 +4,7 @@ import pathlib
 from smores.utils import SmoresConfig
 from smores.item import Item, ItemMap, ItemCollection
 from smores import Smores
+from tests.paths import FIXTURE_DATA_DIR
 
 from icecream import ic
 
@@ -12,8 +13,7 @@ TEST_ITEM_FILE = 'items.csv'
 
 class ItemTestCase(unittest.TestCase):
     def setUp(self):
-        test_data_path = pathlib.Path('tests/test_data')
-        self.item_data_path = test_data_path / TEST_ITEM_FILE
+        self.item_data_path = FIXTURE_DATA_DIR / TEST_ITEM_FILE
 
 
     def testItemLoad(self):

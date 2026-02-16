@@ -1,16 +1,21 @@
 [project]
 name = "smores"
 version = "0.1.0"
-description = "Add your description here"
+description = "Simulator for Modular Recommendation EcoSystems"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "icecream>=2.1.4",
+    "lenskit @ git+https://github.com/lenskit/lkpy",
     "numpy>=2.2.6",
     "pandas>=2.2.3",
+    "pyarrow>=18.0.0",
     "pydantic>=2.11.4",
     "pyyaml>=6.0.2",
 ]
+
+[project.optional-dependencies]
+implicit = ["implicit>=0.7.2"]
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
