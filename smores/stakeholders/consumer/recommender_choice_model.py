@@ -170,6 +170,75 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
         # logger.debug(f"UCBs: {self.recommender_ucbs['']}")
         logger.log_recommender_choice(tuple)
 
+class EpsilonGreedyRecommenderChoiceModel(RecommenderChoiceModel):
+    """
+    Switch to the recommender with the highest expected utility (representation score alignment) with probability 1-epsilon and stay with the same recommender with probability epsilon. 
+    """
+    def __init__(self):
+        super().__init__()
+
+    def setup(self, config):
+        self.expected_utilities = defaultdict(float)
+        self.recommender_utilities = defaultdict(float)
+        self.epsilon = config.params['epsilon']
+        self.beta = config.params['beta']
+
+    def get_expected_utility(self, recommender_name):
+        recommender = smores.Smores.state.recommenders_base.get_recommender(recommender_name)
+        recommender_representation_score_vector = recommender.representation
+        consumer_feature_vector = self.consumer.preference_vector
+        expected_utility = np.dot(consumer_feature_vector, recommender_representation_score_vector)
+        return expected_utility
+
+    def choose_recommender(self):
+        current_recommender = self.consumer.recommender.name
+        if np.random.rand() < self.epsilon:
+            chosen_recommender = current_recommender
+        else:
+            # print(f"Consumer {self.consumer.id} current utility from {current_recommender}: {self.recommender_utilities[current_recommender]}")
+            active_recommenders = list(smores.Smores.state.recommenders_active)
+            active_expected_utilities = {}
+
+            for recommender_name in active_recommenders:
+                if recommender_name == current_recommender:
+                    expected_utility = self.recommender_utilities[current_recommender]
+                else:
+                    expected_utility = self.get_expected_utility(recommender_name)
+                    self.expected_utilities[recommender_name] = expected_utility
+                    active_expected_utilities[recommender_name] = expected_utility
+
+            # print(f"Consumer {self.consumer.id} expected utilities for active recommenders: {active_expected_utilities}")
+
+            if len(active_expected_utilities) > 0:
+                chosen_recommender = max(active_expected_utilities, key=active_expected_utilities.get)
+                # print(f"Consumer {self.consumer.id} switching to {chosen_recommender} with expected utility {active_expected_utilities[chosen_recommender]}")
+            else:
+                chosen_recommender = current_recommender
+                # print("No active recommenders found. Staying with current recommender.")
+
+        self.next_recommender = chosen_recommender
+        self.log_utilities()
+        return chosen_recommender
+
+    def update_recommender_utility(self, list_utility: float):
+        current_recommender_name = self.consumer.recommender.name
+        prev_utility = self.recommender_utilities[current_recommender_name]
+        if np.isnan(prev_utility):
+            prev_utility = 0
+        new_utility = ((prev_utility * self.beta) + list_utility)/(1 + self.beta)
+        self.recommender_utilities[current_recommender_name] = new_utility
+        return new_utility
+    
+    def log_utilities(self):
+        logger = smores.Smores.state.logger
+        time = smores.Smores.state.cycle_count
+        recommenders = smores.Smores.state.recommenders_base.get_names()
+        utilities = [self.recommender_utilities[name] for name in recommenders]
+        current_recommender = self.consumer.recommender.name
+        tuple = ChoiceUtility(self.consumer.id, self.consumer.type, current_recommender, \
+                              self.next_recommender, utilities, time)
+        logger.log_recommender_choice(tuple)
+
 class RecommenderChoiceModelFactory():
     """
     The RecommenderChoiceModelFactory associates names with objects so these can be passed to
@@ -197,10 +266,12 @@ class RecommenderChoiceModelFactory():
             raise UnregisteredRecommenderChoiceModelError(model_name)
         return model_class()
 
+
 # Registering
 RecommenderChoiceModelFactory.register('fixed', FixedRecommenderChoiceModel)
 RecommenderChoiceModelFactory.register('threshold', ThresholdRecommenderChoiceModel)
 RecommenderChoiceModelFactory.register('ucb', UCBRecommenderChoiceModel)
+RecommenderChoiceModelFactory.register('epsilon_greedy', EpsilonGreedyRecommenderChoiceModel)
 
 
 # Exceptions

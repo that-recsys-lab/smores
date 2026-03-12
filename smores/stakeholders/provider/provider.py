@@ -87,7 +87,13 @@ class ProviderCollection():
             for row in reader:
 
                 provider_config: ProviderInfo = ProviderInfo.model_validate(row)
-                provider_type_config = self.types[provider_config.provider_type]
+                provider_type_config = self.types.get(provider_config.provider_type)
+                if provider_type_config is None:
+                    available = sorted(self.types.keys())
+                    raise KeyError(
+                        f"Unknown provider_type '{provider_config.provider_type}' in {provider_data_path}. "
+                        f"Configured provider types: {available}"
+                    )
 
                 provider = Provider()
                 provider.setup(provider_type_config, provider_config)
@@ -134,5 +140,4 @@ class UnregisteredProviderError(Exception):
     def __init__(self, name):
         self.message = f'Cannot create Provider object: Class {name} is not registered and may not exist.'
         super().__init__(self.message)
-
 

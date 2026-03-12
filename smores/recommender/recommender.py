@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from collections import defaultdict
+from collections import Counter, defaultdict
 from icecream import ic
 import pyarrow as pa
+import numpy as np
 
 from lenskit.data import Dataset, DatasetBuilder
 from lenskit.data import ItemList
@@ -34,6 +35,7 @@ class Recommender(ABC):
         self._cooldown_until_cycle: defaultdict[int, dict[int, int]] = defaultdict(dict)
         self._last_sampled_count: int = 0
         self._last_used_fallback: bool = False
+        self.representation: list[float] = []
 
     @abstractmethod
     def setup(self, config):
@@ -404,6 +406,107 @@ class Recommender(ABC):
             if streak >= self.recency_threshold:
                 cooldowns[item_int] = current_cycle + self.cooldown_cycles + 1
                 streaks[item_int] = 0
+
+    def get_item_feature_vectors(self, item_ids: list[int]) -> list[list[float]]:
+        """Return feature vectors for existing items in order, skipping missing items."""
+
+        vectors: list[list[float]] = []
+        items = smores.Smores.state.items
+
+        for item_id in item_ids:
+            if item_id is None:
+                continue
+            try:
+                item = items.get_item(int(item_id))
+            except KeyError:
+                continue
+            if item is None or getattr(item, 'features', None) is None:
+                continue
+            vectors.append([float(value) for value in item.features])
+        return vectors
+
+    def _top_items_from_top_n_file(self, limit: int = 10) -> list[int]:
+        """Return top items by sampler probability from the configured popularity file."""
+
+        if limit <= 0 or self.item_sampler is None or not self.item_sampler.has_items():
+            return []
+
+        weighted_items = sorted(
+            zip(self.item_sampler.item_ids, self.item_sampler.base_probabilities),
+            key=lambda pair: float(pair[1]),
+            reverse=True,
+        )
+        return [int(item_id) for item_id, _ in weighted_items[:limit]]
+
+    def update_popular_items_representation(self, items_count: int = 10, cycle: int | None = None) -> list:
+        """
+        Updates and returns a single vector representation (sums to 1) of the most popular n items.
+
+        If `items_count` is less than or equal to 0, the representation is built from
+        the top 10 items in the configured popularity sampler file
+        (for example, `popular_generic_items.csv` or `popular_niche_items.csv`).
+
+        If `cycle` is provided and interaction timestamps are available, only interactions
+        from that cycle are used.
+        """
+        if items_count <= 0:
+            top_item_ids = self._top_items_from_top_n_file(limit=10)
+            if not top_item_ids:
+                return self.representation
+        else:
+            interactions: pa.Table = self.get_dataset().interaction_table(format="arrow", original_ids=True)
+            if interactions is None or interactions.num_rows == 0:
+                return self.representation
+
+            item_ids = interactions.column("item_id").to_pylist()
+
+            # Restrict to the requested cycle when timestamps are available.
+            if cycle is not None and "time" in interactions.column_names:
+                day_limit = int(getattr(smores.Smores.state, "day_limit", 0) or 0)
+                if day_limit > 0:
+                    times = interactions.column("time").to_pylist()
+                    cycle_start = int(cycle) * day_limit
+                    cycle_end = cycle_start + day_limit
+                    item_ids = [
+                        int(item_id)
+                        for item_id, ts in zip(item_ids, times)
+                        if item_id is not None and ts is not None and cycle_start <= int(ts) < cycle_end
+                    ]
+
+            item_counts = Counter(int(item_id) for item_id in item_ids if item_id is not None)
+            top_item_ids = [item_id for item_id, _ in item_counts.most_common(items_count)]
+        if not top_item_ids:
+            return self.representation
+
+        feature_vectors = self.get_item_feature_vectors(top_item_ids)
+        if not feature_vectors:
+            return self.representation
+
+        X = np.asarray(feature_vectors, dtype=np.float32)
+        if X.ndim != 2 or X.shape[0] == 0:
+            return self.representation
+
+        # 1) Normalize each row to sum to 1 (equal contribution per item)
+        row_sums = X.sum(axis=1, keepdims=True)
+        Xn = np.divide(X, row_sums, out=np.zeros_like(X), where=row_sums > 0)
+
+        # 2) Mean vector
+        mu = Xn.mean(axis=0)
+
+        # 3) Ensure final vector sums to 1
+        s = float(mu.sum())
+        if s <= 0:
+            return self.representation
+        self.representation = (mu / s).tolist()
+
+        return self.representation
+
+    def get_popular_items_representation(self, items_count: int = 10, cycle: int | None = None) -> list:
+        """Backward-compatible alias for callers still using the old method name."""
+        return self.update_popular_items_representation(items_count=items_count, cycle=cycle)
+                
+           
+        
 
 class FixedItemRecommender(Recommender):
     def __init__(self):
