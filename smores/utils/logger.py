@@ -134,6 +134,7 @@ class SmoresLogger:
             'fallback_used',
             'avg_sampled',
             'ctr',
+            'rec_representation',
         ]
         if smores.Smores.state.trigger_tester is not None:
             cycle_fieldnames.append('trigger_success')

@@ -120,6 +120,10 @@ class Smores:
         # Setup dataset. Has to be a separate step so the fallback can point to the base dataset
         state.recommenders_base.setup_datasets()
         state.recommenders_base.setup_fallbacks()
+        for recommender in state.recommenders_base.items():
+            recommender.update_popular_items_representation(items_count=0)
+        for recommender in state.recommenders_fallback.items():
+            recommender.update_popular_items_representation(items_count=0)
 
         # Setup triggers
         if config.triggers is not None:
@@ -200,6 +204,7 @@ class Smores:
         trained_any = False
         for rec_name in Smores.state.recommenders_active:
             recommender = Smores.state.recommenders_base.get_recommender(rec_name)
+            recommender.update_popular_items_representation(items_count=10, cycle=Smores.state.cycle_count)
             recommender._trained_this_step = False
             recommender.train()
             trained_any = trained_any or bool(getattr(recommender, "_trained_this_step", False))
@@ -290,6 +295,13 @@ class Smores:
             new_users = current_users - prev_users
             churned_users = prev_users - current_users
             state.prev_recommender_users[rec_name] = set(current_users)
+            rec.update_popular_items_representation(
+                items_count=10,
+                cycle=state.cycle_count,
+            )
+            rec_representation = rec.representation
+            rec_repr_str = ("[" + ", ".join(f"{x:.3f}" for x in rec_representation) + "]")
+
             cycle_row = {
                 "cycle": display_cycle,
                 "recommender": rec_name,
@@ -309,17 +321,27 @@ class Smores:
                 "fallback_used": rec_fallbacks,
                 "avg_sampled": round(avg_sampled, 2),
                 "ctr": round(ctr, 2),
+                "rec_representation": rec_repr_str,
             }
             if include_trigger_tester:
                 cycle_row["trigger_success"] = state.trigger_success
             log_msg = (
-                f"  Cycle {display_cycle}: {rec_name} interactions={interactions}, "
-                f"dataset_users={user_count}, dataset_items={item_count}, "
-                f"avg_profile_len={avg_profile:.2f}, active_users={assigned_users}, "
-                f"new_users={len(new_users)}, churned_users={len(churned_users)}, "
-                f"new_interactions={new_interactions}, deleted_interactions={deleted_interactions}, "
-                f"avg_slate_size={avg_slate_size:.2f}, unique_items={unique_item_count} ({coverage_pct:.1f}%), "
-                f"fallback_used={rec_fallbacks}/{rec_requests}, avg_sampled={avg_sampled:.2f}, ctr={ctr:.2f}"
+                f"\nRecommender name      : {rec_name}\n"
+                f"  interactions        : {interactions}\n"
+                f"  dataset_users       : {user_count}\n"
+                f"  dataset_items       : {item_count}\n"
+                f"  avg_profile_len     : {avg_profile:.2f}\n"
+                f"  active_users        : {assigned_users}\n"
+                f"  new_users           : {len(new_users)}\n"
+                f"  churned_users       : {len(churned_users)}\n"
+                f"  new_interactions    : {new_interactions}\n"
+                f"  deleted_interactions: {deleted_interactions}\n"
+                f"  avg_slate_size      : {avg_slate_size:.2f}\n"
+                f"  unique_items        : {unique_item_count} ({coverage_pct:.1f}%)\n"
+                f"  fallback_used       : {rec_fallbacks}/{rec_requests}\n"
+                f"  avg_sampled         : {avg_sampled:.2f}\n"
+                f"  ctr                 : {ctr:.2f}\n"
+                f"  rec_representation  : {rec_repr_str}"
             )
             if include_trigger_tester:
                 note = getattr(state.trigger_tester, "last_result_msg", None)

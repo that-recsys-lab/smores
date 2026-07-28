@@ -83,7 +83,13 @@ class ConsumerCollection():
                 feature_list = loads(feature_list_str)
                 row['preferences'] = feature_list
                 consumer_config: ConsumerInfo = ConsumerInfo.model_validate(row)
-                consumer_type_config = self.types[consumer_config.consumer_type]
+                consumer_type_config = self.types.get(consumer_config.consumer_type)
+                if consumer_type_config is None:
+                    available = sorted(self.types.keys())
+                    raise KeyError(
+                        f"Unknown consumer_type '{consumer_config.consumer_type}' in {consumer_data_path}. "
+                        f"Configured consumer types: {available}"
+                    )
 
                 consumer = Consumer()
                 consumer.setup(consumer_type_config, consumer_config)
@@ -131,4 +137,3 @@ class UnregisteredConsumerError(Exception):
     def __init__(self, name):
         self.message = f'Cannot create Consumer object: Class {name} is not registered and may not exist.'
         super().__init__(self.message)
-

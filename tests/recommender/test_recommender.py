@@ -60,6 +60,41 @@ class RecommenderTestCase(unittest.TestCase):
       self.assertEqual(rec.dataset.item_count, len(expected_items))
       self.assertEqual(rec.dataset.user_row(100).ids().size, 2)
 
+    def _build_popular_recommender(self) -> Recommender:
+      rec_config = self.config.recommender.fallback_recommenders[0]
+      rec: Recommender = RecommenderFactory.create(rec_config.class_name)
+      rec.setup(rec_config)
+      rec.setup_dataset()
+      return rec
+
+    def test_popular_items_representation_empty_dataset(self):
+      rec = self._build_popular_recommender()
+      self.assertEqual(rec.get_popular_items_representation(), [])
+
+    def test_popular_items_representation_normalized(self):
+      rec = self._build_popular_recommender()
+      time_step1 = [row for row in self.interactions if row[3] == 1]
+      rec.update_dataset(time_step1)
+
+      representation = rec.get_popular_items_representation(items_count=3)
+      self.assertGreater(len(representation), 0)
+      self.assertEqual(len(representation), len(self.smores.state.items.get_item(200).features))
+      self.assertAlmostEqual(sum(representation), 1.0, places=5)
+      self.assertTrue(all(value >= 0 for value in representation))
+      self.assertEqual(rec.get_popular_items_representation(items_count=0), [])
+
+    def test_popular_items_representation_cycle_filter(self):
+      rec = self._build_popular_recommender()
+      rec.update_dataset(self.interactions)
+
+      cycle0_representation = rec.get_popular_items_representation(items_count=3, cycle=0)
+      self.assertGreater(len(cycle0_representation), 0)
+      self.assertAlmostEqual(sum(cycle0_representation), 1.0, places=5)
+
+      # In fixture data, later-cycle interactions include item IDs that are not in items.csv.
+      cycle1_representation = rec.get_popular_items_representation(items_count=3, cycle=1)
+      self.assertEqual(cycle1_representation, [])
+
     def fallback_creation(self):
       rec_config = self.config.recommender.definitions[0]
       rec: Recommender = RecommenderFactory.create(rec_config.class_name)
