@@ -1,4 +1,4 @@
-from lenskit.data.items import ItemList
+from lenskit.data import ItemList
 import pandas as pd
 import numpy as np
 from icecream import ic

@@ -6,7 +6,7 @@ import numpy as np
 
 import smores
 from lenskit.pipeline import Pipeline, PipelineBuilder, Component, topn_pipeline
-from lenskit.basic.candidates import UnratedTrainingItemsCandidateSelector
+from lenskit.basic.candidates import TrainingItemsCandidateSelector
 from lenskit.basic import UserTrainingHistoryLookup, TopNRanker
 from lenskit.basic.popularity import PopScorer, PopConfig
 from lenskit.knn import ItemKNNConfig, ItemKNNScorer
@@ -105,7 +105,7 @@ class LKRecommender(Recommender):
     def _build_history_pipeline(
         self,
         scorer: Component,
-        candidate_selector=UnratedTrainingItemsCandidateSelector,
+        candidate_selector=TrainingItemsCandidateSelector,
         selector_config=None,
         ranker_kwargs: dict | None = None,
     ):

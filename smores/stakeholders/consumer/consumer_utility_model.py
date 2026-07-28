@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from numpy.linalg import norm
 from numpy import dot, average
-from lenskit.data.items import ItemList
+from lenskit.data import ItemList
 
 from smores.item import Item, ItemCollection
 import smores

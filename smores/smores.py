@@ -3,7 +3,7 @@ from icecream import ic
 from pathlib import Path
 from collections import defaultdict, Counter
 
-from lenskit.data.items import ItemList
+from lenskit.data import ItemList
 
 from smores.stakeholders.consumer import ConsumerModelComponents, ConsumerCollection, Consumer, ItemSelectionModel
 from smores.stakeholders.provider import ProviderModelComponents, ProviderCollection

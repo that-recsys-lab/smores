@@ -1,5 +1,5 @@
 import unittest
-from lenskit.data.items import ItemList
+from lenskit.data import ItemList
 
 from smores.utils import itemList2rankedTuples
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from lenskit.data.items import ItemList
+from lenskit.data import ItemList
 
 import smores
 from smores.recommender import Recommender, RecommenderFactory

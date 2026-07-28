@@ -3,7 +3,7 @@ from numpy.linalg import norm
 from numpy import dot, average
 from icecream import ic
 
-from lenskit.data.items import ItemList
+from lenskit.data import ItemList
 from lenskit.data import ID
 
 

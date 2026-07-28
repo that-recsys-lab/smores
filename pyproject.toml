@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "icecream>=2.1.4",
-    "lenskit @ git+https://github.com/lenskit/lkpy",
+    "lenskit @ git+https://github.com/lenskit/lkpy@3ed6c726f663e56288110d5d34b20c976e1e7f28",
     "numpy>=2.2.6",
     "pandas>=2.2.3",
     "pyarrow>=18.0.0",

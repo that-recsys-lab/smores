@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from sys import maxsize
 
 from lenskit.pipeline import PipelineBuilder
-from lenskit.basic.candidates import UnratedTrainingItemsCandidateSelector
+from lenskit.basic.candidates import TrainingItemsCandidateSelector
 from lenskit.basic import UserTrainingHistoryLookup, TopNRanker
 from lenskit.knn import ItemKNNConfig, ItemKNNScorer
 from lenskit.data import ID
@@ -17,10 +17,10 @@ import smores
 class MyGenreConfig:
     genre_list: list[int] | None = None
 
-class UnratedItemsGenreCandidateSelector (UnratedTrainingItemsCandidateSelector):
+class UnratedItemsGenreCandidateSelector (TrainingItemsCandidateSelector):
     """
     Candidate selector that selects all known items from the training data that
-    do not appear in the request user's history (:attr:`RecQuery.user_items`),
+    do not appear in the request user's history (:attr:`RecQuery.query_items`),
     and then filters those items based on a genre list. 
     If no item history is available, then all training items are returned.
 
@@ -38,8 +38,8 @@ class UnratedItemsGenreCandidateSelector (UnratedTrainingItemsCandidateSelector)
         query = RecQuery.create(query)
         items = ItemList.from_vocabulary(self.items_)
 
-        if query.user_items is not None:
-            items = items.remove(numbers=query.user_items.numbers(vocabulary=self.items_))
+        if query.query_items is not None:
+            items = items.remove(numbers=query.query_items.numbers(vocabulary=self.items_))
 
         genre_mask = [(int(id) in self.config.genre_list) for id in items.ids()]
 

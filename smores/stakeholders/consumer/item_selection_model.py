@@ -5,7 +5,7 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 
-from lenskit.data.items import ItemList
+from lenskit.data import ItemList
 
 from smores.utils import itemList2rankedTuples
 if TYPE_CHECKING:
