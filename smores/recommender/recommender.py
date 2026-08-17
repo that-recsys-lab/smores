@@ -68,11 +68,11 @@ class Recommender(ABC):
     
     def setup_dataset(self):
         builder = DatasetBuilder(None)
-        builder.add_entity_class('user')
-        builder.add_entities('user', smores.Smores.state.consumers.get_consumer_ids())
-        builder.add_entity_class('item')
-        builder.add_entities('item', smores.Smores.state.items.all_items())
-        builder.add_relationship_class('interaction', ['user', 'item'], interaction=True)
+        builder.add_entity_class('user_id')
+        builder.add_entities('user_id', smores.Smores.state.consumers.get_consumer_ids())
+        builder.add_entity_class('item_id')
+        builder.add_entities('item_id', smores.Smores.state.items.all_items())
+        builder.add_relationship_class('interaction', ['user_id', 'item_id'], interaction=True)
         self.dataset = builder.build()
 
     def get_dataset(self):
