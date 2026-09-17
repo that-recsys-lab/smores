@@ -97,10 +97,7 @@ class LKRecommender(Recommender):
         return user_count >= min_users and interaction_count >= min_interactions
 
     def _profile_viable(self, user_id: ID, min_profile_size: int) -> bool:
-        items = self.get_dataset().user_row(user_id)
-        if items is None:
-            return False
-        return items.ids().size >= min_profile_size
+        return len(self.get_user_item_ids(user_id)) >= min_profile_size
 
     def _build_history_pipeline(
         self,

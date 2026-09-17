@@ -365,6 +365,18 @@ trigger_tester:
 | `enable_item_stats` | `bool` | no | `false` | Enables item statistics logging. |
 | `item_stats_file` | `str \| null` | no | `null` | Item statistics output base name. |
 
+Cycle metric population fields use explicit timing semantics. `users_at_cycle_start`
+is the assignment snapshot taken before training and serving, `served_users` counts
+distinct consumers who actually requested recommendations during the cycle, and
+`users_at_cycle_end` is recorded after end-of-cycle recommender choice.
+`new_assignments` and `departures` are the set differences between the end and
+start snapshots. Traffic fields such as `rec_requests`, `fallback_used`, and `ctr`
+therefore align with `served_users`, not with the next cycle's assignments.
+Raw `clicks`, `sampled_items`, and `slate_items_total` counts are included so
+summaries can calculate exact request-weighted rates. `platform_coverage_pct`
+uses the union of item IDs served by every active recommender during the cycle;
+`coverage_pct` remains the coverage of the individual recommender row.
+
 ### `summary_logger`
 
 Optional section.
@@ -600,6 +612,28 @@ Required params:
 | Param | Type | Description |
 |---|---|---|
 | `beta` | number | Exploration sensitivity parameter. |
+
+#### `epsilon_greedy`
+
+Chooses the active recommender whose representation has the highest dot-product
+alignment with the consumer preference vector. The current recommender is
+included in the comparison. Exact ties keep the current recommender when it is
+one of the best options; other ties are resolved with the seeded simulation RNG.
+
+```yaml
+recommender_choice_model:
+  class_name: epsilon_greedy
+  params:
+    epsilon: 0.0
+    beta: 2
+```
+
+Required params:
+
+| Param | Type | Description |
+|---|---|---|
+| `epsilon` | number in `[0, 1]` | Probability of staying with the current recommender instead of making the greedy preview choice. Use `0.0` for deterministic highest-preview choice. |
+| `beta` | number | Smoothing weight for experienced recommender utility. Preview-based decisions do not use this historical value. |
 
 ### Provider Utility Models
 

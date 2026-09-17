@@ -172,49 +172,68 @@ class UCBRecommenderChoiceModel(RecommenderChoiceModel):
 
 class EpsilonGreedyRecommenderChoiceModel(RecommenderChoiceModel):
     """
-    Switch to the recommender with the highest expected utility (representation score alignment) with probability 1-epsilon and stay with the same recommender with probability epsilon. 
+    Choose the active recommender with the highest preview utility.
+
+    Preview utility is the alignment between the consumer preference vector and
+    the recommender representation.  With probability ``epsilon`` the consumer
+    stays with the current recommender; setting epsilon to zero gives fully
+    greedy preview-based choice.
     """
     def __init__(self):
         super().__init__()
 
     def setup(self, config):
-        self.expected_utilities = defaultdict(float)
+        self.expected_utilities = defaultdict(lambda: np.nan)
         self.recommender_utilities = defaultdict(float)
-        self.epsilon = config.params['epsilon']
+        self.epsilon = float(config.params['epsilon'])
         self.beta = config.params['beta']
+
+        if not 0 <= self.epsilon <= 1:
+            raise ValueError("epsilon must be between 0 and 1")
 
     def get_expected_utility(self, recommender_name):
         recommender = smores.Smores.state.recommenders_base.get_recommender(recommender_name)
-        recommender_representation_score_vector = recommender.representation
-        consumer_feature_vector = self.consumer.preference_vector
-        expected_utility = np.dot(consumer_feature_vector, recommender_representation_score_vector)
-        return expected_utility
+        recommender_representation_score_vector = np.asarray(recommender.representation, dtype=float)
+        consumer_feature_vector = np.asarray(self.consumer.preference_vector, dtype=float)
+        if recommender_representation_score_vector.size == 0:
+            return np.nan
+        if consumer_feature_vector.shape != recommender_representation_score_vector.shape:
+            return np.nan
+        return float(np.dot(consumer_feature_vector, recommender_representation_score_vector))
 
     def choose_recommender(self):
+        state = smores.Smores.state
         current_recommender = self.consumer.recommender.name
-        if np.random.rand() < self.epsilon:
+        active_recommenders = list(state.recommenders_active)
+        self.expected_utilities = {
+            recommender_name: self.get_expected_utility(recommender_name)
+            for recommender_name in active_recommenders
+        }
+        valid_utilities = {
+            recommender_name: utility
+            for recommender_name, utility in self.expected_utilities.items()
+            if np.isfinite(utility)
+        }
+
+        if not valid_utilities or (
+            self.epsilon > 0 and state.rand.random() < self.epsilon
+        ):
             chosen_recommender = current_recommender
         else:
-            # print(f"Consumer {self.consumer.id} current utility from {current_recommender}: {self.recommender_utilities[current_recommender]}")
-            active_recommenders = list(smores.Smores.state.recommenders_active)
-            active_expected_utilities = {}
+            best_utility = max(valid_utilities.values())
+            best_recommenders = [
+                recommender_name
+                for recommender_name, utility in valid_utilities.items()
+                if np.isclose(utility, best_utility, rtol=1e-12, atol=1e-12)
+            ]
 
-            for recommender_name in active_recommenders:
-                if recommender_name == current_recommender:
-                    expected_utility = self.recommender_utilities[current_recommender]
-                else:
-                    expected_utility = self.get_expected_utility(recommender_name)
-                    self.expected_utilities[recommender_name] = expected_utility
-                    active_expected_utilities[recommender_name] = expected_utility
-
-            # print(f"Consumer {self.consumer.id} expected utilities for active recommenders: {active_expected_utilities}")
-
-            if len(active_expected_utilities) > 0:
-                chosen_recommender = max(active_expected_utilities, key=active_expected_utilities.get)
-                # print(f"Consumer {self.consumer.id} switching to {chosen_recommender} with expected utility {active_expected_utilities[chosen_recommender]}")
-            else:
+            # Staying on an equally good current recommender avoids gratuitous
+            # switching.  Other ties use the simulation RNG so list order does
+            # not synchronize the whole population.
+            if current_recommender in best_recommenders:
                 chosen_recommender = current_recommender
-                # print("No active recommenders found. Staying with current recommender.")
+            else:
+                chosen_recommender = str(state.rand.choice(best_recommenders))
 
         self.next_recommender = chosen_recommender
         self.log_utilities()
@@ -233,7 +252,9 @@ class EpsilonGreedyRecommenderChoiceModel(RecommenderChoiceModel):
         logger = smores.Smores.state.logger
         time = smores.Smores.state.cycle_count
         recommenders = smores.Smores.state.recommenders_base.get_names()
-        utilities = [self.recommender_utilities[name] for name in recommenders]
+        # Log the preview values used for this decision so rchoice_utility can
+        # reproduce and audit the choice.
+        utilities = [self.expected_utilities.get(name, np.nan) for name in recommenders]
         current_recommender = self.consumer.recommender.name
         tuple = ChoiceUtility(self.consumer.id, self.consumer.type, current_recommender, \
                               self.next_recommender, utilities, time)

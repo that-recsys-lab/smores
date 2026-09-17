@@ -36,10 +36,7 @@ class FileBasedRecommender(Recommender):
         return True
 
     def get_recommendations(self, user_id) -> ItemList:
-        prior_interactions = self.get_user(user_id)
-        interacted_items = set()
-        if prior_interactions is not None:
-            interacted_items.update(prior_interactions.ids())
+        interacted_items = self.get_user_item_ids(user_id)
 
         slate_size = smores.Smores.state.slate_size
         sampled_items = self.item_sampler.sample(slate_size, exclude_items=interacted_items)

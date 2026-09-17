@@ -69,6 +69,46 @@ class SmoresTestCase(unittest.TestCase):
         self.smores.train_recommenders()
         test_consumer = self.smores.state.consumers.get_consumer(101)
         self.smores.run_consumer_day(test_consumer)
+        metrics = self.smores.state.recommender_metrics["Generic"]
+        self.assertEqual(metrics["served_users"], {101})
+
+    def test_cycle_metrics_separate_served_users_from_end_assignments(self):
+        self.smores.setup()
+        state = self.smores.state
+        state.cycle_start_recommender_users = self.smores._assigned_users_by_recommender()
+
+        consumers = list(state.consumers)
+        generic_metrics = state.recommender_metrics["Generic"]
+        generic_metrics["recommendations"] = len(consumers) * state.day_limit
+        generic_metrics["served_users"] = {consumer.id for consumer in consumers}
+        generic_metrics["clicks"] = 4
+        generic_metrics["fallback_used"] = 2
+        generic_metrics["sampled_items"] = 3
+        generic_metrics["slate_items_total"] = 30
+        generic_metrics["unique_items"] = {201, 202}
+
+        # Simulate one consumer switching away after all cycle traffic was served.
+        consumers[0].recommender = None
+        rows = []
+        state.logger.log_cycle_metrics = rows.append
+
+        self.smores._log_cycle_stats(display_cycle=1)
+
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["users_at_cycle_start"], 3)
+        self.assertEqual(row["served_users"], 3)
+        self.assertEqual(row["users_at_cycle_end"], 2)
+        self.assertEqual(row["new_assignments"], 0)
+        self.assertEqual(row["departures"], 1)
+        self.assertEqual(row["rec_requests"], 6)
+        self.assertEqual(row["clicks"], 4)
+        self.assertEqual(row["fallback_used"], 2)
+        self.assertEqual(row["sampled_items"], 3)
+        self.assertEqual(row["slate_items_total"], 30)
+        self.assertEqual(row["platform_unique_items"], 2)
+        self.assertEqual(row["platform_coverage_pct"], 40.0)
+        self.assertNotIn("active_users", row)
 
     def test_run_day(self):
         self.smores.setup()
@@ -80,6 +120,16 @@ class SmoresTestCase(unittest.TestCase):
         self.smores.train_recommenders()
         self.smores.run_cycle()
         self.assertEqual(self.smores.state.current_time(),2)
+
+    def test_cycle_refreshes_representations_before_recommender_choice(self):
+        self.smores.setup()
+        events = []
+        self.smores.update_recommender_representations = lambda: events.append("representations")
+        self.smores.cycle_actions = lambda: events.append("choice")
+
+        self.smores.run_cycle()
+
+        self.assertEqual(events, ["representations", "choice"])
 
     
     def test_run_cycles(self):

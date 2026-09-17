@@ -3,7 +3,7 @@ import yaml
 import csv
 from pathlib import Path
 
-from smores.utils import SmoresConfig
+from smores.utils import SmoresConfig, PythonClassConfig
 from smores.recommender import RecommenderFactory, Recommender, PopularRecommender, RecommenderMap
 from smores import Smores
 from tests.paths import FIXTURE_DATA_DIR, TEST_CONFIG_PATH
@@ -71,6 +71,33 @@ class RecommenderTestCase(unittest.TestCase):
       rec = self._build_popular_recommender()
       self.assertEqual(rec.get_popular_items_representation(), [])
 
+    def test_popular_items_representation_falls_back_to_sampler_file(self):
+      config_dict = {
+        'name': 'PopularWithSampling',
+        'class_name': 'popular',
+        'params': {
+          'min_user_count': 1,
+          'min_interaction_count': 1,
+          'item_sampler': {
+            'class_name': 'rejection_sampler',
+            'params': {
+              'file_name': 'item_popularity.csv',
+              'sampled_item_count': 1,
+            },
+          },
+        },
+      }
+      rec = RecommenderFactory.create('popular')
+      rec.setup(PythonClassConfig(**config_dict))
+      rec.setup_dataset()
+
+      representation = rec.get_popular_items_representation(items_count=0)
+
+      self.assertGreater(len(representation), 0)
+      self.assertEqual(len(representation), len(self.smores.state.items.get_item(200).features))
+      self.assertAlmostEqual(sum(representation), 1.0, places=5)
+      self.assertTrue(all(value >= 0 for value in representation))
+
     def test_popular_items_representation_normalized(self):
       rec = self._build_popular_recommender()
       time_step1 = [row for row in self.interactions if row[3] == 1]
@@ -81,7 +108,9 @@ class RecommenderTestCase(unittest.TestCase):
       self.assertEqual(len(representation), len(self.smores.state.items.get_item(200).features))
       self.assertAlmostEqual(sum(representation), 1.0, places=5)
       self.assertTrue(all(value >= 0 for value in representation))
-      self.assertEqual(rec.get_popular_items_representation(items_count=0), [])
+      cycle0_representation = rec.get_popular_items_representation(items_count=0)
+      self.assertGreater(len(cycle0_representation), 0)
+      self.assertAlmostEqual(sum(cycle0_representation), 1.0, places=5)
 
     def test_popular_items_representation_cycle_filter(self):
       rec = self._build_popular_recommender()

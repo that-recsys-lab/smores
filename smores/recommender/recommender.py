@@ -22,6 +22,7 @@ class Recommender(ABC):
         self.trained = False
         self.parent = None
         self._cached_user_count = None
+        self._user_item_ids: dict[int, frozenset[int]] = {}
         # Optional item sampling support
         self.item_sampler = None
         self.sampled_item_count = 0
@@ -76,6 +77,7 @@ class Recommender(ABC):
         builder.add_entities('item', smores.Smores.state.items.all_items())
         builder.add_relationship_class('interaction', ['user', 'item'], interaction=True)
         self.dataset = builder.build()
+        self._user_item_ids.clear()
 
     def get_dataset(self):
         if self.dataset is None:
@@ -87,6 +89,34 @@ class Recommender(ABC):
             self.parent.set_dataset(dataset)
         else:
             self.dataset = dataset
+            self._rebuild_user_item_ids()
+
+    def _rebuild_user_item_ids(self) -> None:
+        """Cache coalesced item IDs by user for frequent history lookups."""
+        if self.dataset is None:
+            self._user_item_ids.clear()
+            return
+
+        structure = self.dataset.interaction_matrix(format='structure')
+        user_ids = self.dataset.users.ids()
+        item_ids = self.dataset.items.ids(structure.colinds)
+
+        histories: dict[int, frozenset[int]] = {}
+        for row_number, user_id in enumerate(user_ids):
+            start, end = structure.extent(row_number)
+            if start != end:
+                histories[int(user_id)] = frozenset(
+                    int(item_id) for item_id in item_ids[start:end]
+                )
+        self._user_item_ids = histories
+
+    def get_user_item_ids(self, user_id: int) -> frozenset[int]:
+        """Return a user's coalesced interaction item IDs without building an ItemList."""
+        if self.dataset is None:
+            if self.parent is None:
+                return frozenset()
+            return self.parent.get_user_item_ids(user_id)
+        return self._user_item_ids.get(int(user_id), frozenset())
 
     def dataset_active_users(self):
         if self._cached_user_count is None:
@@ -438,25 +468,49 @@ class Recommender(ABC):
         )
         return [int(item_id) for item_id, _ in weighted_items[:limit]]
 
+    def _representation_from_items(self, item_ids: list[int]) -> list[float]:
+        feature_vectors = self.get_item_feature_vectors(item_ids)
+        if not feature_vectors:
+            return []
+
+        X = np.asarray(feature_vectors, dtype=np.float32)
+        if X.ndim != 2 or X.shape[0] == 0:
+            return []
+
+        row_sums = X.sum(axis=1, keepdims=True)
+        Xn = np.divide(X, row_sums, out=np.zeros_like(X), where=row_sums > 0)
+        mu = Xn.mean(axis=0)
+
+        s = float(mu.sum())
+        if s <= 0:
+            return []
+        return (mu / s).tolist()
+
     def update_popular_items_representation(self, items_count: int = 10, cycle: int | None = None) -> list:
         """
         Updates and returns a single vector representation (sums to 1) of the most popular n items.
 
-        If `items_count` is less than or equal to 0, no popularity representation
-        is computed.
+        When there are no interaction-derived popular items, use the top n items
+        from the configured popularity file used by the item sampler. This gives
+        new and newly activated recommenders a cycle-0 representation.
 
         If `cycle` is provided and interaction timestamps are available, only interactions
         from that cycle are used.
         """
-        if items_count <= 0:
-            self.representation = []
-            return self.representation
-        else:
-            interactions: pa.Table = self.get_dataset().interaction_table(format="arrow", original_ids=True)
-            if interactions is None or interactions.num_rows == 0:
-                self.representation = []
-                return self.representation
-
+        effective_count = int(items_count or 10)
+        if effective_count <= 0:
+            effective_count = 10
+        top_item_ids: list[int] = []
+        try:
+            dataset = self.get_dataset()
+        except AttributeError:
+            dataset = None
+        interactions: pa.Table | None = (
+            dataset.interaction_table(format="arrow", original_ids=True)
+            if dataset is not None
+            else None
+        )
+        if interactions is not None and interactions.num_rows > 0:
             item_ids = interactions.column("item_id").to_pylist()
 
             # Restrict to the requested cycle when timestamps are available.
@@ -473,35 +527,12 @@ class Recommender(ABC):
                     ]
 
             item_counts = Counter(int(item_id) for item_id in item_ids if item_id is not None)
-            top_item_ids = [item_id for item_id, _ in item_counts.most_common(items_count)]
+            top_item_ids = [item_id for item_id, _ in item_counts.most_common(effective_count)]
+
         if not top_item_ids:
-            self.representation = []
-            return self.representation
+            top_item_ids = self._top_items_from_top_n_file(limit=effective_count)
 
-        feature_vectors = self.get_item_feature_vectors(top_item_ids)
-        if not feature_vectors:
-            self.representation = []
-            return self.representation
-
-        X = np.asarray(feature_vectors, dtype=np.float32)
-        if X.ndim != 2 or X.shape[0] == 0:
-            self.representation = []
-            return self.representation
-
-        # 1) Normalize each row to sum to 1 (equal contribution per item)
-        row_sums = X.sum(axis=1, keepdims=True)
-        Xn = np.divide(X, row_sums, out=np.zeros_like(X), where=row_sums > 0)
-
-        # 2) Mean vector
-        mu = Xn.mean(axis=0)
-
-        # 3) Ensure final vector sums to 1
-        s = float(mu.sum())
-        if s <= 0:
-            self.representation = []
-            return self.representation
-        self.representation = (mu / s).tolist()
-
+        self.representation = self._representation_from_items(top_item_ids)
         return self.representation
 
     def get_popular_items_representation(self, items_count: int = 10, cycle: int | None = None) -> list:

@@ -1,7 +1,7 @@
 import numpy as np
 from icecream import ic
 from pathlib import Path
-from collections import defaultdict, Counter
+from collections import defaultdict
 
 from lenskit.data import ItemList
 
@@ -60,8 +60,9 @@ class Smores:
             self.recommender_metrics: defaultdict[str, dict[str, float]] = defaultdict(
                 Smores.SmoresState.default_rec_metrics
             )
-            # track user assignment sets for churn / growth calculations
-            self.prev_recommender_users: defaultdict[str, set[int]] = defaultdict(set)
+            # Snapshot assignments before each cycle so traffic generated during
+            # the cycle is not confused with assignments chosen for the next one.
+            self.cycle_start_recommender_users: defaultdict[str, set[int]] = defaultdict(set)
             # track trigger health for the current cycle
             self.trigger_success: bool = True
             # optional trigger tester
@@ -83,6 +84,7 @@ class Smores:
                 "sampled_items": 0,
                 "slate_items_total": 0,
                 "unique_items": set(),
+                "served_users": set(),
                 "new_interactions": 0,
                 "deleted_interactions": 0,
                 "clicks": 0,
@@ -180,6 +182,7 @@ class Smores:
             self.state.cycle_count += 1
 
     def run_cycle(self):
+        self.state.cycle_start_recommender_users = self._assigned_users_by_recommender()
         # Reset per-cycle clicked blocklist
         self.state.cycle_clicked_blocklist.clear()
         # Reset trigger health flag
@@ -195,6 +198,7 @@ class Smores:
             self.state.day_count += 1
         display_cycle = self.state.cycle_count + 1
         self.state.logger.info(f'  Finished cycle {display_cycle}')
+        self.update_recommender_representations()
         self.cycle_actions()
         if self.state.trigger_tester is not None:
             tester_ok = self.state.trigger_tester.run_cycle_checks()
@@ -204,7 +208,6 @@ class Smores:
         trained_any = False
         for rec_name in Smores.state.recommenders_active:
             recommender = Smores.state.recommenders_base.get_recommender(rec_name)
-            recommender.update_popular_items_representation(items_count=10, cycle=Smores.state.cycle_count)
             recommender._trained_this_step = False
             recommender.train()
             trained_any = trained_any or bool(getattr(recommender, "_trained_this_step", False))
@@ -212,6 +215,15 @@ class Smores:
             self.state.logger.info('  Completed recommender training')
         else:
             self.state.logger.info('  No training performed - using popular items')
+
+    def update_recommender_representations(self):
+        """Refresh previews from the cycle just served, before consumer choice."""
+        for rec_name in Smores.state.recommenders_active:
+            recommender = Smores.state.recommenders_base.get_recommender(rec_name)
+            recommender.update_popular_items_representation(
+                items_count=10,
+                cycle=Smores.state.cycle_count,
+            )
 
     # Interaction format: (consumer.id, selected_id, consumer.recommender.name, rating, Smores.state.current_time)
     def process_interactions(self, interactions: list):
@@ -253,17 +265,29 @@ class Smores:
             self._apply_trigger_safe(trigger, event)
 
 
+    def _assigned_users_by_recommender(self) -> defaultdict[str, set[int]]:
+        assignment_users: defaultdict[str, set[int]] = defaultdict(set)
+        for consumer in self.state.consumers:
+            assigned_rec = getattr(consumer, 'recommender', None)
+            if assigned_rec is not None and getattr(assigned_rec, 'name', None):
+                assignment_users[assigned_rec.name].add(consumer.id)
+        return assignment_users
+
     def _log_cycle_stats(self, display_cycle: int) -> None:
         state = Smores.state
         include_trigger_tester = state.trigger_tester is not None
-        assignment_counts: Counter[str] = Counter()
-        assignment_users: defaultdict[str, set[int]] = defaultdict(set)
-        for consumer in state.consumers:
-            assigned_rec = getattr(consumer, 'recommender', None)
-            if assigned_rec is not None and getattr(assigned_rec, 'name', None):
-                rec_name = assigned_rec.name
-                assignment_counts[rec_name] += 1
-                assignment_users[rec_name].add(consumer.id)
+        end_assignment_users = self._assigned_users_by_recommender()
+        platform_unique_item_ids: set[int] = set()
+        for rec_name in state.recommenders_active:
+            platform_unique_item_ids.update(
+                state.recommender_metrics[rec_name].get("unique_items", set())
+            )
+        platform_item_count = len(state.items.all_items())
+        platform_coverage_pct = (
+            len(platform_unique_item_ids) / platform_item_count * 100
+            if platform_item_count
+            else 0
+        )
 
         for rec_name in state.recommenders_active:
             rec = state.recommenders_base.get_recommender(rec_name)
@@ -276,8 +300,12 @@ class Smores:
             user_count = getattr(dataset, "user_count", 0)
             item_count = getattr(dataset, "item_count", 0)
             avg_profile = interactions / user_count if user_count else 0
-            assigned_users = assignment_counts.get(rec_name, 0)
             metrics = state.recommender_metrics[rec_name]
+            start_users = state.cycle_start_recommender_users.get(rec_name, set())
+            served_user_ids = metrics.get("served_users", set())
+            end_users = end_assignment_users.get(rec_name, set())
+            new_assignments = end_users - start_users
+            departures = start_users - end_users
             rec_requests = metrics.get("recommendations", 0)
             rec_fallbacks = metrics.get("fallback_used", 0)
             sampled_items = metrics.get("sampled_items", 0)
@@ -290,15 +318,6 @@ class Smores:
             deleted_interactions = metrics.get("deleted_interactions", 0)
             clicks = metrics.get("clicks", 0)
             ctr = (clicks / rec_requests) if rec_requests else 0
-            current_users = assignment_users.get(rec_name, set())
-            prev_users = state.prev_recommender_users.get(rec_name, set())
-            new_users = current_users - prev_users
-            churned_users = prev_users - current_users
-            state.prev_recommender_users[rec_name] = set(current_users)
-            rec.update_popular_items_representation(
-                items_count=10,
-                cycle=state.cycle_count,
-            )
             rec_representation = rec.representation
             rec_repr_str = ("[" + ", ".join(f"{x:.3f}" for x in rec_representation) + "]")
 
@@ -309,16 +328,23 @@ class Smores:
                 "dataset_users": user_count,
                 "dataset_items": item_count,
                 "avg_profile_len": round(avg_profile, 2),
-                "active_users": assigned_users,
-                "new_users": len(new_users),
-                "churned_users": len(churned_users),
+                "users_at_cycle_start": len(start_users),
+                "served_users": len(served_user_ids),
+                "users_at_cycle_end": len(end_users),
+                "new_assignments": len(new_assignments),
+                "departures": len(departures),
                 "new_interactions": new_interactions,
                 "deleted_interactions": deleted_interactions,
                 "avg_slate_size": round(avg_slate_size, 2),
                 "unique_items": unique_item_count,
                 "coverage_pct": round(coverage_pct, 1),
+                "platform_unique_items": len(platform_unique_item_ids),
+                "platform_coverage_pct": round(platform_coverage_pct, 1),
                 "rec_requests": rec_requests,
+                "clicks": clicks,
                 "fallback_used": rec_fallbacks,
+                "sampled_items": sampled_items,
+                "slate_items_total": delivered_slate,
                 "avg_sampled": round(avg_sampled, 2),
                 "ctr": round(ctr, 2),
                 "rec_representation": rec_repr_str,
@@ -331,13 +357,17 @@ class Smores:
                 f"  dataset_users       : {user_count}\n"
                 f"  dataset_items       : {item_count}\n"
                 f"  avg_profile_len     : {avg_profile:.2f}\n"
-                f"  active_users        : {assigned_users}\n"
-                f"  new_users           : {len(new_users)}\n"
-                f"  churned_users       : {len(churned_users)}\n"
+                f"  users_at_cycle_start: {len(start_users)}\n"
+                f"  served_users        : {len(served_user_ids)}\n"
+                f"  users_at_cycle_end  : {len(end_users)}\n"
+                f"  new_assignments     : {len(new_assignments)}\n"
+                f"  departures          : {len(departures)}\n"
                 f"  new_interactions    : {new_interactions}\n"
                 f"  deleted_interactions: {deleted_interactions}\n"
                 f"  avg_slate_size      : {avg_slate_size:.2f}\n"
                 f"  unique_items        : {unique_item_count} ({coverage_pct:.1f}%)\n"
+                f"  platform_coverage   : {len(platform_unique_item_ids)} ({platform_coverage_pct:.1f}%)\n"
+                f"  clicks              : {clicks}/{rec_requests}\n"
                 f"  fallback_used       : {rec_fallbacks}/{rec_requests}\n"
                 f"  avg_sampled         : {avg_sampled:.2f}\n"
                 f"  ctr                 : {ctr:.2f}\n"
@@ -350,7 +380,7 @@ class Smores:
                     log_msg += f" ({note})"
             state.logger.info(log_msg)
             state.logger.log_cycle_metrics(cycle_row)
-            state.summary_logger.set_active_users(rec_name, assigned_users)
+            state.summary_logger.set_active_users(rec_name, len(end_users))
             # reset per-cycle metrics
             state.recommender_metrics[rec_name] = state.default_rec_metrics()
 
@@ -382,6 +412,7 @@ class Smores:
         # Track per-cycle recommender metrics
         rec_metrics = state.recommender_metrics[consumer.recommender.name]
         rec_metrics["recommendations"] += 1
+        rec_metrics["served_users"].add(consumer.id)
         rec_metrics["fallback_used"] += 1 if getattr(consumer.recommender, "_last_used_fallback", False) else 0
         rec_metrics["sampled_items"] += getattr(consumer.recommender, "_last_sampled_count", 0)
         rec_metrics["slate_items_total"] += len(slate_items)

@@ -1,6 +1,7 @@
 import unittest
 import yaml
 import csv
+import numpy as np
 from pathlib import Path
 
 from smores.utils import SmoresConfig, PythonClassConfig
@@ -60,6 +61,29 @@ class ItemSamplingTestCase(unittest.TestCase):
 
         # Verify we got unique items
         self.assertEqual(len(sampled), len(set(sampled)))
+
+    def test_vectorized_sampling_matches_previous_seeded_behavior(self):
+        """Vectorized filtering preserves the previous seeded sampling result."""
+        sampler = RejectionSampler()
+        sampler.load_from_file(FIXTURE_DATA_DIR / 'item_popularity.csv')
+        exclude_items = {200, 202}
+
+        self.smores.state.rand = np.random.default_rng(42)
+        candidate_ids, candidate_probs = sampler._filtered_items(exclude_items)
+        prob_sum = sum(candidate_probs)
+        candidate_probs = [prob / prob_sum for prob in candidate_probs]
+        chosen_indices = self.smores.state.rand.choice(
+            len(candidate_ids),
+            size=min(3, len(candidate_ids)),
+            replace=False,
+            p=candidate_probs,
+        )
+        expected = [candidate_ids[index] for index in chosen_indices]
+
+        self.smores.state.rand = np.random.default_rng(42)
+        actual = sampler.sample(3, exclude_items=exclude_items)
+
+        self.assertEqual(actual, expected)
 
     def test_recommender_with_item_sampling_config(self):
         """Test that recommender correctly parses and uses item_sampler config."""
