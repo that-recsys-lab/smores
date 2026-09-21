@@ -12,22 +12,12 @@ from tests.paths import FIXTURE_DATA_DIR, TEST_CONFIG_PATH
 def test_imports():
     """Test that all imports work."""
     print("Testing imports...")
-    try:
-        from smores.samplers.item_sampler import ItemSampler
-        print("  ✓ ItemSampler imported")
-    except Exception as e:
-        print(f"  ✗ ItemSampler import failed: {e}")
-        return False
+    from smores.samplers.item_sampler import ItemSampler
+    from smores.samplers.rejection_sampler import RejectionSampler
 
-    try:
-        from smores.samplers.rejection_sampler import RejectionSampler
-        print("  ✓ RejectionSampler imported")
-    except Exception as e:
-        print(f"  ✗ RejectionSampler import failed: {e}")
-        return False
-
+    assert ItemSampler is not None
+    assert RejectionSampler is not None
     print("All imports successful!\n")
-    return True
 
 
 def test_rejection_sampler():
@@ -78,7 +68,6 @@ def test_rejection_sampler():
     print("  ✓ No excluded items in results")
 
     print("\nRejectionSampler test passed!\n")
-    return True
 
 
 def test_recommender_integration():
@@ -178,7 +167,6 @@ def test_recommender_integration():
     print(f"  Lowest scores: {[(rec_ids[i], f'{s:.2f}') for i, s in sorted_scores[:min(3, len(sorted_scores))]]}")
 
     print("\nRecommender integration test passed!\n")
-    return True
 
 
 if __name__ == '__main__':
@@ -189,19 +177,13 @@ if __name__ == '__main__':
 
     try:
         # Test 1: Imports
-        if not test_imports():
-            print("Import test failed - stopping")
-            exit(1)
+        test_imports()
 
         # Test 2: RejectionSampler
-        if not test_rejection_sampler():
-            print("RejectionSampler test failed - stopping")
-            exit(1)
+        test_rejection_sampler()
 
         # Test 3: Integration
-        if not test_recommender_integration():
-            print("Integration test failed - stopping")
-            exit(1)
+        test_recommender_integration()
 
         print("=" * 60)
         print("✓ ALL TESTS PASSED!")

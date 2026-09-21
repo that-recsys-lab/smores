@@ -57,13 +57,14 @@ class InitialBurnInTriggerTest(TriggerIntegrationTestCase):
                     "params": {
                         "cycle_count": 1,
                         "repeating": "False",
-                        "recommenders": ["Niche"],
+                        "recommenders": ["Generic", "Niche"],
                     },
                 },
             )
         )
 
         trigger.handle_event(CycleEvent(0, time=0))
+        self.assertEqual(["Generic", "Niche"], state.recommenders_active)
         self.assertIn("Niche", state.recommenders_active)
 
 
@@ -178,4 +179,3 @@ class UniversalProfileTriggerTest(TriggerIntegrationTestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

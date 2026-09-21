@@ -115,11 +115,7 @@ class SummaryLogger:
                 coverage_pct = 100.0 * coverage_count / self._catalog_size
 
             avg_slate = delivered / bucket['events'] if bucket['events'] else 0.0
-            if bucket['sampled']:
-                sampled_ratio = delivered / bucket['sampled']
-                sampled_ratio = min(sampled_ratio, 1.0)
-            else:
-                sampled_ratio = 0.0
+            sampled_ratio = bucket['sampled'] / delivered if delivered else 0.0
             ctr = bucket['clicks'] / bucket['click_events'] if bucket['click_events'] else 0.0
             fallback_share = bucket['fallback'] / bucket['events'] if bucket['events'] else 0.0
 

@@ -86,10 +86,10 @@ class InitialBurnInTrigger(CycleTrigger):
         # activate listed recommenders
         for name in self.recommenders_to_activate:
             rec = Recommender.name2base_recommender(name)
-            if rec is not None and name not in smores.Smores.state.recommenders_active:
-                smores.Smores.state.recommenders_active.append(name)
-            else:
+            if rec is None:
                 raise UnknownRecommenderError(name)
+            if name not in smores.Smores.state.recommenders_active:
+                smores.Smores.state.recommenders_active.append(name)
 
 
 class InteractionBatchTrigger(Trigger):
