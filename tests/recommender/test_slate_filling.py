@@ -89,6 +89,23 @@ class SlateFillingTestCase(unittest.TestCase):
         self.assertEqual(slate_ids[:6], [1, 2, 3, 4, 5, 6])
         self.assertEqual(slate_ids[6:], [101, 102, 103, 104])
         self.assertEqual(recommender._last_sampled_count, 4)
+        self.assertEqual(recommender._last_candidate_count_after_filters, 10)
+
+    def test_candidate_count_tracks_short_and_empty_filtered_pools(self):
+        smores.Smores.state.slate_size = 4
+        smores.Smores.state.cycle_clicked_blocklist[42].update({2, 4})
+        recommender = DummyRecommender(core_ids=[1, 2, 3, 4], sampler=DummySampler([]), sampled_count=0)
+
+        slate = recommender.get_recommendations(user_id=42)
+
+        self.assertEqual(list(slate.ids()), [1, 3])
+        self.assertEqual(recommender._last_candidate_count_after_filters, 2)
+
+        recommender.core_ids = []
+        slate = recommender.get_recommendations(user_id=42)
+
+        self.assertEqual(list(slate.ids()), [])
+        self.assertEqual(recommender._last_candidate_count_after_filters, 0)
 
     def test_sampler_tail_replaces_excess_core_items(self):
         sampler = DummySampler([201, 202, 203])

@@ -40,6 +40,7 @@ class FileBasedRecommender(Recommender):
 
         slate_size = smores.Smores.state.slate_size
         sampled_items = self.item_sampler.sample(slate_size, exclude_items=interacted_items)
+        self._last_candidate_count_after_filters = len(sampled_items)
 
         scores = [1.0] * len(sampled_items)
         ranks = list(range(1, len(sampled_items) + 1))

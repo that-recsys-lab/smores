@@ -36,6 +36,8 @@ class Recommender(ABC):
         self._cooldown_until_cycle: defaultdict[int, dict[int, int]] = defaultdict(dict)
         self._last_sampled_count: int = 0
         self._last_used_fallback: bool = False
+        self._last_fallback_reason: str = ''
+        self._last_candidate_count_after_filters: int | None = None
         self.representation: list[float] = []
 
     @abstractmethod
@@ -221,6 +223,7 @@ class Recommender(ABC):
         filtered_recs = self._filter_blocked_items(user_id, recommendations)
         self._last_sampled_count = 0
         self._last_used_fallback = False
+        self._last_candidate_count_after_filters = None
 
         ids_array = filtered_recs.ids()
         scores_array = filtered_recs.scores()
@@ -330,6 +333,7 @@ class Recommender(ABC):
             final_ranks = None
 
         self._last_sampled_count = sampler_total
+        self._last_candidate_count_after_filters = len(core_ids) + sampler_total
 
         if final_scores is not None and len(final_scores) != len(final_ids):
             # In case score tracking was disabled mid-stream, fall back to None.
@@ -566,6 +570,7 @@ class FixedItemRecommender(Recommender):
             rec_pool = [item for item in list(smores.Smores.state.items.all_items()) if item not in prior_interactions.ids()]
         else:
             rec_pool = list(smores.Smores.state.items.all_items())
+        self._last_candidate_count_after_filters = len(rec_pool)
         recs = rec_pool[0:smores.Smores.state.slate_size]
         scores = [5.0] * len(recs)
         ranks = list(range(1, len(recs)+1))

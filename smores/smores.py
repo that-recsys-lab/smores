@@ -392,6 +392,7 @@ class Smores:
 
         # Get recommendations from associated recommender
         if consumer.recommender is not None:
+            profile_size = len(consumer.recommender.get_user_item_ids(consumer.id))
             recs: ItemList = consumer.recommender.get_recommendations(consumer.id)
         else:
             raise RecommenderUnassignedException(consumer)
@@ -455,8 +456,20 @@ class Smores:
             raise RecommenderChoiceUnassignedException(consumer)
         
         # log the consumer utility
+        requested_slate_size = state.slate_size
+        delivered_slate_size = len(slate_items)
+        candidate_count_after_filters = None
+        if delivered_slate_size < requested_slate_size:
+            candidate_count_after_filters = getattr(
+                consumer.recommender, '_last_candidate_count_after_filters', None
+            )
+            if candidate_count_after_filters is None:
+                candidate_count_after_filters = delivered_slate_size
         Smores.state.logger.log_consumer(ConsumerUtility(consumer.id, consumer.type, consumer.recommender.name, interaction_utility,
-                                                         recommender_utility, time))
+                                                         recommender_utility, time,
+                                                         getattr(consumer.recommender, '_last_fallback_reason', ''),
+                                                         profile_size, requested_slate_size, delivered_slate_size,
+                                                         candidate_count_after_filters))
 
         if state.logger.is_sampled_user(consumer.id):
             slate_utilities = []

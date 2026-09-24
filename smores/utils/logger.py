@@ -10,7 +10,22 @@ from collections import namedtuple, Counter
 from smores.utils import LoggerConfig
 import smores
 
-ConsumerUtility = namedtuple('ConsumerUtility', ['consumer_id', 'consumer_type', 'recommender', 'utility', 'aggregate', 'time'])
+ConsumerUtility = namedtuple(
+    'ConsumerUtility',
+    [
+        'consumer_id',
+        'consumer_type',
+        'recommender',
+        'utility',
+        'aggregate',
+        'time',
+        'fallback_reason',
+        'profile_size',
+        'requested_slate_size',
+        'delivered_slate_size',
+        'candidate_count_after_filters',
+    ],
+)
 ProviderUtility = namedtuple('ProviderUtility', ['provider_id', 'provider_type', 'recommender', 'utility', 'time'])
 ChoiceUtility = namedtuple('ChoiceUtility', ['consumer_id', 'consumer_type', 'current_recommender', 'next_recommender', 'utilities', 'time'])
 UserJourney = namedtuple('UserJourney', ['user_id', 'cycle', 'day', 'time', 'recommender', 'slate_size', 'slate_items', 'slate_scores', 'slate_utilities', 'selected_item', 'selected_rank', 'selected_utility', 'max_utility', 'num_unique_items_clicked', 'num_unique_items_seen'])

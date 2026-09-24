@@ -125,17 +125,27 @@ class LKRecommender(Recommender):
         return pipe.build()
 
     def get_recommendations(self, user_id: ID):
+        self._last_fallback_reason = ''
+        self._last_candidate_count_after_filters = None
         if not self.isDatasetViable():
             cold_start_rec = smores.Smores.state.recommenders_fallback.get_recommender(self.cold_start_fallback)
             self._last_used_fallback = True
+            self._last_fallback_reason = 'dataset_not_viable'
             result = cold_start_rec.get_recommendations(user_id)
             self._last_sampled_count = getattr(cold_start_rec, '_last_sampled_count', 0)
+            self._last_candidate_count_after_filters = getattr(
+                cold_start_rec, '_last_candidate_count_after_filters', len(result.ids())
+            )
             return result
         elif not self.isProfileViable(user_id):
             cold_user_rec = smores.Smores.state.recommenders_fallback.get_recommender(self.cold_user_fallback)
             self._last_used_fallback = True
+            self._last_fallback_reason = 'profile_too_small'
             result = cold_user_rec.get_recommendations(user_id)
             self._last_sampled_count = getattr(cold_user_rec, '_last_sampled_count', 0)
+            self._last_candidate_count_after_filters = getattr(
+                cold_user_rec, '_last_candidate_count_after_filters', len(result.ids())
+            )
             return result
         else:
             recs = recommend(self.pipeline, user_id)
